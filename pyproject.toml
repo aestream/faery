@@ -1,0 +1,31 @@
+[project]
+name = "faery"
+description = "Flexible AER librarY"
+readme = "README.md"
+license = {file = "LICENSE"}
+authors = [
+    {name = "Alexandre Marcireau"},
+    {name = "Jens Egholm Pedersen"},
+]
+version = "0.1.1"
+requires-python = ">=3.8"
+dependencies = ["numpy>=1.24"]
+
+[project.urls]
+homepage = "https://github.com/aestream/faery/"
+repository = "https://github.com/aestream/faery/"
+documentation = "https://github.com/aestream/faery/"
+
+# [build-system]
+# requires = ["maturin==1.6.0", "numpy"]
+# build-backend = "maturin"
+
+[tool.maturin]
+python-source = "src/python"
+
+[tool.pyright]
+typeCheckingMode = "basic"
+executionEnvironments = [{root = ".", venv = ".venv"}]
+
+[tool.isort]
+profile = "black"
