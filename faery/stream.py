@@ -7,9 +7,9 @@ class Sink():
     def process(self, data: "Events") -> None:
         raise NotImplementedError()
 
-class Stream[T]:
+class Stream:
 
-    def __iter__(self) -> "StreamIterator[T]":
+    def __iter__(self) -> "StreamIterator":
         raise NotImplementedError()
 
     def output(self, sink: Sink) -> None:
@@ -20,25 +20,30 @@ class Stream[T]:
     #     if path.endswith(".csv"):
     #         self.output(
 
-class StreamIterator[T]:
+class StreamIterator:
 
-    BUFFER_SIZE = 1024
+    BUFFER_SIZE: int = 1024 * 64
 
-    def __iter__(self) -> typing.Iterator[T]:
+    def __iter__(self) -> typing.Iterator:
         return self
 
     def __next__(self) -> typing.Any:
         raise NotImplementedError()
 
-@dataclasses.dataclass
-class Event:
-  t: int
-  x: int
-  y: int
-  p: bool
+class EventStream(Stream):
+    pass
 
-Events = typing.List[Event]
+class EventStreamIterator(StreamIterator):
+    pass
 
-class EventStream(Stream[Events]):
+class ChunkedEventStream(Stream):
+    pass
 
+class ChunkedEventStreamIterator(StreamIterator):
+    pass
+
+class FrameStream(Stream):
+    pass
+
+class FrameStreamIterator(StreamIterator):
     pass
