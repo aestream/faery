@@ -1,0 +1,3 @@
+[submodule "rust-numpy"]
+	path = rust-numpy
+	url = https://github.com/aMarcireau/rust-numpy.git

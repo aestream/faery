@@ -1,13 +1,25 @@
 use pyo3::prelude::*;
 extern crate ndarray;
 
-mod aedat;
+// mod aedat;
 mod dat;
-mod event_stream;
-mod evt;
-mod render;
+// mod event_stream;
+// mod evt;
+// mod render;
 mod types;
 mod utilities;
+
+#[pymodule]
+#[pyo3(name="_faery")]
+fn faery(python: Python<'_>, module: &pyo3::Bound<'_, pyo3::types::PyModule>) -> PyResult<()> {
+    {
+        let submodule = PyModule::new_bound(python, "dat")?;
+        submodule.add_class::<dat::Decoder>()?;
+        submodule.add_class::<dat::Encoder>()?;
+        module.add_submodule(&submodule)?;
+    }
+    Ok(())
+}
 
 // #[pymodule]
 // fn faery(python: Python, module: &pyo3::Bound<'_, pyo3::types::PyModule>) -> PyResult<()> {

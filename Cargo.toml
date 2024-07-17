@@ -14,13 +14,14 @@ crate-type = ["cdylib"]
 #image = {version = "0.25.1", default-features = false, features = ["png"]}
 #lz4 = "1.25.0"
 #mp4 = "0.14.0"
-#ndarray = "0.15.6"
+ndarray = "0.13"
 #neuromorphic-types = "0.4.0"
-#numpy = {path = "../../../miscellaneous/rust-numpy"}
-#pyo3 = {version = "0.21.2", features = ["extension-module"]}
+numpy = {path = "rust-numpy"}
+# numpy = "0.21"
+pyo3 = {version = "0.21.2", features = ["extension-module"]}
 #roxmltree = "0.20.0"
-#thiserror = "1.0"
-#zstd = "0.13.1"
+thiserror = "1.0"
+zstd = "0.13.1"
 
 [build-dependencies]
 bindgen = "0.69.4"
