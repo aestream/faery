@@ -1,49 +1,38 @@
-import dataclasses
-import typing
+from dataclasses import dataclass
+from typing import Any, Generic, Iterator, TypeVar
 
-T = typing.TypeVar("T")
+from .output import EventOutput, FrameOutput
+from .types import Events
 
-class Sink():
-    def process(self, data: "Events") -> None:
-        raise NotImplementedError()
+T = TypeVar("T")
 
-class Stream:
+
+class Stream(Generic[T]):
 
     def __iter__(self) -> "StreamIterator":
         raise NotImplementedError()
-
-    def output(self, sink: Sink) -> None:
-        for data in self:
-            sink.process(data)
 
     # def save(self, path: str) -> None:
     #     if path.endswith(".csv"):
     #         self.output(
 
-class StreamIterator:
+
+class StreamIterator(Generic[T]):
 
     BUFFER_SIZE: int = 1024 * 64
 
-    def __iter__(self) -> typing.Iterator:
+    def __iter__(self) -> Iterator:
         return self
 
-    def __next__(self) -> typing.Any:
+    def __next__(self) -> Any:
         raise NotImplementedError()
 
-class EventStream(Stream):
+
+class EndlessStream(Stream[T], Generic[T]):
     pass
 
-class EventStreamIterator(StreamIterator):
-    pass
 
-class ChunkedEventStream(Stream):
-    pass
+class FiniteStream(Stream[T], Generic[T]):
 
-class ChunkedEventStreamIterator(StreamIterator):
-    pass
-
-class FrameStream(Stream):
-    pass
-
-class FrameStreamIterator(StreamIterator):
-    pass
+    def rate(self) -> float:
+        raise NotImplementedError()

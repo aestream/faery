@@ -1,10 +1,14 @@
 from pathlib import Path
 import re
+import numpy
 
-from stream import StreamIterator, EventStream, Event, Events
+from .stream import StreamIterator
+from .stream_event import EventStream
+from .types import Event, Events
+from .output import EventOutput
 
 
-class CsvFileEventStreamIterator(StreamIterator[Events]):
+class CsvFileEventStreamIterator(StreamIterator):
 
     CSV_PATTERN = re.compile(r"(\d*),(\d*),(\d*),(\d)")
 
@@ -17,17 +21,20 @@ class CsvFileEventStreamIterator(StreamIterator[Events]):
         for line in self.fp:
             match = self.CSV_PATTERN.match(line)
             if match:
-                buffer.append(Event(
-                    t=int(match.group(1)),
-                    x=int(match.group(2)),
-                    y=int(match.group(3)),
-                    p=bool(match.group(4))
-                ))
+                buffer.append(
+                    (
+                        int(match.group(1)),  # t
+                        int(match.group(2)),  # x
+                        int(match.group(3)),  # y
+                        int(match.group(4)),  # p
+                    )
+                )
             if len(buffer) >= self.BUFFER_SIZE:
-                return buffer
+                return numpy.array(buffer, dtype=Event)
         if len(buffer) > 0:
-            return buffer
+            return numpy.array(buffer, dtype=Event)
         raise StopIteration()
+
 
 class CsvFileEventStream(EventStream):
 
@@ -37,3 +44,17 @@ class CsvFileEventStream(EventStream):
 
     def __iter__(self) -> "StreamIterator[Events]":
         return CsvFileEventStreamIterator(self.path)
+
+
+class CsvOutput(EventOutput):
+
+    def __init__(self, path: str) -> None:
+        self.path = Path(path)
+        self.fp = open(self.path, "w")
+
+    def close(self):
+        self.fp.close()
+
+    def apply(self, data: Events, *args, **kwargs):
+        for event in data:
+            self.fp.write(f"{event.t},{event.x},{event.y},{int(event.p)}\n")

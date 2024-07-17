@@ -3,3 +3,4 @@
 faery-old/
 target/
 __pycache__/
+*.so

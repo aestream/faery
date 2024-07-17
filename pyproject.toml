@@ -19,7 +19,7 @@ build-backend = "maturin"
 
 [tool.maturin]
 features = ["pyo3/extension-module"]
-python-source = "faery"
+# python-source = "faery"
 
 [tool.pyright]
 typeCheckingMode = "basic"
