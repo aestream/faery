@@ -1,5 +1,5 @@
-from .stream import Stream, StreamIterator
-from .types import Frame
+from faery.stream import Stream, StreamIterator
+from faery.stream_types import Frame
 
 
 class FrameStream(Stream[Frame]):

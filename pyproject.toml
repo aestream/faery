@@ -1,12 +1,19 @@
 [project]
 name = "faery"
-description = "Flexible AER librarY"
+description = "Ferries event-based data from A to B"
 readme = "README.md"
 license = { file = "LICENSE" }
-authors = [{ name = "Alexandre Marcireau" }, { name = "Jens Egholm Pedersen" }]
+authors = [
+  { name = "Alexandre Marcireau", email = "alexandre.marcireau@gmail.com" },
+  { name = "Jens Egholm Pedersen", email = "jens@jepedersen.dk" },
+  { name = "Gregor Lenz", email = "gregor@neurobus.space" },
+]
 version = "0.1.1"
 requires-python = ">=3.8"
-dependencies = ["numpy>=1.24"]
+dependencies = ["click", "numpy>=2"]
+
+[project.scripts]
+faery = "faery:__main__.main"
 
 [project.urls]
 homepage = "https://github.com/aestream/faery/"
@@ -14,12 +21,12 @@ repository = "https://github.com/aestream/faery/"
 documentation = "https://github.com/aestream/faery/"
 
 [build-system]
-requires = ["maturin==1.6.0", "numpy"]
+requires = ["maturin==1.6.0"]
 build-backend = "maturin"
 
 [tool.maturin]
 features = ["pyo3/extension-module"]
-# python-source = "faery"
+module-name = "faery.rusty_faery"
 
 [tool.pyright]
 typeCheckingMode = "basic"

@@ -1,7 +1,7 @@
-from .types import Events
-
 import numpy
 from atexit import register
+
+from faery.stream_types import Events
 
 
 class StatefulOutput:

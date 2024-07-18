@@ -7,6 +7,7 @@ class DatFileEventStreamIterator(StreamIterator[Events]):
         self.path = path
         # ...
 
+
 class DatFileEventStream(EventStream):
 
     def __init__(self, path: str) -> None:

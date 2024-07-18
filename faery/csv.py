@@ -2,10 +2,10 @@ from pathlib import Path
 import re
 import numpy
 
-from .stream import StreamIterator
-from .stream_event import EventStream
-from .types import Event, Events
-from .output import EventOutput
+from faery.stream import StreamIterator
+from faery.stream_event import EventStream
+from faery.stream_types import Event, Events
+from faery.output import EventOutput
 
 
 class CsvFileEventStreamIterator(StreamIterator):

@@ -5,7 +5,7 @@ edition = "2021"
 resolver = "2"
 
 [lib]
-name = "faery"
+name = "rusty_faery"
 crate-type = ["cdylib"]
 
 [dependencies]
