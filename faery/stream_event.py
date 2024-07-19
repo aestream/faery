@@ -25,6 +25,9 @@ class EventStream(Stream[Events]):
         for data in self:
             output.apply(data)
 
+    def chunk(self, dt: Optional[int] = None, n_events: Optional[int] = None) -> "ChunkedEventStream":
+        return ChunkedEventStream(parent=iter(self), dt=dt, n_events=n_events)
+
 
 class EventStreamIterator(StreamIterator[Events]):
     pass
@@ -66,13 +69,13 @@ class ChunkedEventStreamIterator(StreamIterator[Events]):
                     self.buffer.append(event)
                     if len(self.buffer) >= self.n_events:
                         chunk, self.buffer = self.buffer, []
-                        return np.array(chunk, dtype=Events)
+                        return np.array(chunk)
             else:
                 self.state = next(self.parent)
                 for event in self.state:
-                    event = self.state[0]
+                    event = self.state[:1]
                     self.state = self.state[1:]
                     self.buffer.append(event)
                     if len(self.buffer) >= self.n_events:
                         chunk, self.buffer = self.buffer, []
-                        return np.array(chunk, dtype=Events)
+                        return np.array(chunk)

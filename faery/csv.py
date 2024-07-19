@@ -47,10 +47,7 @@ class CsvFileEventStream(EventStream):
     def __iter__(self) -> "StreamIterator[Events]":
         return CsvFileEventStreamIterator(self.path)
     
-    def chunk(self, dt: Optional[int] = None, n_events: Optional[int] = None) -> "ChunkedEventStream":
-        return ChunkedEventStream(parent=iter(self), dt=dt, n_events=n_events)
-
-
+    
 class CsvOutput(EventOutput):
 
     def __init__(self, path: str) -> None:
