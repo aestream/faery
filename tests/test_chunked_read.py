@@ -2,7 +2,7 @@ import faery
 import numpy as np
 
 def test_chunked_event_stream():
-    stream = faery.read_file("tests/data/test.csv").chunk(n_events=2)
+    stream = faery.read_file("tests/data/sample.csv").chunk(n_events=2)
 
     chunk = next(iter(stream))
 

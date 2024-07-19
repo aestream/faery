@@ -5,7 +5,7 @@ import faery
 
 
 def test_read_csv():
-    stream = faery.read_file("tests/data/test.csv")
+    stream = faery.read_file("tests/data/sample.csv")
 
     output = StringIO()
     stream.output(faery.StdEventOutput(file=output))
@@ -14,7 +14,7 @@ def test_read_csv():
 
 
 def test_write_csv():
-    stream = faery.read_file("tests/data/test.csv")
+    stream = faery.read_file("tests/data/sample.csv")
     with NamedTemporaryFile(mode="w+") as fp:
         stream.output(faery.CsvEventOutput(fp.file))
         fp.seek(0)
