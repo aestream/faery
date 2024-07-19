@@ -1,3 +1,4 @@
+from io import IOBase
 from pathlib import Path
 import re
 import numpy
@@ -10,7 +11,7 @@ from faery.output import EventOutput
 from faery.stream_event import ChunkedEventStream
 
 
-class CsvFileEventStreamIterator(StreamIterator):
+class CsvEventStreamIterator(StreamIterator):
 
     CSV_PATTERN = re.compile(r"(\d*),(\d*),(\d*),(\d)")
 
@@ -38,25 +39,28 @@ class CsvFileEventStreamIterator(StreamIterator):
         raise StopIteration()
 
 
-class CsvFileEventStream(EventStream):
+class CsvEventStream(EventStream):
 
     def __init__(self, path: Union[str, Path]) -> None:
         self.path = Path(path)
         assert self.path.is_file()
 
     def __iter__(self) -> "StreamIterator[Events]":
-        return CsvFileEventStreamIterator(self.path)
+        return CsvEventStreamIterator(self.path)
 
 
-class CsvOutput(EventOutput):
+class CsvEventOutput(EventOutput):
 
-    def __init__(self, path: str) -> None:
-        self.path = Path(path)
-        self.fp = open(self.path, "w")
+    def __init__(self, path: Union[str, Path, IOBase]) -> None:
+        if isinstance(path, IOBase):
+            self.fp = path
+        else:
+            path = Path(path)
+            self.fp = open(path, "w")
 
     def close(self):
         self.fp.close()
 
     def apply(self, data: Events, *args, **kwargs):
         for event in data:
-            self.fp.write(f"{event.t},{event.x},{event.y},{int(event.p)}\n")
+            self.fp.write(f"{event['t']},{event['x']},{event['y']},{int(event['p'])}\n")

@@ -3,7 +3,7 @@ from pathlib import Path
 
 import faery.rusty_faery as rusty
 
-from faery.csv import CsvFileEventStream
+from faery.csv import CsvEventStream
 from faery.stream_event import EventStream, EventStreamIterator
 
 
@@ -36,7 +36,7 @@ def read_file(filename: Union[str, Path]):
     assert filename.exists(), f"File {filename} does not exist"
 
     if filename.suffix == ".csv":
-        return CsvFileEventStream(filename)
+        return CsvEventStream(filename)
     elif filename.suffix == ".dat":
         return rusty.dat.Decoder(filename)
     elif filename.suffix == ".es":
