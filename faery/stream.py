@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 from typing import Any, Generic, Iterator, TypeVar, Optional
 
-from .output import EventOutput, FrameOutput
-from .types import Events
+from faery.output import EventOutput, FrameOutput
+from faery.stream_types import Events
 
 T = TypeVar("T")
 

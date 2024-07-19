@@ -10,8 +10,8 @@ mod types;
 mod utilities;
 
 #[pymodule]
-#[pyo3(name="_faery")]
-fn faery(python: Python<'_>, module: &pyo3::Bound<'_, pyo3::types::PyModule>) -> PyResult<()> {
+#[pyo3(name="rusty_faery")]
+fn rusty_faery(python: Python<'_>, module: &pyo3::Bound<'_, pyo3::types::PyModule>) -> PyResult<()> {
     {
         let submodule = PyModule::new_bound(python, "dat")?;
         submodule.add_class::<dat::Decoder>()?;

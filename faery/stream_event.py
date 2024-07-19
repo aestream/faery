@@ -1,23 +1,23 @@
 from typing import Optional, Union
 
-from .output import EventOutput
-from .stdio import StdEventOutput
-from .stream import Stream, StreamIterator
+from faery.output import EventOutput
+from faery.stream import Stream, StreamIterator
+from faery.stream_types import Events
+from typing import Optional, Union
 import numpy as np
-from .types import Event, Events
 
 
-def _output_from_str(output: str, **kwargs) -> Optional[EventOutput]:
-    if output == "stdout":
-        return StdEventOutput(**kwargs)
-    return None
+# def _output_from_str(output: str, **kwargs) -> Optional[EventOutput]:
+#     if output == "stdout":
+#         return StdEventOutput(**kwargs)
+#     return None
 
 
 class EventStream(Stream[Events]):
 
-    def output(self, output: Union[EventOutput, str], **kwargs) -> None:
-        if isinstance(output, str):
-            output = _output_from_str(output, **kwargs)
+    def output(self, output: EventOutput, **kwargs) -> None:
+        # if isinstance(output, str):
+            # output = _output_from_str(output, **kwargs)
 
         if not isinstance(output, EventOutput):
             raise ValueError(f"Unknown output: {output}")
@@ -40,8 +40,8 @@ class ChunkedEventStream(Stream[Events]):
         return ChunkedEventStreamIterator(parent=self.parent, dt=self.dt, n_events=self.n_events)
     
     def output(self, output: Union[EventOutput, str], **kwargs) -> None:
-        if isinstance(output, str):
-            output = _output_from_str(output, **kwargs)
+        # if isinstance(output, str):
+        #     output = _output_from_str(output, **kwargs)
 
         if not isinstance(output, EventOutput):
             raise ValueError(f"Unknown output: {output}")

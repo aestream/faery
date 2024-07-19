@@ -1,12 +1,13 @@
 from pathlib import Path
 import re
 import numpy
+from typing import Union, Optional
 
-from .stream import StreamIterator
-from .stream_event import EventStream, ChunkedEventStream
-from .types import Event, Events
-from .output import EventOutput
-from typing import Optional
+from faery.stream import StreamIterator
+from faery.stream_event import EventStream
+from faery.stream_types import Event, Events
+from faery.output import EventOutput
+from faery.stream_event import ChunkedEventStream
 
 
 class CsvFileEventStreamIterator(StreamIterator):
@@ -39,7 +40,7 @@ class CsvFileEventStreamIterator(StreamIterator):
 
 class CsvFileEventStream(EventStream):
 
-    def __init__(self, path: str) -> None:
+    def __init__(self, path: Union[str, Path]) -> None:
         self.path = Path(path)
         assert self.path.is_file()
 
