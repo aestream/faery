@@ -1,6 +1,7 @@
 from pathlib import Path
 import re
 import numpy
+from typing import Union
 
 from faery.stream import StreamIterator
 from faery.stream_event import EventStream
@@ -38,7 +39,7 @@ class CsvFileEventStreamIterator(StreamIterator):
 
 class CsvFileEventStream(EventStream):
 
-    def __init__(self, path: str) -> None:
+    def __init__(self, path: Union[str, Path]) -> None:
         self.path = Path(path)
         assert self.path.is_file()
 

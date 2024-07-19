@@ -1,6 +1,6 @@
 import click
 
-from faery.csv import CsvFileEventStream
+from faery.inputs import read_file
 
 from faery.stdio import StdEventInput
 
@@ -11,7 +11,7 @@ from faery.stdio import StdEventInput
 def cli_input(config, source):
     if source == "stdin":
         config.input = StdEventInput()
-    elif source.endswith(".csv"):
-        config.input = CsvFileEventStream(source)
+    elif source.endswith(".csv") or source.endswith(".dat"):
+        config.input = read_file(source)
     else:
         raise ValueError("Unsupported input source", source)
