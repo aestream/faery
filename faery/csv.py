@@ -3,9 +3,10 @@ import re
 import numpy
 
 from .stream import StreamIterator
-from .stream_event import EventStream
+from .stream_event import EventStream, ChunkedEventStream
 from .types import Event, Events
 from .output import EventOutput
+from typing import Optional
 
 
 class CsvFileEventStreamIterator(StreamIterator):
@@ -44,6 +45,9 @@ class CsvFileEventStream(EventStream):
 
     def __iter__(self) -> "StreamIterator[Events]":
         return CsvFileEventStreamIterator(self.path)
+    
+    def chunk(self, dt: Optional[int] = None, n_events: Optional[int] = None) -> "ChunkedEventStream":
+        return ChunkedEventStream(parent=iter(self), dt=dt, n_events=n_events)
 
 
 class CsvOutput(EventOutput):

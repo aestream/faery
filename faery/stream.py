@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, Generic, Iterator, TypeVar
+from typing import Any, Generic, Iterator, TypeVar, Optional
 
 from .output import EventOutput, FrameOutput
 from .types import Events

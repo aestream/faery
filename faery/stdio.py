@@ -10,3 +10,4 @@ class StdEventOutput(EventOutput):
     def apply(self, data: Events):
         for event in data:
             print(f"{event['t']},{event['x']},{event['y']},{int(event['p'])}", **self.kwargs)
+        print("", **self.kwargs)
