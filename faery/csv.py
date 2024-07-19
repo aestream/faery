@@ -46,8 +46,8 @@ class CsvFileEventStream(EventStream):
 
     def __iter__(self) -> "StreamIterator[Events]":
         return CsvFileEventStreamIterator(self.path)
-    
-    
+
+
 class CsvOutput(EventOutput):
 
     def __init__(self, path: str) -> None:

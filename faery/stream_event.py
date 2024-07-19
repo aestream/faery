@@ -17,7 +17,7 @@ class EventStream(Stream[Events]):
 
     def output(self, output: EventOutput, **kwargs) -> None:
         # if isinstance(output, str):
-            # output = _output_from_str(output, **kwargs)
+        # output = _output_from_str(output, **kwargs)
 
         if not isinstance(output, EventOutput):
             raise ValueError(f"Unknown output: {output}")
@@ -25,7 +25,9 @@ class EventStream(Stream[Events]):
         for data in self:
             output.apply(data)
 
-    def chunk(self, dt: Optional[int] = None, n_events: Optional[int] = None) -> "ChunkedEventStream":
+    def chunk(
+        self, dt: Optional[int] = None, n_events: Optional[int] = None
+    ) -> "ChunkedEventStream":
         return ChunkedEventStream(parent=iter(self), dt=dt, n_events=n_events)
 
 
@@ -34,14 +36,21 @@ class EventStreamIterator(StreamIterator[Events]):
 
 
 class ChunkedEventStream(Stream[Events]):
-    def __init__(self, parent: StreamIterator, dt: Optional[int] = None, n_events: Optional[int] = None):
+    def __init__(
+        self,
+        parent: StreamIterator,
+        dt: Optional[int] = None,
+        n_events: Optional[int] = None,
+    ):
         self.parent = parent
         self.dt = dt
         self.n_events = n_events
 
     def __iter__(self) -> "ChunkedEventStreamIterator":
-        return ChunkedEventStreamIterator(parent=self.parent, dt=self.dt, n_events=self.n_events)
-    
+        return ChunkedEventStreamIterator(
+            parent=self.parent, dt=self.dt, n_events=self.n_events
+        )
+
     def output(self, output: Union[EventOutput, str], **kwargs) -> None:
         # if isinstance(output, str):
         #     output = _output_from_str(output, **kwargs)
@@ -52,8 +61,14 @@ class ChunkedEventStream(Stream[Events]):
         for data in self:
             output.apply(data)
 
+
 class ChunkedEventStreamIterator(StreamIterator[Events]):
-    def __init__(self, parent: StreamIterator, dt: Optional[int] = None, n_events: Optional[int] = None) -> None:
+    def __init__(
+        self,
+        parent: StreamIterator,
+        dt: Optional[int] = None,
+        n_events: Optional[int] = None,
+    ) -> None:
         self.parent = parent
         self.dt = dt
         self.n_events = n_events
