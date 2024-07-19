@@ -9,17 +9,16 @@ name = "rusty_faery"
 crate-type = ["cdylib"]
 
 [dependencies]
-#flatbuffers = "24.3.25"
+flatbuffers = "24.3.25"
 #fontdue = "0.9.0"
 #image = {version = "0.25.1", default-features = false, features = ["png"]}
-#lz4 = "1.25.0"
+lz4 = "1.25.0"
 #mp4 = "0.14.0"
 ndarray = "0.13"
-#neuromorphic-types = "0.4.0"
+neuromorphic-types = "0.4.0"
 numpy = {path = "rust-numpy"}
-# numpy = "0.21"
 pyo3 = {version = "0.21.2", features = ["extension-module"]}
-#roxmltree = "0.20.0"
+roxmltree = "0.20.0"
 thiserror = "1.0"
 zstd = "0.13.1"
 
