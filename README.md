@@ -1,4 +1,4 @@
-# Faery: Event data I/O ferrying
+![faery logo](faery_logo.png)
 
 Faery sends event data from A to B.
 It is both a command-line tool and a Python library, wrapping an optimized core written in Rust.
