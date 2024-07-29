@@ -30,7 +30,7 @@
               pkgs.stdenv.cc.cc.lib
             ];
             postVenvCreation = ''
-              pip install -U pip setuptools wheel pytest
+              pip install -U pip setuptools wheel pytest black
               pip install -e .
               autoPatchelf ./.venv
             '';

@@ -9,7 +9,7 @@ authors = [
   { name = "Gregor Lenz", email = "gregor@neurobus.space" },
 ]
 version = "0.1.1"
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 dependencies = ["click", "numpy>=2"]
 
 [project.scripts]
