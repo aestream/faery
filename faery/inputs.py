@@ -43,6 +43,8 @@ class EventStreamFileEventStream(EventStream):
 def read_file(filename: Union[str, Path]):
     if isinstance(filename, str):
         filename = Path(filename)
+    if not filename.exists():
+        raise FileNotFoundError(f"File {filename} does not exist")
     assert filename.exists(), f"File {filename} does not exist"
 
     if filename.suffix == ".csv":

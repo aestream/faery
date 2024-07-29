@@ -39,13 +39,13 @@ class DatFileOutput(EventOutput):
     def __init__(
         self,
         path: Union[str, Path],
-        type: str,
-        dimension: Tuple[int, int],
+        dimensions: Tuple[int, int],
+        type: str = "cd",
         format: str = "2d",
     ) -> None:
         if isinstance(path, str):
             path = Path(path)
-        self.encoder = rusty.dat.Encoder(path, "dat2", format, True, dimension)
+        self.encoder = rusty.dat.Encoder(path, "dat2", format, True, dimensions)
 
     def apply(self, events: Events) -> None:
         events = events.astype(
@@ -63,7 +63,7 @@ class DatFileOutput(EventOutput):
         self.encoder.write(events)
 
 
-def file_output(name: Union[str, Path], dimensions: tuple[int, int]) -> EventOutput:
+def output_file(name: Union[str, Path], dimensions: tuple[int, int]) -> EventOutput:
     if isinstance(name, str):
         name = Path(name)
     if not isinstance(name, Path):
@@ -72,6 +72,6 @@ def file_output(name: Union[str, Path], dimensions: tuple[int, int]) -> EventOut
     if name.suffix == ".csv":
         return CsvEventOutput(name)
     elif name.suffix == ".dat":
-        return DatFileOutput(name, "cd", dimensions)
+        return DatFileOutput(name, dimensions)
     else:
         raise ValueError(f"Unsupported file type: {name}")
