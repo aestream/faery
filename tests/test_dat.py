@@ -21,7 +21,7 @@ def test_dat_read():
 def test_dat_write():
     stream = read_file("tests/data/sample.dat")
     with NamedTemporaryFile(mode="w+", suffix=".dat") as fp:
-        output = file_output(fp.file.name, dimensions=(640, 480))
+        output = file_output(str(fp.file.name), dimensions=(640, 480))
         stream.output(output)
 
         for ev in read_file(fp.file.name):

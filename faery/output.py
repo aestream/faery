@@ -66,6 +66,8 @@ class DatFileOutput(EventOutput):
 def file_output(name: Union[str, Path], dimensions: tuple[int, int]) -> EventOutput:
     if isinstance(name, str):
         name = Path(name)
+    if not isinstance(name, Path):
+        raise ValueError(f"Expected a name that is either a Path or str, got {type(name)}")
 
     if name.suffix == ".csv":
         return CsvEventOutput(name)
