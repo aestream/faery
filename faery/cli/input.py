@@ -11,7 +11,13 @@ from faery.stdio import StdEventInput
 def cli_input(config, source):
     if source == "stdin":
         config.input = StdEventInput()
-    elif source.endswith(".csv") or source.endswith(".dat"):
+    elif (
+        source.endswith(".csv")
+        or source.endswith(".dat")
+        or source.endswith(".es")
+        or source.endswith(".raw")
+        or source.endswith(".evt")
+    ):
         config.input = read_file(source)
     else:
         raise ValueError("Unsupported input source", source)
