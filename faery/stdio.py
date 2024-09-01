@@ -1,6 +1,6 @@
 import io
 import sys
-from typing import Any, List
+from typing import Any, List, Tuple
 
 import numpy as np
 
@@ -41,7 +41,7 @@ class StdEventInput(EventStream):
 
 class StdEventInputIterator(EventStreamIterator):
 
-    buffer: List[Event]
+    buffer: List[Tuple[int, int, int, bool]]
     index = 0
 
     def __init__(self, file: io.IOBase, delimiter: Any = ","):
@@ -70,7 +70,7 @@ class StdEventInputIterator(EventStreamIterator):
             if not line:
                 break
             t, x, y, p = line.split(self.delimiter)
-            self.buffer.append((t, x, y, bool(int(p))))
+            self.buffer.append((int(t), int(x), int(y), bool(int(p))))
         if len(self.buffer) == 0 and not line:
             raise StopIteration()
         else:
