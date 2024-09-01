@@ -2,7 +2,7 @@ from io import IOBase
 from pathlib import Path
 import re
 import numpy
-from typing import Union, Optional
+from typing import List, Union
 
 from faery.stream import StreamIterator
 from faery.stream_event import EventStream
@@ -15,16 +15,23 @@ class CsvEventStreamIterator(StreamIterator):
 
     CSV_PATTERN = re.compile(r"(\d*),(\d*),(\d*),(\d)")
 
+    buffer: List[Event]
+
     def __init__(self, path: Path) -> None:
         self.path = Path(path)
         self.fp = open(self.path, "r")
+        self.buffer = []
+
+    def _vacate_buffer(self):
+        data = numpy.array(self.buffer, dtype=Event)
+        self.buffer = []
+        return data
 
     def __next__(self) -> Events:
-        buffer: Events = []
         for line in self.fp:
             match = self.CSV_PATTERN.match(line)
             if match:
-                buffer.append(
+                self.buffer.append(
                     (
                         int(match.group(1)),  # t
                         int(match.group(2)),  # x
@@ -32,10 +39,10 @@ class CsvEventStreamIterator(StreamIterator):
                         int(match.group(4)),  # p
                     )
                 )
-            if len(buffer) >= self.BUFFER_SIZE:
-                return numpy.array(buffer, dtype=Event)
-        if len(buffer) > 0:
-            return numpy.array(buffer, dtype=Event)
+            if len(self.buffer) >= self.BUFFER_SIZE:
+                return self._vacate_buffer()
+        if len(self.buffer) > 0:
+            return self._vacate_buffer()
         raise StopIteration()
 
 

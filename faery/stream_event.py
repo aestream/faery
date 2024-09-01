@@ -2,8 +2,7 @@ from typing import Optional, Union
 
 from faery.output import EventOutput
 from faery.stream import Stream, StreamIterator
-from faery.stream_types import Events
-from typing import Optional, Union
+from faery.stream_types import Event, Events
 import numpy as np
 
 
@@ -94,3 +93,4 @@ class ChunkedEventStreamIterator(StreamIterator[Events]):
                     if len(self.buffer) >= self.n_events:
                         chunk, self.buffer = self.buffer, []
                         return np.array(chunk)
+        return np.array([], dtype=Event)

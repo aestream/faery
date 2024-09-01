@@ -10,7 +10,7 @@ from faery.stdio import StdEventOutput
 @click.group(chain=True)
 @click.pass_context
 def cli(ctx):
-    r"""Faery is a library that ferries event data and frames from A to B.
+    """Faery is a library that ferries event data and frames from A to B.
     By default, we stream from STDIN to STDOUT without modifying the data,
     but the behavior can be customized using the following pattern:
 
