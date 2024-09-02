@@ -67,11 +67,11 @@ class StdEventInputIterator(EventStreamIterator):
     def __next__(self) -> Events:
         while len(self.buffer) <= self.BUFFER_SIZE:
             line = self.file.readline()
-            if not line:
+            if not line.strip():
                 break
             t, x, y, p = line.split(self.delimiter)
             self.buffer.append((int(t), int(x), int(y), bool(int(p))))
-        if len(self.buffer) == 0 and not line:
+        if len(self.buffer) == 0 and not line.strip():
             raise StopIteration()
         else:
             return self._vacate_buffer()
