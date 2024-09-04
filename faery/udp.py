@@ -11,10 +11,8 @@ class UdpEventOutput(EventOutput):
         self.clientSocket.settimeout(1)
         self.addr = (server_address, server_port)   
         self.include_ts = include_timestamps
-        if include_timestamps: 
-            raise NotImplementedError("Timestamps are not supported in UDP output")
-        else:
-            self.max_buffer_size = 512/4
+        # Buffer = 512 bytes / 4 bytes per event. Timestamps, if sent, are other 4 bytes, and another element in the buffer.
+        self.max_buffer_size = 512/4 
         self.buffer: list[bytes] = []
         self.kwargs = kwargs
 
@@ -30,13 +28,20 @@ class UdpEventOutput(EventOutput):
         message = message + (int(event['p']) << 15)
         message = message + (int(event['x']) << 16)
         message = message + (int(not self.include_ts) << 31)   # 0: present, 1: absent
-        message = message.to_bytes(length=4, byteorder='little', signed=False)
+        message = message.to_bytes(
+            length=4, 
+            byteorder='little', 
+            signed=False
+        )
         return message
 
     def apply(self, data: Events):
         for event in data:
             message = self.encode_spif(event)
             self.buffer.append(message)
+            if self.include_ts:
+                timestamp_b = int(event['t']).to_bytes(length=4, byteorder='little', signed=False) 
+                self.buffer.append(timestamp_b)
             if len(self.buffer) >= self.max_buffer_size:
                 self.clientSocket.sendto(b''.join(self.buffer), self.addr)
                 self.buffer.clear()
