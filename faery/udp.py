@@ -32,7 +32,7 @@ class UdpEventOutput(EventOutput):
             self.buffer[self.buffer_idx] = message
             self.buffer_idx += 1
             if self.include_ts:
-                timestamp = np.uint32(event['t'])
+                timestamp = event['t']
                 self.buffer[self.buffer_idx] = timestamp
                 self.buffer_idx += 1
             if self.buffer_idx >= self.max_buffer_size:
