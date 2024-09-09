@@ -21,9 +21,9 @@ class UdpEventOutput(EventOutput):
 
     def encode_spif(self, event: Event) -> int:
         message = int(event['y'])
-        message |= message | (int(event['p']) << 15)
-        message |= message | (int(event['x']) << 16)
-        message |= message | (int(not self.include_ts) << 31)   # 0: present, 1: absent
+        message |= (int(event['p']) << 15)
+        message |= (int(event['x']) << 16)
+        message |= (int(not self.include_ts) << 31)   # 0: present, 1: absent
         return message  
 
     def apply(self, data: Events):
