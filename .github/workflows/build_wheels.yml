@@ -23,6 +23,8 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: true
       - uses: dtolnay/rust-toolchain@stable
       - run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
         if: startsWith(matrix.os, 'macos')
@@ -58,6 +60,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: true
       - run: pipx run build --sdist
       - uses: actions/upload-artifact@v4
         with:
