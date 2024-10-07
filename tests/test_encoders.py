@@ -17,148 +17,147 @@ data_generated.mkdir()
 @pytest.mark.parametrize("file", assets.files)
 def test_low_level_decoder_encoder(file: assets.File):
     output = data_generated / file.path.name
-    match file.format:
-        case "aedat":
-            print(f"faery.aedat.Decoder + faery.aedat.Encoder ({file.path.name})")
-            with faery.aedat.Decoder(file.path) as decoder:
-                with faery.aedat.Encoder(
-                    path=output,
-                    description_or_tracks=decoder.description(),
-                    compression=faery.aedat.LZ4_HIGHEST,
-                ) as encoder:
-                    for track, packet in decoder:
-                        encoder.write(track.id, packet)
-        case "csv":
-            print(f"faery.csv.Decoder + faery.csv.Encoder ({file.path.name})")
-            assert file.dimensions is not None
-            assert file.t0 is not None
-            with faery.csv.Decoder(
-                path=file.path,
-                dimensions=file.dimensions,
-                has_header=True,
+    if file.format == "aedat":
+        print(f"faery.aedat.Decoder + faery.aedat.Encoder ({file.path.name})")
+        with faery.aedat.Decoder(file.path) as decoder:
+            with faery.aedat.Encoder(
+                path=output,
+                description_or_tracks=decoder.description(),
+                compression=faery.aedat.LZ4_HIGHEST,
+            ) as encoder:
+                for track, packet in decoder:
+                    encoder.write(track.id, packet)
+    elif file.format == "csv":
+        print(f"faery.csv.Decoder + faery.csv.Encoder ({file.path.name})")
+        assert file.dimensions is not None
+        assert file.t0 is not None
+        with faery.csv.Decoder(
+            path=file.path,
+            dimensions=file.dimensions,
+            has_header=True,
+            separator=b","[0],
+            t_index=0,
+            x_index=1,
+            y_index=2,
+            on_index=3,
+            t_scale=0.0,
+            t0=faery.parse_timestamp(file.t0),
+            on_value=b"1",
+            off_value=b"0",
+            skip_errors=False,
+        ) as decoder:
+            with faery.csv.Encoder(
+                path=output,
                 separator=b","[0],
-                t_index=0,
-                x_index=1,
-                y_index=2,
-                on_index=3,
-                t_scale=0.0,
-                t0=faery.parse_timestamp(file.t0),
-                on_value=b"1",
-                off_value=b"0",
-                skip_errors=False,
-            ) as decoder:
-                with faery.csv.Encoder(
-                    path=output,
-                    separator=b","[0],
-                    header=True,
-                    dimensions=file.dimensions,
-                ) as encoder:
-                    for events in decoder:
-                        encoder.write(events)
-        case "dat2":
-            print(f"faery.dat.Decoder + faery.dat.Encoder ({file.path.name})")
-            with faery.dat.Decoder(path=file.path) as decoder:
-                assert decoder.dimensions is not None
-                with faery.dat.Encoder(
-                    path=output,
-                    version=decoder.version,
-                    event_type="cd",
-                    zero_t0=True,
-                    dimensions=decoder.dimensions,
-                ) as encoder:
-                    for packet in decoder:
-                        encoder.write(packet)
-        case "es-atis":
-            print(
-                f"faery.event_stream.Decoder + faery.event_stream.Encoder ({file.path.name})"
-            )
-            with faery.event_stream.Decoder(
-                path=file.path,
-                t0=0,
-            ) as decoder:
-                assert decoder.dimensions is not None
-                with faery.event_stream.Encoder(
-                    path=output,
-                    event_type="atis",
-                    zero_t0=True,
-                    dimensions=decoder.dimensions,
-                ) as encoder:
-                    for packet in decoder:
-                        encoder.write(packet)
-        case "es-color":
-            print(
-                f"faery.event_stream.Decoder + faery.event_stream.Encoder ({file.path.name})"
-            )
-            with faery.event_stream.Decoder(
-                path=file.path,
-                t0=0,
-            ) as decoder:
-                assert decoder.dimensions is not None
-                with faery.event_stream.Encoder(
-                    path=output,
-                    event_type="color",
-                    zero_t0=True,
-                    dimensions=decoder.dimensions,
-                ) as encoder:
-                    for packet in decoder:
-                        encoder.write(packet)
-        case "es-dvs":
-            print(
-                f"faery.event_stream.Decoder + faery.event_stream.Encoder ({file.path.name})"
-            )
-            with faery.event_stream.Decoder(
-                path=file.path,
-                t0=0,
-            ) as decoder:
-                assert decoder.dimensions is not None
-                with faery.event_stream.Encoder(
-                    path=output,
-                    event_type="dvs",
-                    zero_t0=True,
-                    dimensions=decoder.dimensions,
-                ) as encoder:
-                    for packet in decoder:
-                        encoder.write(packet)
-        case "es-generic":
-            print(
-                f"faery.event_stream.Decoder + faery.event_stream.Encoder ({file.path.name})"
-            )
-            with faery.event_stream.Decoder(
-                path=file.path,
-                t0=0,
-            ) as decoder:
-                with faery.event_stream.Encoder(
-                    path=output,
-                    event_type="generic",
-                    zero_t0=True,
-                    dimensions=None,
-                ) as encoder:
-                    for packet in decoder:
-                        encoder.write(packet)
-        case "evt2":
-            print(f"faery.evt.Decoder + faery.evt.Encoder ({file.path.name})")
-            with faery.evt.Decoder(file.path, file.dimensions) as decoder:
-                with faery.evt.Encoder(
-                    path=output,
-                    version="evt2",
-                    zero_t0=True,
-                    dimensions=decoder.dimensions,
-                ) as encoder:
-                    for packet in decoder:
-                        encoder.write(packet)
-        case "evt3":
-            print(f"faery.evt.Decoder + faery.evt.Encoder ({file.path.name})")
-            with faery.evt.Decoder(file.path) as decoder:
-                with faery.evt.Encoder(
-                    path=output,
-                    version="evt3",
-                    zero_t0=True,
-                    dimensions=decoder.dimensions,
-                ) as encoder:
-                    for packet in decoder:
-                        encoder.write(packet)
-        case _:
-            raise Exception(f'unknown format "{file.format}"')
+                header=True,
+                dimensions=file.dimensions,
+            ) as encoder:
+                for events in decoder:
+                    encoder.write(events)
+    elif file.format == "dat2":
+        print(f"faery.dat.Decoder + faery.dat.Encoder ({file.path.name})")
+        with faery.dat.Decoder(path=file.path) as decoder:
+            assert decoder.dimensions is not None
+            with faery.dat.Encoder(
+                path=output,
+                version=decoder.version,
+                event_type="cd",
+                zero_t0=True,
+                dimensions=decoder.dimensions,
+            ) as encoder:
+                for packet in decoder:
+                    encoder.write(packet)
+    elif file.format == "es-atis":
+        print(
+            f"faery.event_stream.Decoder + faery.event_stream.Encoder ({file.path.name})"
+        )
+        with faery.event_stream.Decoder(
+            path=file.path,
+            t0=0,
+        ) as decoder:
+            assert decoder.dimensions is not None
+            with faery.event_stream.Encoder(
+                path=output,
+                event_type="atis",
+                zero_t0=True,
+                dimensions=decoder.dimensions,
+            ) as encoder:
+                for packet in decoder:
+                    encoder.write(packet)
+    elif file.format == "es-color":
+        print(
+            f"faery.event_stream.Decoder + faery.event_stream.Encoder ({file.path.name})"
+        )
+        with faery.event_stream.Decoder(
+            path=file.path,
+            t0=0,
+        ) as decoder:
+            assert decoder.dimensions is not None
+            with faery.event_stream.Encoder(
+                path=output,
+                event_type="color",
+                zero_t0=True,
+                dimensions=decoder.dimensions,
+            ) as encoder:
+                for packet in decoder:
+                    encoder.write(packet)
+    elif file.format == "es-dvs":
+        print(
+            f"faery.event_stream.Decoder + faery.event_stream.Encoder ({file.path.name})"
+        )
+        with faery.event_stream.Decoder(
+            path=file.path,
+            t0=0,
+        ) as decoder:
+            assert decoder.dimensions is not None
+            with faery.event_stream.Encoder(
+                path=output,
+                event_type="dvs",
+                zero_t0=True,
+                dimensions=decoder.dimensions,
+            ) as encoder:
+                for packet in decoder:
+                    encoder.write(packet)
+    elif file.format == "es-generic":
+        print(
+            f"faery.event_stream.Decoder + faery.event_stream.Encoder ({file.path.name})"
+        )
+        with faery.event_stream.Decoder(
+            path=file.path,
+            t0=0,
+        ) as decoder:
+            with faery.event_stream.Encoder(
+                path=output,
+                event_type="generic",
+                zero_t0=True,
+                dimensions=None,
+            ) as encoder:
+                for packet in decoder:
+                    encoder.write(packet)
+    elif file.format == "evt2":
+        print(f"faery.evt.Decoder + faery.evt.Encoder ({file.path.name})")
+        with faery.evt.Decoder(file.path, file.dimensions) as decoder:
+            with faery.evt.Encoder(
+                path=output,
+                version="evt2",
+                zero_t0=True,
+                dimensions=decoder.dimensions,
+            ) as encoder:
+                for packet in decoder:
+                    encoder.write(packet)
+    elif file.format == "evt3":
+        print(f"faery.evt.Decoder + faery.evt.Encoder ({file.path.name})")
+        with faery.evt.Decoder(file.path) as decoder:
+            with faery.evt.Encoder(
+                path=output,
+                version="evt3",
+                zero_t0=True,
+                dimensions=decoder.dimensions,
+            ) as encoder:
+                for packet in decoder:
+                    encoder.write(packet)
+    else:
+        raise Exception(f'unknown format "{file.format}"')
     generated_file = file.clone_with(
         path=output,
         format=file.format,

@@ -3,6 +3,16 @@
 Faery sends event data from A to B.
 It is both a command-line tool and a Python library, wrapping an optimized core written in Rust.
 
+## Usage
+
+1. Install pipx (https://pipx.pypa.io/stable/installation/)
+
+2. Install faery
+
+```sh
+pipx install faery
+```
+
 ## Local development
 
 ### Setup the environment
