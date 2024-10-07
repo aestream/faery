@@ -92,7 +92,9 @@ def save(
             header=csv_header,
             dimensions=dimensions,
         ) as encoder:
+
             for events in stream:
+
                 encoder.write(events)
         t0 = 0
     elif file_type == file_type_module.FileType.DAT:

@@ -3,10 +3,11 @@ import typing
 
 import numpy
 
-from . import decoder
+from . import file_decoder
 from . import events_stream
 from . import file_type as file_type_module
 from . import timestamp
+from . import udp_decoder
 
 
 def events_stream_from_array(
@@ -25,7 +26,7 @@ def events_stream_from_file(
     ] = None,
     t0: timestamp.Time = 0,
     file_type: typing.Optional[file_type_module.FileType] = None,
-    csv_properties: decoder.CsvProperties = decoder.CsvProperties.default(),
+    csv_properties: file_decoder.CsvProperties = file_decoder.CsvProperties.default(),
 ) -> events_stream.FiniteEventsStream:
     """An event file decoder (supports .aedat4, .es, .raw, and .dat).
 
@@ -48,7 +49,7 @@ def events_stream_from_file(
         t0: Initial time for ES files, in seconds. Defaults to None.
         file_type: Override the type determination algorithm. Defaults to None.
     """
-    return decoder.Decoder(
+    return file_decoder.Decoder(
         path=pathlib.Path(path),
         track_id=track_id,
         dimensions_fallback=dimensions_fallback,
@@ -62,9 +63,9 @@ def events_stream_from_file(
 def events_stream_from_stdin(
     dimensions: tuple[int, int],
     t0: timestamp.Time = 0,
-    csv_properties: decoder.CsvProperties = decoder.CsvProperties.default(),
+    csv_properties: file_decoder.CsvProperties = file_decoder.CsvProperties.default(),
 ):
-    return decoder.Decoder(
+    return file_decoder.Decoder(
         path=None,
         track_id=None,
         dimensions_fallback=dimensions,
@@ -75,4 +76,11 @@ def events_stream_from_stdin(
     )
 
 
-# @TODO def events_stream_from_udp
+def events_stream_from_udp(
+    dimensions: tuple[int, int],
+    address: typing.Union[
+        tuple[str, int], tuple[str, int, typing.Optional[int], typing.Optional[str]]
+    ],
+    format: typing.Literal["t64_x16_y16_on8", "t32_x16_y15_on1"] = "t64_x16_y16_on8",
+):
+    return udp_decoder.Decoder(dimensions=dimensions, address=address, format=format)

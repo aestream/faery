@@ -4,10 +4,11 @@ import typing
 
 import numpy
 
-from . import encoder
-from . import file_type
+from . import file_encoder
+from . import file_type as file_type_module
 from . import stream
 from . import timestamp
+from . import udp_encoder
 
 if typing.TYPE_CHECKING:
     from .extension_types import aedat  # type: ignore
@@ -26,12 +27,13 @@ else:
 # Most functions (for instance `crop`) are available to all stream types
 # and have the same implementation for all stream types.
 #
-# Some functions (for instance `to_array`, which converts the stream to a single array)
+# Some functions (for instance `to_array`, which collects the stream into a single array)
 # are only available to specific stream types (finite streams in the case of `to_array`).
 #
 # Some functions (for instance `uniformize`) behave differently depending on the stream type.
 #
-# *All* functions must properly transmit (or transform) the stream type.
+# *All* functions must properly transmit (or transform) the stream type so that they
+# can be chained.
 # For instance, `crop` on a uniform stream must return a uniform stream,
 # but `crop` on a finite stream must return a finite stream.
 # `uniformize` on a finite stream must return a finite uniform stream,
@@ -40,8 +42,9 @@ else:
 # (a) We want the *static* type system to accurately represent stream types
 # so that IDEs can suggest the right functions whilst writing pipelines.
 #
-# (b) Moreover, Python's *dynamic* runtime needs to know the stream type
-# to use the right implementation when several are available.
+# (b) Python's *dynamic* runtime needs to know the stream type
+# to use the right implementation when several are available and raise
+# appropriate errors when a function is called on the wrong stream type.
 #
 #
 # Current implementation
@@ -74,8 +77,8 @@ else:
 # @typing.overload with a single class does not work here because we are encoding the stream type in the class,
 # not the function parameters.
 #
-# A viable solution would be templates (another program would generate the Python source), like C++'s templates
-# or C's preprocessor. However, this would require library contributors to write non-quite-Python code and pre-process
+# Templates would be a viable solution (another program would generate the Python source code).
+# However, this would require that library contributors write non-quite-Python code and pre-process
 # the code before testing it.
 
 
@@ -96,7 +99,7 @@ class Output:
         compression: typing.Optional[
             typing.Tuple[typing.Literal["lz4", "zstd"], int]
         ] = aedat.LZ4_DEFAULT,
-        file_type: typing.Optional[file_type.FileType] = None,
+        file_type: typing.Optional[file_type_module.FileType] = None,
     ) -> str:
         """
         Writes the stream to an event file (supports .aedat4, .es, .raw, and .dat).
@@ -123,7 +126,7 @@ class Output:
             EVT (.raw) and DAT files do not need this (t0 is written in their header), but it is returned here anyway for compatibility
             with software than do not support the t0 header field.
         """
-        return encoder.save(
+        return file_encoder.save(
             stream=self,
             path=path,
             dimensions=self.dimensions(),
@@ -133,15 +136,50 @@ class Output:
             file_type=file_type,
         )
 
-    """
-    def to_udp(self):
-        # @TODO
-        pass
-
     def to_stdout(self):
-        # @TODO
-        pass
-    """
+        return file_encoder.save(
+            stream=self,
+            path=None,
+            dimensions=self.dimensions(),
+            file_type=file_type_module.FileType.CSV,
+        )
+
+    def to_udp(
+        self,
+        address: typing.Union[
+            tuple[str, int], tuple[str, int, typing.Optional[int], typing.Optional[str]]
+        ],
+        payload_length: typing.Optional[int] = None,
+        format: typing.Literal[
+            "t64_x16_y16_on8", "t32_x16_y15_on1"
+        ] = "t64_x16_y16_on8",
+    ):
+        """
+        Sends the stream to the given UDP address and port.
+
+        The address format defines whether IPv4 or IPv6 is used. If it has two items (host, port),
+        IPv4 is used. It it has four items (host, port, flowinfo, scope_id), IPv6 is used.
+        To force IPv6 but ommit scope_id and/or flowinfo, set them to None.
+        See https://docs.python.org/3/library/socket.html for details.
+
+        To maximize throughput, consider re-arranging the stream in packets of exactly `payload_length / format_size` events
+        with `.chunks(payload_length / format_size)`. By default:
+        - for format "t64_x16_y16_on8", payload_length is 1209 and payload size is 13.
+        - for format "t32_x16_y15_on1", payload_length is 1208 and payload size is 8.
+
+        Args:
+            address: the UDP address as (host, port) for IPv4 and (host, port, flowinfo, scope_id) for IPv6.
+            payload_length: maximum payload size in bytes. It must be a multiple of the event size
+            (13 for format="t64_x16_y16_on8" and 8 for format="t64_x16_y16_on8"). Defaults to 1209 if format is "t64_x16_y16_on8"
+            and 1208 if format is "t32_x16_y15_on1".
+            format: Event encoding format. Defaults to "t64_x16_y16_on8".
+        """
+        return udp_encoder.encode(
+            stream=self,
+            address=address,
+            payload_length=payload_length,
+            format=format,
+        )
 
 
 class EventsStream(stream.Stream[numpy.ndarray], Output):

@@ -9,7 +9,6 @@ import numpy.lib.recfunctions
 from . import events_filter
 from . import events_stream
 from . import file_type as file_type_module
-from . import stream
 from . import timestamp
 
 if typing.TYPE_CHECKING:

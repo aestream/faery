@@ -170,10 +170,7 @@ class Chunks(events_stream.FiniteUniformEventsFilter):
 
 
 """
-class OffsetT(
-    events_stream.FiniteUniformEventsStream,
-    events_stream.FiniteUniformEventsFilter,
-):
+class OffsetT(events_stream.FiniteUniformEventsFilter):
     pass  # @TODO
 """
 

@@ -1,6 +1,6 @@
 import typing
 
-from .decoder import CsvProperties as CsvProperties
+from .file_decoder import CsvProperties as CsvProperties
 from .events_filter import EVENTS_DTYPE as EVENTS_DTYPE
 from .events_input import events_stream_from_array as events_stream_from_array
 from .events_input import events_stream_from_file as events_stream_from_file
@@ -45,5 +45,5 @@ __all__ = [
     "csv",
     "dat",
     "event_stream",
-    "evt"
+    "evt",
 ]

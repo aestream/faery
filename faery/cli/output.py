@@ -2,7 +2,7 @@ import click
 
 from faery.stdio import StdEventOutput
 from faery.csv import CsvEventOutput
-from faery.udp import UdpEventOutput
+from faery.udp_encoder import UdpEventOutput
 
 
 @click.command(name="output")
