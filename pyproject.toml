@@ -8,7 +8,7 @@ authors = [
   { name = "Jens Egholm Pedersen", email = "jens@jepedersen.dk" },
   { name = "Gregor Lenz", email = "gregor@neurobus.space" },
 ]
-version = "0.1.1"
+version = "0.1.2"
 requires-python = ">=3.9"
 dependencies = ["click==8.1.7", "numpy>=1.26"]
 
