@@ -1,0 +1,590 @@
+import collections.abc
+import pathlib
+import typing
+
+import numpy
+
+from . import encoder
+from . import file_type
+from . import stream
+from . import timestamp
+
+if typing.TYPE_CHECKING:
+    from .extension_types import aedat  # type: ignore
+else:
+    from .extension import aedat
+
+# A type puzzle
+# =============
+#
+# We support four types of streams:
+# - default (possibly infinite stream with packets of arbitrary duration)
+# - finite (finite stream with packets of arbitrary duration)
+# - uniform (possibly infinite stream with packets of fixed duration)
+# - finite uniform (finite stream with packets of fixed duration)
+#
+# Most functions (for instance `crop`) are available to all stream types
+# and have the same implementation for all stream types.
+#
+# Some functions (for instance `to_array`, which converts the stream to a single array)
+# are only available to specific stream types (finite streams in the case of `to_array`).
+#
+# Some functions (for instance `uniformize`) behave differently depending on the stream type.
+#
+# *All* functions must properly transmit (or transform) the stream type.
+# For instance, `crop` on a uniform stream must return a uniform stream,
+# but `crop` on a finite stream must return a finite stream.
+# `uniformize` on a finite stream must return a finite uniform stream,
+# but `uniformize` on a default stream must return a uniform stream.
+#
+# (a) We want the *static* type system to accurately represent stream types
+# so that IDEs can suggest the right functions whilst writing pipelines.
+#
+# (b) Moreover, Python's *dynamic* runtime needs to know the stream type
+# to use the right implementation when several are available.
+#
+#
+# Current implementation
+# ----------------------
+#
+# The present file contains four classes to represent the four stream types,
+# an explicit list of the filters available for each stream type,
+# and the type that these filters return.
+#
+# The filters' implementation is in *events_filter.py*. The decorator defined in that file
+# generates four classes for each filter so that objects can have the right runtime type.
+# Implementations are dynamically bound to the methods defined here (see `bind`) to minimize boilerplate.
+#
+# The current implementation is verbose (methods are declared four times) but it solves (a) and (b). The
+# biggest drawback is that documentation needs to be duplicated four times. This is not a major problem
+# for custom filters (written by users, see `apply`) since they would typically target a specific stream type.
+#
+# Ideas to improve the current design are welcome.
+#
+#
+# Considered solutions
+# --------------------
+#
+# Since most functions are identical, it is tempting to use Python's typing.Generic to reduce
+# code duplication. However, since typing is optional in Python, it is not possible to retrieve the actual type at
+# runtime when using typing.Generic. This is an issue for (b).
+#
+# Dynamic type inference (for instance using virtual methods) with a single class would solve (b) but would not allow for (a).
+#
+# @typing.overload with a single class does not work here because we are encoding the stream type in the class,
+# not the function parameters.
+#
+# A viable solution would be templates (another program would generate the Python source), like C++'s templates
+# or C's preprocessor. However, this would require library contributors to write non-quite-Python code and pre-process
+# the code before testing it.
+
+
+class Output:
+    def __iter__(self) -> collections.abc.Iterator[numpy.ndarray]:
+        raise NotImplementedError()
+
+    def dimensions(self) -> tuple[int, int]:
+        raise NotImplementedError()
+
+    def save(
+        self,
+        path: typing.Union[pathlib.Path, str],
+        version: typing.Optional[
+            typing.Literal["dat1", "dat2", "evt2", "evt2.1", "evt3"]
+        ] = None,
+        zero_t0: bool = True,
+        compression: typing.Optional[
+            typing.Tuple[typing.Literal["lz4", "zstd"], int]
+        ] = aedat.LZ4_DEFAULT,
+        file_type: typing.Optional[file_type.FileType] = None,
+    ) -> str:
+        """
+        Writes the stream to an event file (supports .aedat4, .es, .raw, and .dat).
+
+        version is only used if the file type is EVT (.raw) or DAT.
+
+        zero_t0 is only used if the file type is ES, EVT (.raw) or DAT.
+        The original t0 is stored in the header of EVT and DAT files, and is discarded if the file type is ES.
+
+        compression is only used if the file type is AEDAT.
+
+        Args:
+            stream: An iterable of event arrays (structured arrays with dtype faery.EVENTS_DTYPE).
+            path: Path of the output event file.
+            dimensions: Width and height of the sensor.
+            version: Version for EVT (.raw) and DAT files. Defaults to "dat2" for DAT and "evt3" for EVT.
+            zero_t0: Whether to normalize timestamps and write the offset in the header for EVT (.raw) and DAT files. Defaults to True.
+            compression: Compression for aedat files. Defaults to ("lz4", 1).
+            file_type: Override the type determination algorithm. Defaults to None.
+
+        Returns:
+            The original t0 as a timecode if the file type is ES, EVT (.raw) or DAT, and if `zero_t0` is true. 0 as a timecode otherwise.
+            To reconstruct the original timestamps when decoding ES files with Faery, pass the returned value to `faery.stream_from_file`.
+            EVT (.raw) and DAT files do not need this (t0 is written in their header), but it is returned here anyway for compatibility
+            with software than do not support the t0 header field.
+        """
+        return encoder.save(
+            stream=self,
+            path=path,
+            dimensions=self.dimensions(),
+            version=version,
+            zero_t0=zero_t0,
+            compression=compression,
+            file_type=file_type,
+        )
+
+    """
+    def to_udp(self):
+        # @TODO
+        pass
+
+    def to_stdout(self):
+        # @TODO
+        pass
+    """
+
+
+class EventsStream(stream.Stream[numpy.ndarray], Output):
+    def uniformize(
+        self,
+        period: timestamp.Time,
+        start: typing.Optional[timestamp.Time] = None,
+    ) -> "UniformEventsStream":
+        """
+        Converts the stream to a uniform stream with the given period.
+
+        Args:
+            parent: An iterable of event arrays (structured arrays with dtype faery.EVENTS_DTYPE).
+            period: Time interval covered by each packet.
+            start: Optional starting time of the first packet. If None (default), the timestamp of the first event is used.
+        """
+        ...
+
+    def chunks(self, chunk_length: int) -> "EventsStream": ...
+
+    def time_slice(
+        self,
+        start: timestamp.Time,
+        end: timestamp.Time,
+        zero: bool = False,
+    ) -> "FiniteEventsStream": ...
+
+    def event_slice(self, start: int, end: int) -> "FiniteEventsStream": ...
+
+    def remove_on_events(self) -> "EventsStream": ...
+
+    def remove_off_events(self) -> "EventsStream": ...
+
+    def crop(self, left: int, right: int, top: int, bottom: int) -> "EventsStream": ...
+
+    def mask(self, array: numpy.ndarray) -> "EventsStream": ...
+
+    def transpose(
+        self,
+        action: typing.Literal[
+            "flip_left_right",
+            "flip_bottom_top",
+            "rotate_90_counterclockwise",
+            "rotate_180",
+            "rotate_270_counterclockwise",
+            "flip_up_diagonal",
+            "flip_down_diagonal",
+        ],
+    ) -> "EventsStream": ...
+
+    def map(
+        self,
+        function: collections.abc.Callable[[numpy.ndarray], numpy.ndarray],
+    ) -> "EventsStream": ...
+
+    def apply(
+        self, filter_class: type["EventsFilter"], *args, **kwargs
+    ) -> "EventsStream":
+        return filter_class(self, *args, **kwargs)  # type: ignore
+
+
+class FiniteEventsStream(stream.FiniteStream[numpy.ndarray], Output):
+    def uniformize(
+        self,
+        period: timestamp.Time,
+        start: typing.Optional[timestamp.Time] = None,
+    ) -> "FiniteUniformEventsStream":
+        """
+        Converts the stream to a uniform stream with the given period.
+
+        Args:
+            parent: An iterable of event arrays (structured arrays with dtype faery.EVENTS_DTYPE).
+            period: Time interval covered by each packet.
+            start: Optional starting time of the first packet. If None (default), the start of the time range (`parent.time_range_us()[0]`) is used.
+        """
+        ...
+
+    def chunks(self, chunk_length: int) -> "FiniteEventsStream":
+        from .events_filter import Chunks
+
+        return Chunks(
+            parent=self,  # type: ignore (see "Note on filter types" in events_filter)
+            chunk_length=chunk_length,
+        )
+
+    def time_slice(
+        self,
+        start: timestamp.Time,
+        end: timestamp.Time,
+        zero: bool = False,
+    ) -> "FiniteEventsStream": ...
+
+    def event_slice(self, start: int, end: int) -> "FiniteEventsStream": ...
+
+    def remove_on_events(self) -> "FiniteEventsStream": ...
+
+    def remove_off_events(self) -> "FiniteEventsStream": ...
+
+    def crop(
+        self, left: int, right: int, top: int, bottom: int
+    ) -> "FiniteEventsStream": ...
+
+    def mask(self, array: numpy.ndarray) -> "FiniteEventsStream": ...
+
+    def transpose(
+        self,
+        action: typing.Literal[
+            "flip_left_right",
+            "flip_bottom_top",
+            "rotate_90_counterclockwise",
+            "rotate_180",
+            "rotate_270_counterclockwise",
+            "flip_up_diagonal",
+            "flip_down_diagonal",
+        ],
+    ) -> "FiniteEventsStream": ...
+
+    def map(
+        self,
+        function: collections.abc.Callable[[numpy.ndarray], numpy.ndarray],
+    ) -> "FiniteEventsStream": ...
+
+    def apply(
+        self, filter_class: type["EventsFilter"], *args, **kwargs
+    ) -> "FiniteEventsStream":
+        return filter_class(self, *args, **kwargs)  # type: ignore
+
+    def to_array(self) -> numpy.ndarray:
+        return numpy.concatenate(list(self))
+
+
+class UniformEventsStream(stream.UniformStream[numpy.ndarray], Output):
+    def uniformize(
+        self,
+        period: timestamp.Time,
+        start: typing.Optional[timestamp.Time] = None,
+    ) -> "UniformEventsStream":
+        """
+        Change the period of the stream.
+
+        Args:
+            parent: An iterable of event arrays (structured arrays with dtype faery.EVENTS_DTYPE).
+            period: Time interval covered by each packet.
+            start: Optional starting time of the first packet. If None (default), the timestamp of the first event is used.
+        """
+        ...
+
+    def chunks(self, chunk_length: int) -> "EventsStream":
+        from .events_filter import Chunks
+
+        return Chunks(
+            parent=self,  # type: ignore (see "Note on filter types" in events_filter)
+            chunk_length=chunk_length,
+        )
+
+    def time_slice(
+        self,
+        start: timestamp.Time,
+        end: timestamp.Time,
+        zero: bool = False,
+    ) -> "FiniteUniformEventsStream": ...
+
+    def event_slice(self, start: int, end: int) -> "FiniteUniformEventsStream": ...
+
+    def remove_on_events(self) -> "UniformEventsStream": ...
+
+    def remove_off_events(self) -> "UniformEventsStream": ...
+
+    def crop(
+        self, left: int, right: int, top: int, bottom: int
+    ) -> "UniformEventsStream": ...
+
+    def mask(self, array: numpy.ndarray) -> "UniformEventsStream": ...
+
+    def transpose(
+        self,
+        action: typing.Literal[
+            "flip_left_right",
+            "flip_bottom_top",
+            "rotate_90_counterclockwise",
+            "rotate_180",
+            "rotate_270_counterclockwise",
+            "flip_up_diagonal",
+            "flip_down_diagonal",
+        ],
+    ) -> "UniformEventsStream": ...
+
+    def map(
+        self,
+        function: collections.abc.Callable[[numpy.ndarray], numpy.ndarray],
+    ) -> "UniformEventsStream": ...
+
+    def apply(
+        self, filter_class: type["EventsFilter"], *args, **kwargs
+    ) -> "UniformEventsStream":
+        return filter_class(self, *args, **kwargs)  # type: ignore
+
+
+class FiniteUniformEventsStream(stream.FiniteUniformStream[numpy.ndarray], Output):
+    def uniformize(
+        self,
+        period: timestamp.Time,
+        start: typing.Optional[timestamp.Time] = None,
+    ) -> "FiniteUniformEventsStream":
+        """
+        Change the period of the stream.
+
+        Args:
+            parent: An iterable of event arrays (structured arrays with dtype faery.EVENTS_DTYPE).
+            period: Time interval covered by each packet.
+            start: Optional starting time of the first packet. If None (default), the start of the time range (`parent.time_range_us()[0]`) is used.
+        """
+        ...
+
+    def chunks(self, chunk_length: int) -> "FiniteEventsStream": ...
+
+    def time_slice(
+        self,
+        start: timestamp.Time,
+        end: timestamp.Time,
+        zero: bool = False,
+    ) -> "FiniteUniformEventsStream": ...
+
+    def event_slice(self, start: int, end: int) -> "FiniteUniformEventsStream": ...
+
+    def remove_on_events(self) -> "FiniteUniformEventsStream": ...
+
+    def remove_off_events(self) -> "FiniteUniformEventsStream": ...
+
+    def crop(
+        self, left: int, right: int, top: int, bottom: int
+    ) -> "FiniteUniformEventsStream": ...
+
+    def mask(self, array: numpy.ndarray) -> "FiniteUniformEventsStream": ...
+
+    def transpose(
+        self,
+        action: typing.Literal[
+            "flip_left_right",
+            "flip_bottom_top",
+            "rotate_90_counterclockwise",
+            "rotate_180",
+            "rotate_270_counterclockwise",
+            "flip_up_diagonal",
+            "flip_down_diagonal",
+        ],
+    ) -> "FiniteUniformEventsStream": ...
+
+    def map(
+        self,
+        function: collections.abc.Callable[[numpy.ndarray], numpy.ndarray],
+    ) -> "FiniteUniformEventsStream": ...
+
+    def apply(
+        self, filter_class: type["EventsFilter"], *args, **kwargs
+    ) -> "FiniteUniformEventsStream":
+        return filter_class(self, *args, **kwargs)  # type: ignore
+
+    def to_array(self) -> numpy.ndarray:
+        return numpy.concatenate(list(self))
+
+
+def bind(prefix: typing.Literal["", "Finite", "Uniform", "FiniteUniform"]):
+    uniformize_prefix = (
+        "Uniform" if prefix == "" or prefix == "Uniform" else "FiniteUniform"
+    )
+    chunks_prefix = "" if prefix == "" or prefix == "Uniform" else "Finite"
+    time_slice_prefix = (
+        "Finite" if prefix == "" or prefix == "Finite" else "FiniteUniform"
+    )
+    event_slice_prefix = (
+        "Finite" if prefix == "" or prefix == "Finite" else "FiniteUniform"
+    )
+
+    def uniformize(
+        self,
+        period: timestamp.Time,
+        start: typing.Optional[timestamp.Time] = None,
+    ):
+        from .events_filter import FILTERS
+
+        return FILTERS[f"{uniformize_prefix}Uniformize"](
+            parent=self,
+            period=period,
+            start=start,
+        )
+
+    def chunks(
+        self,
+        chunk_length: int,
+    ):
+        from .events_filter import FILTERS
+
+        return FILTERS[f"{chunks_prefix}Chunks"](parent=self, chunk_length=chunk_length)
+
+    def time_slice(
+        self, start: timestamp.Time, end: timestamp.Time, zero: bool = False
+    ):
+        from .events_filter import FILTERS
+
+        return FILTERS[f"{time_slice_prefix}TimeSlice"](
+            parent=self,
+            start=start,
+            end=end,
+            zero=zero,
+        )
+
+    def event_slice(
+        self,
+        start: int,
+        end: int,
+    ):
+        from .events_filter import FILTERS
+
+        return FILTERS[f"{event_slice_prefix}EventSlice"](
+            parent=self,
+            start=start,
+            end=end,
+        )
+
+    def remove_on_events(self):
+        from .events_filter import FILTERS
+
+        return FILTERS[f"{prefix}Map"](
+            parent=self, function=lambda events: events[numpy.logical_not(events["on"])]
+        )
+
+    def remove_off_events(self):
+        from .events_filter import FILTERS
+
+        return FILTERS[f"{prefix}Map"](
+            parent=self, function=lambda events: events[events["on"]]
+        )
+
+    def crop(self, left: int, right: int, top: int, bottom: int):
+        from .events_filter import FILTERS
+
+        return FILTERS[f"{prefix}Crop"](
+            parent=self,
+            left=left,
+            right=right,
+            top=top,
+            bottom=bottom,
+        )
+
+    def mask(self, array: numpy.ndarray):
+        from .events_filter import FILTERS
+
+        return FILTERS[f"{prefix}Mask"](
+            parent=self,
+            array=array,
+        )
+
+    def transpose(
+        self,
+        action: typing.Literal[
+            "flip_left_right",
+            "flip_bottom_top",
+            "rotate_90_counterclockwise",
+            "rotate_180",
+            "rotate_270_counterclockwise",
+            "flip_up_diagonal",
+            "flip_down_diagonal",
+        ],
+    ):
+        from .events_filter import FILTERS
+
+        return FILTERS[f"{prefix}Transpose"](
+            parent=self,
+            action=action,
+        )
+
+    def map(
+        self,
+        function: collections.abc.Callable[[numpy.ndarray], numpy.ndarray],
+    ):
+        from .events_filter import FILTERS
+
+        return FILTERS[f"{prefix}Map"](
+            parent=self,
+            function=function,
+        )
+
+    globals()[f"{prefix}EventsStream"].uniformize = uniformize
+    globals()[f"{prefix}EventsStream"].chunks = chunks
+    globals()[f"{prefix}EventsStream"].time_slice = time_slice
+    globals()[f"{prefix}EventsStream"].event_slice = event_slice
+    globals()[f"{prefix}EventsStream"].remove_on_events = remove_on_events
+    globals()[f"{prefix}EventsStream"].remove_off_events = remove_off_events
+    globals()[f"{prefix}EventsStream"].crop = crop
+    globals()[f"{prefix}EventsStream"].mask = mask
+    globals()[f"{prefix}EventsStream"].transpose = transpose
+    globals()[f"{prefix}EventsStream"].map = map
+
+
+for prefix in ("", "Finite", "Uniform", "FiniteUniform"):
+    bind(prefix=prefix)
+
+
+class Array(FiniteEventsStream):
+    def __init__(self, events: numpy.ndarray, dimensions: tuple[int, int]):
+        from .events_filter import EVENTS_DTYPE
+
+        super().__init__()
+        assert self.events.dtype == EVENTS_DTYPE
+        self.events = events
+        self.inner_dimensions = dimensions
+
+    def __iter__(self) -> collections.abc.Iterator[numpy.ndarray]:
+        yield self.events.copy()
+
+    def dimensions(self) -> tuple[int, int]:
+        return self.inner_dimensions
+
+    def time_range_us(self) -> tuple[int, int]:
+        if len(self.events) == 0:
+            return (0, 1)
+        return (int(self.events["t"][0]), int(self.events["t"][-1]) + 1)
+
+
+class EventsFilter(
+    EventsStream,
+    stream.Filter[numpy.ndarray],
+):
+    pass
+
+
+class FiniteEventsFilter(
+    FiniteEventsStream,
+    stream.FiniteFilter[numpy.ndarray],
+):
+    pass
+
+
+class UniformEventsFilter(
+    UniformEventsStream,
+    stream.UniformFilter[numpy.ndarray],
+):
+    pass
+
+
+class FiniteUniformEventsFilter(
+    FiniteUniformEventsStream,
+    stream.FiniteUniformFilter[numpy.ndarray],
+):
+    pass

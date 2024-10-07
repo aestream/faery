@@ -6,7 +6,7 @@ import numpy as np
 
 from faery.output import EventOutput
 from faery.stream_types import Event, Events
-from faery.stream_event import EventStream, EventStreamIterator
+from faery.events_stream import EventStream, EventStreamIterator
 
 
 class StdEventOutput(EventOutput):

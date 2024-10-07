@@ -28,15 +28,12 @@ impl Decoder {
     #[new]
     fn new(path: &pyo3::Bound<'_, pyo3::types::PyAny>, t0: u64) -> Result<Self, PyErr> {
         Python::with_gil(|python| -> Result<Self, PyErr> {
-            match types::python_path_to_string(python, path) {
-                Ok(result) => match decoder::Decoder::new(result, t0) {
-                    Ok(result) => Ok(Decoder {
-                        inner: Some(result),
-                    }),
-                    Err(error) => Err(PyErr::from(error)),
-                },
-                Err(error) => Err(error),
-            }
+            Ok(Decoder {
+                inner: Some(decoder::Decoder::new(
+                    types::python_path_to_string(python, path)?,
+                    t0,
+                )?),
+            })
         })
     }
 
@@ -238,19 +235,13 @@ impl Encoder {
         dimensions: Option<(u16, u16)>,
     ) -> Result<Self, PyErr> {
         Python::with_gil(|python| -> Result<Self, PyErr> {
-            match types::python_path_to_string(python, path) {
-                Ok(result) => match encoder::Encoder::new(
-                    result,
+            Ok(Encoder {
+                inner: Some(encoder::Encoder::new(
+                    types::python_path_to_string(python, path)?,
                     zero_t0,
                     encoder::EncoderType::new(event_type, dimensions)?,
-                ) {
-                    Ok(result) => Ok(Encoder {
-                        inner: Some(result),
-                    }),
-                    Err(error) => Err(PyErr::from(error)),
-                },
-                Err(error) => Err(error),
-            }
+                )?),
+            })
         })
     }
 
@@ -282,13 +273,13 @@ impl Encoder {
         }
     }
 
-    fn write(&mut self, packet: &pyo3::Bound<'_, pyo3::types::PyAny>) -> PyResult<()> {
+    fn write(&mut self, events: &pyo3::Bound<'_, pyo3::types::PyAny>) -> PyResult<()> {
         Python::with_gil(|python| -> PyResult<()> {
             match self.inner.as_mut() {
                 Some(encoder) => match encoder {
                     encoder::Encoder::Generic(encoder) => {
                         let (array, length) =
-                            types::check_array(python, types::ArrayType::EsGeneric, packet)?;
+                            types::check_array(python, types::ArrayType::EsGeneric, events)?;
                         unsafe {
                             for index in 0..length {
                                 let event_cell = types::array_at(python, array, index);
@@ -344,7 +335,7 @@ impl Encoder {
                     }
                     encoder::Encoder::Dvs(encoder) => {
                         let (array, length) =
-                            types::check_array(python, types::ArrayType::Dvs, packet)?;
+                            types::check_array(python, types::ArrayType::Dvs, events)?;
                         unsafe {
                             for index in 0..length {
                                 let event_cell = types::array_at(python, array, index);
@@ -355,7 +346,7 @@ impl Encoder {
                     }
                     encoder::Encoder::Atis(encoder) => {
                         let (array, length) =
-                            types::check_array(python, types::ArrayType::EsAtis, packet)?;
+                            types::check_array(python, types::ArrayType::EsAtis, events)?;
                         unsafe {
                             for index in 0..length {
                                 let event_cell = types::array_at(python, array, index);
@@ -404,7 +395,7 @@ impl Encoder {
                     }
                     encoder::Encoder::Color(encoder) => {
                         let (array, length) =
-                            types::check_array(python, types::ArrayType::EsColor, packet)?;
+                            types::check_array(python, types::ArrayType::EsColor, events)?;
                         unsafe {
                             for index in 0..length {
                                 let event_cell = types::array_at(python, array, index);

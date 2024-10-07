@@ -1,6 +1,6 @@
 import click
 
-from faery.inputs import read_file
+from faery.events_input import read_file
 
 from faery.stdio import StdEventInput
 

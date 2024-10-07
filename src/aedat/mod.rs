@@ -5,8 +5,8 @@ mod encoder;
 use crate::types;
 use crate::utilities;
 
-use ndarray::IntoDimension;
 use numpy::convert::ToPyArray;
+use numpy::ndarray::IntoDimension;
 use numpy::prelude::*;
 use pyo3::prelude::*;
 
@@ -142,15 +142,11 @@ impl Decoder {
     #[new]
     fn new(path: &pyo3::Bound<'_, pyo3::types::PyAny>) -> Result<Self, PyErr> {
         Python::with_gil(|python| -> Result<Self, PyErr> {
-            match types::python_path_to_string(python, path) {
-                Ok(result) => match decoder::Decoder::new(result) {
-                    Ok(result) => Ok(Decoder {
-                        inner: Some(result),
-                    }),
-                    Err(error) => Err(PyErr::from(error)),
-                },
-                Err(error) => Err(error),
-            }
+            Ok(Decoder {
+                inner: Some(decoder::Decoder::new(types::python_path_to_string(
+                    python, path,
+                )?)?),
+            })
         })
     }
 
@@ -361,7 +357,7 @@ impl Decoder {
                             Some(result) => result,
                             None => return Err(PyErr::from(decoder::ReadError::EmptyEventsPacket)),
                         },
-                        Err(error) => {
+                        Err(_) => {
                             return Err(PyErr::from(decoder::ReadError::MissingPacketSizePrefix));
                         }
                     };
@@ -479,9 +475,9 @@ impl Encoder {
         compression: Option<(String, u8)>,
     ) -> Result<Self, PyErr> {
         Python::with_gil(|python| -> Result<Self, PyErr> {
-            match types::python_path_to_string(python, path) {
-                Ok(result) => match encoder::Encoder::new(
-                    result,
+            Ok(Encoder {
+                inner: Some(encoder::Encoder::new(
+                    types::python_path_to_string(python, path)?,
                     match &description_or_tracks {
                         DescriptionOrTracks::Description(description) => {
                             encoder::DescriptionOrIdsAndTracks::Description(description.as_str())
@@ -506,15 +502,9 @@ impl Encoder {
                         }
                     },
                     encoder::Compression::from_name_and_level(compression)?,
-                ) {
-                    Ok(result) => Ok(Encoder {
-                        inner: Some(result),
-                        frame_buffer: Vec::new(),
-                    }),
-                    Err(error) => Err(PyErr::from(error)),
-                },
-                Err(error) => Err(error),
-            }
+                )?),
+                frame_buffer: Vec::new(),
+            })
         })
     }
 

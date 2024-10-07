@@ -38,21 +38,15 @@ impl Decoder {
         version_fallback: Option<String>,
     ) -> Result<Self, PyErr> {
         Python::with_gil(|python| -> Result<Self, PyErr> {
-            match types::python_path_to_string(python, path) {
-                Ok(result) => match decoder::Decoder::new(
-                    result,
+            Ok(Decoder {
+                inner: Some(decoder::Decoder::new(
+                    types::python_path_to_string(python, path)?,
                     dimensions_fallback,
                     version_fallback
                         .map(|version| common::Version::from_string(&version))
                         .transpose()?,
-                ) {
-                    Ok(result) => Ok(Decoder {
-                        inner: Some(result),
-                    }),
-                    Err(error) => Err(PyErr::from(error)),
-                },
-                Err(error) => Err(error),
-            }
+                )?),
+            })
         })
     }
 
@@ -71,7 +65,7 @@ impl Decoder {
         match self.inner {
             Some(ref decoder) => Ok(decoder.dimensions),
             None => Err(pyo3::exceptions::PyException::new_err(
-                "called dimesnions after __exit__",
+                "called dimensions after __exit__",
             )),
         }
     }
@@ -172,20 +166,14 @@ impl Encoder {
         dimensions: (u16, u16),
     ) -> Result<Self, PyErr> {
         Python::with_gil(|python| -> Result<Self, PyErr> {
-            match types::python_path_to_string(python, path) {
-                Ok(result) => match encoder::Encoder::new(
-                    result,
+            Ok(Encoder {
+                inner: Some(encoder::Encoder::new(
+                    types::python_path_to_string(python, path)?,
                     common::Version::from_string(version)?,
                     zero_t0,
                     dimensions,
-                ) {
-                    Ok(result) => Ok(Encoder {
-                        inner: Some(result),
-                    }),
-                    Err(error) => Err(PyErr::from(error)),
-                },
-                Err(error) => Err(error),
-            }
+                )?),
+            })
         })
     }
 

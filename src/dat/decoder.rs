@@ -121,7 +121,6 @@ impl Decoder {
         }
         self.event_buffer.clear();
         self.event_buffer.reserve(read / 8);
-
         match self.version {
             common::Version::Dat1 => {
                 for index in 0..read / 8 {
