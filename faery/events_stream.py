@@ -303,7 +303,7 @@ class FiniteEventsStream(stream.FiniteStream[numpy.ndarray], Output):
     ) -> "FiniteEventsStream": ...
 
     def apply(
-        self, filter_class: type["EventsFilter"], *args, **kwargs
+        self, filter_class: type["FiniteEventsFilter"], *args, **kwargs
     ) -> "FiniteEventsStream":
         return filter_class(self, *args, **kwargs)  # type: ignore
 
@@ -373,7 +373,7 @@ class UniformEventsStream(stream.UniformStream[numpy.ndarray], Output):
     ) -> "UniformEventsStream": ...
 
     def apply(
-        self, filter_class: type["EventsFilter"], *args, **kwargs
+        self, filter_class: type["UniformEventsFilter"], *args, **kwargs
     ) -> "UniformEventsStream":
         return filter_class(self, *args, **kwargs)  # type: ignore
 
@@ -434,7 +434,7 @@ class FiniteUniformEventsStream(stream.FiniteUniformStream[numpy.ndarray], Outpu
     ) -> "FiniteUniformEventsStream": ...
 
     def apply(
-        self, filter_class: type["EventsFilter"], *args, **kwargs
+        self, filter_class: type["FiniteUniformEventsFilter"], *args, **kwargs
     ) -> "FiniteUniformEventsStream":
         return filter_class(self, *args, **kwargs)  # type: ignore
 
