@@ -57,9 +57,9 @@ jobs:
     - run: ls -lah /Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages # @DEV
     - run: ls -lah /Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/faery # @DEV
     - run: python -v -c 'import faery' # @DEV
-    - run: pwd; ls -lah # @DEV
     - run: python -m pip install pytest
     - uses: actions/checkout@v4
+    - run: pwd; ls -lah # @DEV
     - run: pytest python/tests/
   build_sdist:
     name: Build source distribution
