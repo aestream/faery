@@ -1,4 +1,7 @@
+import importlib.metadata
 import typing
+
+__version__ = importlib.metadata.version("faery")
 
 from .file_decoder import CsvProperties as CsvProperties
 from .events_filter import EVENTS_DTYPE as EVENTS_DTYPE
@@ -28,6 +31,7 @@ else:
     from .faery import evt
 
 __all__ = [
+    "__version__",
     "CsvProperties",
     "EVENTS_DTYPE",
     "events_stream_from_array",

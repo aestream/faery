@@ -43,6 +43,14 @@ cargo clippy
 isort .; black .; pyright .
 ```
 
+### Upload a new version
+
+1. Update the version in _pyproject.toml_.
+
+2. Push the changes
+
+3. Create a new release on GitHub. GitHub actions should build wheels and push them to PyPI.
+
 ## Acknowledgements
 
 Faery was initiated at the [2024 Telluride neuromorphic workshop](https://sites.google.com/view/telluride-2024/) by
