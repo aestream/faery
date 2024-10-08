@@ -6,7 +6,8 @@ import toml
 
 dirname = pathlib.Path(__file__).resolve().parent
 
-with open(dirname/ "pyproject.toml") as pyproject_file:
+print(f"load {dirname.parent.parent / 'pyproject.toml'}")
+with open(dirname.parent.parent / "pyproject.toml") as pyproject_file:
     pyproject = toml.load(pyproject_file)
 
 dependencies = []
