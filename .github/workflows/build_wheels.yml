@@ -52,7 +52,9 @@ jobs:
         name: wheelhouse-${{ matrix.os }}
         path: ./wheelhouse/
     - run: python -m pip install --find-links wheelhouse faery
-    - run: python -m pip show faery
+    - run: python -c 'import platform; print(platform.python_version()); print(platform.machine()); print(platform.system())' # @DEV
+    - run: python -m pip show faery # @DEV
+    - run: ls -lah /Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/faery # @DEV
     - run: python -m pip install pytest
     - uses: actions/checkout@v4
     - run: pytest python/tests/
