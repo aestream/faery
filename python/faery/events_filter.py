@@ -21,14 +21,14 @@ EVENTS_DTYPE: numpy.dtype = numpy.dtype(
 # Filters that need to access event data (for instance `events["t"][0]`)
 # must check that the array is not empty first (`len(events) > 0`).
 #
-# Non-uniform filters *may* choose to optimize dispatching by only
+# Non-regular filters *may* choose to optimize dispatching by only
 # yielding non-empty arrays.
 #
-# However, uniform filters *must* yield every event packet to preserve uniformity.
-# This applies to any class inheriting from `events_stream.FiniteUniformEventsFilter`.
+# However, regular filters *must* yield every event packet to preserve regularity.
+# This applies to any class inheriting from `events_stream.FiniteRegularEventsFilter`.
 
 
-def restrict(prefixes: set[typing.Literal["", "Finite", "Uniform", "FiniteUniform"]]):
+def restrict(prefixes: set[typing.Literal["", "Finite", "Regular", "FiniteRegular"]]):
     def decorator(method):
         method._prefixes = prefixes
         return method
@@ -40,7 +40,7 @@ FILTERS: dict[str, typing.Any] = {}
 
 
 def typed_filter(
-    prefixes: set[typing.Literal["", "Finite", "Uniform", "FiniteUniform"]]
+    prefixes: set[typing.Literal["", "Finite", "Regular", "FiniteRegular"]]
 ):
     def decorator(filter_class):
         attributes = [
@@ -65,11 +65,11 @@ def typed_filter(
     return decorator
 
 
-@typed_filter({"Uniform", "FiniteUniform"})
-class Uniformize(events_stream.FiniteUniformEventsFilter):
+@typed_filter({"Regular", "FiniteRegular"})
+class Regularize(events_stream.FiniteRegularEventsFilter):
     def __init__(
         self,
-        parent: stream.FiniteUniformStream[numpy.ndarray],
+        parent: stream.FiniteRegularStream[numpy.ndarray],
         period: timestamp.Time,
         start: typing.Optional[timestamp.Time] = None,
     ):
@@ -80,7 +80,7 @@ class Uniformize(events_stream.FiniteUniformEventsFilter):
     def period_us(self) -> int:
         return self._period_us
 
-    @restrict({"FiniteUniform"})
+    @restrict({"FiniteRegular"})
     def time_range_us(self) -> tuple[int, int]:
         parent_time_range_us = self.parent.time_range_us()
         if self.start is None:
@@ -136,10 +136,10 @@ class Uniformize(events_stream.FiniteUniformEventsFilter):
 
 
 @typed_filter({"", "Finite"})
-class Chunks(events_stream.FiniteUniformEventsFilter):
+class Chunks(events_stream.FiniteRegularEventsFilter):
     def __init__(
         self,
-        parent: stream.FiniteUniformStream[numpy.ndarray],
+        parent: stream.FiniteRegularStream[numpy.ndarray],
         chunk_length: int,
     ):
         self.init(parent=parent)
@@ -170,7 +170,7 @@ class Chunks(events_stream.FiniteUniformEventsFilter):
 
 
 """
-class OffsetT(events_stream.FiniteUniformEventsFilter):
+class OffsetT(events_stream.FiniteRegularEventsFilter):
     pass  # @TODO
 """
 
@@ -220,11 +220,11 @@ class TimeSlice(events_stream.FiniteEventsFilter):  # type: ignore
                     yield events
 
 
-@typed_filter({"FiniteUniform"})
-class TimeSlice(events_stream.FiniteUniformEventsFilter):  # type: ignore
+@typed_filter({"FiniteRegular"})
+class TimeSlice(events_stream.FiniteRegularEventsFilter):  # type: ignore
     def __init__(
         self,
-        parent: stream.FiniteUniformStream[numpy.ndarray],
+        parent: stream.FiniteRegularStream[numpy.ndarray],
         start: timestamp.Time,
         end: timestamp.Time,
         zero: bool,
@@ -235,7 +235,7 @@ class TimeSlice(events_stream.FiniteUniformEventsFilter):  # type: ignore
         assert self.start < self.end, f"{start=} must be strictly smaller than {end=}"
         self.zero = zero
 
-    @restrict({"FiniteUniform"})
+    @restrict({"FiniteRegular"})
     def time_range_us(self) -> tuple[int, int]:
         period_us = self.period_us()
         assert (
@@ -326,10 +326,10 @@ class EventSlice(events_stream.FiniteEventsFilter):
 
 
 @typed_filter({"Finite"})
-class UniformEventSlice(events_stream.UniformEventsFilter):
+class RegularEventSlice(events_stream.RegularEventsFilter):
     def __init__(
         self,
-        parent: stream.FiniteUniformStream[numpy.ndarray],
+        parent: stream.FiniteRegularStream[numpy.ndarray],
         start: int,
         end: int,
     ):
@@ -350,11 +350,11 @@ class UniformEventSlice(events_stream.UniformEventsFilter):
             index += 1
 
 
-@typed_filter({"", "Finite", "Uniform", "FiniteUniform"})
-class Crop(events_stream.FiniteUniformEventsFilter):
+@typed_filter({"", "Finite", "Regular", "FiniteRegular"})
+class Crop(events_stream.FiniteRegularEventsFilter):
     def __init__(
         self,
-        parent: stream.FiniteUniformStream[numpy.ndarray],
+        parent: stream.FiniteRegularStream[numpy.ndarray],
         left: int,
         right: int,
         top: int,
@@ -393,11 +393,11 @@ class Crop(events_stream.FiniteUniformEventsFilter):
             yield events
 
 
-@typed_filter({"", "Finite", "Uniform", "FiniteUniform"})
-class Mask(events_stream.FiniteUniformEventsFilter):
+@typed_filter({"", "Finite", "Regular", "FiniteRegular"})
+class Mask(events_stream.FiniteRegularEventsFilter):
     def __init__(
         self,
-        parent: stream.FiniteUniformStream[numpy.ndarray],
+        parent: stream.FiniteRegularStream[numpy.ndarray],
         array: numpy.ndarray,
     ):
         self.init(parent=parent)
@@ -419,11 +419,11 @@ class Mask(events_stream.FiniteUniformEventsFilter):
             yield events[self.array[events["y"], events["x"]]]
 
 
-@typed_filter({"", "Finite", "Uniform", "FiniteUniform"})
-class Transpose(events_stream.FiniteUniformEventsFilter):
+@typed_filter({"", "Finite", "Regular", "FiniteRegular"})
+class Transpose(events_stream.FiniteRegularEventsFilter):
     def __init__(
         self,
-        parent: stream.FiniteUniformStream[numpy.ndarray],
+        parent: stream.FiniteRegularStream[numpy.ndarray],
         action: typing.Literal[
             "flip_left_right",
             "flip_bottom_top",
@@ -481,11 +481,11 @@ class Transpose(events_stream.FiniteUniformEventsFilter):
             yield events
 
 
-@typed_filter({"", "Finite", "Uniform", "FiniteUniform"})
-class Map(events_stream.FiniteUniformEventsFilter):
+@typed_filter({"", "Finite", "Regular", "FiniteRegular"})
+class Map(events_stream.FiniteRegularEventsFilter):
     def __init__(
         self,
-        parent: events_stream.FiniteUniformEventsStream,
+        parent: events_stream.FiniteRegularEventsStream,
         function: collections.abc.Callable[[numpy.ndarray], numpy.ndarray],
     ):
         self.init(parent=parent)

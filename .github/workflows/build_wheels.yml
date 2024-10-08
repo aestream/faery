@@ -35,7 +35,7 @@ jobs:
         with:
           name: wheelhouse-${{ matrix.os }}
           path: ./wheelhouse/
-  import_library:
+  test_library:
     name: Test library on ${{ matrix.os }} with Python ${{ matrix.python }}
     runs-on: ${{ matrix.os }}
     needs: [build_wheels]
@@ -70,7 +70,7 @@ jobs:
   upload_pypi:
     name: Upload wheels and sidst to PyPI
     runs-on: ubuntu-latest
-    needs: [build_wheels, import_library, build_sdist]
+    needs: [build_wheels, test_library, build_sdist]
     if: github.event_name == 'release' && github.event.action == 'published'
     steps:
       - uses: actions/download-artifact@v4

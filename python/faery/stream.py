@@ -68,14 +68,14 @@ class FiniteStream(Stream[ItemType]):
         )
 
 
-class UniformStream(Stream[ItemType]):
+class RegularStream(Stream[ItemType]):
     """
     A stream whose packets cover a fixed amount of time.
 
-    Frame streams are always uniform (under the assumption of constant frame rate)
-    whereas event streams can be non-uniform (variable packet duration).
+    Frame streams are always regular (under the assumption of constant frame rate)
+    whereas event streams can be non-regular (variable packet duration).
 
-    The packets of non-uniform event streams may have a variable number of events and / or
+    The packets of non-regular event streams may have a variable number of events and / or
     cover a variable amount of time.
     """
 
@@ -92,9 +92,9 @@ class UniformStream(Stream[ItemType]):
         return timestamp.timestamp_to_timecode(self.period_us())
 
 
-class FiniteUniformStream(FiniteStream[ItemType], UniformStream[ItemType]):
+class FiniteRegularStream(FiniteStream[ItemType], RegularStream[ItemType]):
     """
-    A stream that is finite and uniform (see FiniteStream and UniformStream).
+    A stream that is finite and regular (see FiniteStream and RegularStream).
     """
 
     pass
@@ -127,12 +127,12 @@ class FiniteFilter(FiniteStream[ItemType]):
         return self.parent.time_range_us()
 
 
-class UniformFilter(UniformStream[ItemType]):
+class RegularFilter(RegularStream[ItemType]):
     """
-    A uniform filter consumes data from a uniform stream. It is thus a uniform stream.
+    A regular filter consumes data from a regular stream. It is thus a regular stream.
     """
 
-    def init(self, parent: UniformStream[ItemType]):
+    def init(self, parent: RegularStream[ItemType]):
         self.parent = parent
 
     def dimensions(self) -> tuple[int, int]:
@@ -142,12 +142,12 @@ class UniformFilter(UniformStream[ItemType]):
         return self.parent.period_us()
 
 
-class FiniteUniformFilter(FiniteUniformStream[ItemType]):
+class FiniteRegularFilter(FiniteRegularStream[ItemType]):
     """
-    A finite uniform filter consumes data from a finite uniform stream. It is thus a finite uniform stream.
+    A finite regular filter consumes data from a finite regular stream. It is thus a finite regular stream.
     """
 
-    def init(self, parent: FiniteUniformStream[ItemType]):
+    def init(self, parent: FiniteRegularStream[ItemType]):
         self.parent = parent
 
     def dimensions(self) -> tuple[int, int]:

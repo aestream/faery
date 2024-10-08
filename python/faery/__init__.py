@@ -6,8 +6,8 @@ from .events_input import events_stream_from_array as events_stream_from_array
 from .events_input import events_stream_from_file as events_stream_from_file
 from .events_stream import EventsStream as EventsStream
 from .events_stream import FiniteEventsStream as FiniteEventsStream
-from .events_stream import UniformEventsStream as UniformEventsStream
-from .events_stream import FiniteUniformEventsStream as FiniteUniformEventsStream
+from .events_stream import RegularEventsStream as RegularEventsStream
+from .events_stream import FiniteRegularEventsStream as FiniteRegularEventsStream
 from .file_type import FileType as FileType
 from .timestamp import Time as Time
 from .timestamp import parse_timestamp as parse_timestamp
@@ -34,8 +34,8 @@ __all__ = [
     "events_stream_from_file",
     "EventsStream",
     "FiniteEventsStream",
-    "UniformEventsStream",
-    "FiniteUniformEventsStream",
+    "RegularEventsStream",
+    "FiniteRegularEventsStream",
     "FileType",
     "Time",
     "parse_timestamp",

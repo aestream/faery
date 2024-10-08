@@ -21,8 +21,8 @@ else:
 # We support four types of streams:
 # - default (possibly infinite stream with packets of arbitrary duration)
 # - finite (finite stream with packets of arbitrary duration)
-# - uniform (possibly infinite stream with packets of fixed duration)
-# - finite uniform (finite stream with packets of fixed duration)
+# - regular (possibly infinite stream with packets of fixed duration)
+# - finite regular (finite stream with packets of fixed duration)
 #
 # Most functions (for instance `crop`) are available to all stream types
 # and have the same implementation for all stream types.
@@ -30,14 +30,14 @@ else:
 # Some functions (for instance `to_array`, which collects the stream into a single array)
 # are only available to specific stream types (finite streams in the case of `to_array`).
 #
-# Some functions (for instance `uniformize`) behave differently depending on the stream type.
+# Some functions (for instance `regularize`) behave differently depending on the stream type.
 #
 # *All* functions must properly transmit (or transform) the stream type so that they
 # can be chained.
-# For instance, `crop` on a uniform stream must return a uniform stream,
+# For instance, `crop` on a regular stream must return a regular stream,
 # but `crop` on a finite stream must return a finite stream.
-# `uniformize` on a finite stream must return a finite uniform stream,
-# but `uniformize` on a default stream must return a uniform stream.
+# `regularize` on a finite stream must return a finite regular stream,
+# but `regularize` on a default stream must return a regular stream.
 #
 # (a) We want the *static* type system to accurately represent stream types
 # so that IDEs can suggest the right functions whilst writing pipelines.
@@ -183,13 +183,13 @@ class Output:
 
 
 class EventsStream(stream.Stream[numpy.ndarray], Output):
-    def uniformize(
+    def regularize(
         self,
         period: timestamp.Time,
         start: typing.Optional[timestamp.Time] = None,
-    ) -> "UniformEventsStream":
+    ) -> "RegularEventsStream":
         """
-        Converts the stream to a uniform stream with the given period.
+        Converts the stream to a regular stream with the given period.
 
         Args:
             parent: An iterable of event arrays (structured arrays with dtype faery.EVENTS_DTYPE).
@@ -242,13 +242,13 @@ class EventsStream(stream.Stream[numpy.ndarray], Output):
 
 
 class FiniteEventsStream(stream.FiniteStream[numpy.ndarray], Output):
-    def uniformize(
+    def regularize(
         self,
         period: timestamp.Time,
         start: typing.Optional[timestamp.Time] = None,
-    ) -> "FiniteUniformEventsStream":
+    ) -> "FiniteRegularEventsStream":
         """
-        Converts the stream to a uniform stream with the given period.
+        Converts the stream to a regular stream with the given period.
 
         Args:
             parent: An iterable of event arrays (structured arrays with dtype faery.EVENTS_DTYPE).
@@ -311,12 +311,12 @@ class FiniteEventsStream(stream.FiniteStream[numpy.ndarray], Output):
         return numpy.concatenate(list(self))
 
 
-class UniformEventsStream(stream.UniformStream[numpy.ndarray], Output):
-    def uniformize(
+class RegularEventsStream(stream.RegularStream[numpy.ndarray], Output):
+    def regularize(
         self,
         period: timestamp.Time,
         start: typing.Optional[timestamp.Time] = None,
-    ) -> "UniformEventsStream":
+    ) -> "RegularEventsStream":
         """
         Change the period of the stream.
 
@@ -340,19 +340,19 @@ class UniformEventsStream(stream.UniformStream[numpy.ndarray], Output):
         start: timestamp.Time,
         end: timestamp.Time,
         zero: bool = False,
-    ) -> "FiniteUniformEventsStream": ...
+    ) -> "FiniteRegularEventsStream": ...
 
-    def event_slice(self, start: int, end: int) -> "FiniteUniformEventsStream": ...
+    def event_slice(self, start: int, end: int) -> "FiniteRegularEventsStream": ...
 
-    def remove_on_events(self) -> "UniformEventsStream": ...
+    def remove_on_events(self) -> "RegularEventsStream": ...
 
-    def remove_off_events(self) -> "UniformEventsStream": ...
+    def remove_off_events(self) -> "RegularEventsStream": ...
 
     def crop(
         self, left: int, right: int, top: int, bottom: int
-    ) -> "UniformEventsStream": ...
+    ) -> "RegularEventsStream": ...
 
-    def mask(self, array: numpy.ndarray) -> "UniformEventsStream": ...
+    def mask(self, array: numpy.ndarray) -> "RegularEventsStream": ...
 
     def transpose(
         self,
@@ -365,25 +365,25 @@ class UniformEventsStream(stream.UniformStream[numpy.ndarray], Output):
             "flip_up_diagonal",
             "flip_down_diagonal",
         ],
-    ) -> "UniformEventsStream": ...
+    ) -> "RegularEventsStream": ...
 
     def map(
         self,
         function: collections.abc.Callable[[numpy.ndarray], numpy.ndarray],
-    ) -> "UniformEventsStream": ...
+    ) -> "RegularEventsStream": ...
 
     def apply(
-        self, filter_class: type["UniformEventsFilter"], *args, **kwargs
-    ) -> "UniformEventsStream":
+        self, filter_class: type["RegularEventsFilter"], *args, **kwargs
+    ) -> "RegularEventsStream":
         return filter_class(self, *args, **kwargs)  # type: ignore
 
 
-class FiniteUniformEventsStream(stream.FiniteUniformStream[numpy.ndarray], Output):
-    def uniformize(
+class FiniteRegularEventsStream(stream.FiniteRegularStream[numpy.ndarray], Output):
+    def regularize(
         self,
         period: timestamp.Time,
         start: typing.Optional[timestamp.Time] = None,
-    ) -> "FiniteUniformEventsStream":
+    ) -> "FiniteRegularEventsStream":
         """
         Change the period of the stream.
 
@@ -401,19 +401,19 @@ class FiniteUniformEventsStream(stream.FiniteUniformStream[numpy.ndarray], Outpu
         start: timestamp.Time,
         end: timestamp.Time,
         zero: bool = False,
-    ) -> "FiniteUniformEventsStream": ...
+    ) -> "FiniteRegularEventsStream": ...
 
-    def event_slice(self, start: int, end: int) -> "FiniteUniformEventsStream": ...
+    def event_slice(self, start: int, end: int) -> "FiniteRegularEventsStream": ...
 
-    def remove_on_events(self) -> "FiniteUniformEventsStream": ...
+    def remove_on_events(self) -> "FiniteRegularEventsStream": ...
 
-    def remove_off_events(self) -> "FiniteUniformEventsStream": ...
+    def remove_off_events(self) -> "FiniteRegularEventsStream": ...
 
     def crop(
         self, left: int, right: int, top: int, bottom: int
-    ) -> "FiniteUniformEventsStream": ...
+    ) -> "FiniteRegularEventsStream": ...
 
-    def mask(self, array: numpy.ndarray) -> "FiniteUniformEventsStream": ...
+    def mask(self, array: numpy.ndarray) -> "FiniteRegularEventsStream": ...
 
     def transpose(
         self,
@@ -426,42 +426,42 @@ class FiniteUniformEventsStream(stream.FiniteUniformStream[numpy.ndarray], Outpu
             "flip_up_diagonal",
             "flip_down_diagonal",
         ],
-    ) -> "FiniteUniformEventsStream": ...
+    ) -> "FiniteRegularEventsStream": ...
 
     def map(
         self,
         function: collections.abc.Callable[[numpy.ndarray], numpy.ndarray],
-    ) -> "FiniteUniformEventsStream": ...
+    ) -> "FiniteRegularEventsStream": ...
 
     def apply(
-        self, filter_class: type["FiniteUniformEventsFilter"], *args, **kwargs
-    ) -> "FiniteUniformEventsStream":
+        self, filter_class: type["FiniteRegularEventsFilter"], *args, **kwargs
+    ) -> "FiniteRegularEventsStream":
         return filter_class(self, *args, **kwargs)  # type: ignore
 
     def to_array(self) -> numpy.ndarray:
         return numpy.concatenate(list(self))
 
 
-def bind(prefix: typing.Literal["", "Finite", "Uniform", "FiniteUniform"]):
-    uniformize_prefix = (
-        "Uniform" if prefix == "" or prefix == "Uniform" else "FiniteUniform"
+def bind(prefix: typing.Literal["", "Finite", "Regular", "FiniteRegular"]):
+    regularize_prefix = (
+        "Regular" if prefix == "" or prefix == "Regular" else "FiniteRegular"
     )
-    chunks_prefix = "" if prefix == "" or prefix == "Uniform" else "Finite"
+    chunks_prefix = "" if prefix == "" or prefix == "Regular" else "Finite"
     time_slice_prefix = (
-        "Finite" if prefix == "" or prefix == "Finite" else "FiniteUniform"
+        "Finite" if prefix == "" or prefix == "Finite" else "FiniteRegular"
     )
     event_slice_prefix = (
-        "Finite" if prefix == "" or prefix == "Finite" else "FiniteUniform"
+        "Finite" if prefix == "" or prefix == "Finite" else "FiniteRegular"
     )
 
-    def uniformize(
+    def regularize(
         self,
         period: timestamp.Time,
         start: typing.Optional[timestamp.Time] = None,
     ):
         from .events_filter import FILTERS
 
-        return FILTERS[f"{uniformize_prefix}Uniformize"](
+        return FILTERS[f"{regularize_prefix}Regularize"](
             parent=self,
             period=period,
             start=start,
@@ -563,7 +563,7 @@ def bind(prefix: typing.Literal["", "Finite", "Uniform", "FiniteUniform"]):
             function=function,
         )
 
-    globals()[f"{prefix}EventsStream"].uniformize = uniformize
+    globals()[f"{prefix}EventsStream"].regularize = regularize
     globals()[f"{prefix}EventsStream"].chunks = chunks
     globals()[f"{prefix}EventsStream"].time_slice = time_slice
     globals()[f"{prefix}EventsStream"].event_slice = event_slice
@@ -575,7 +575,7 @@ def bind(prefix: typing.Literal["", "Finite", "Uniform", "FiniteUniform"]):
     globals()[f"{prefix}EventsStream"].map = map
 
 
-for prefix in ("", "Finite", "Uniform", "FiniteUniform"):
+for prefix in ("", "Finite", "Regular", "FiniteRegular"):
     bind(prefix=prefix)
 
 
@@ -614,15 +614,15 @@ class FiniteEventsFilter(
     pass
 
 
-class UniformEventsFilter(
-    UniformEventsStream,
-    stream.UniformFilter[numpy.ndarray],
+class RegularEventsFilter(
+    RegularEventsStream,
+    stream.RegularFilter[numpy.ndarray],
 ):
     pass
 
 
-class FiniteUniformEventsFilter(
-    FiniteUniformEventsStream,
-    stream.FiniteUniformFilter[numpy.ndarray],
+class FiniteRegularEventsFilter(
+    FiniteRegularEventsStream,
+    stream.FiniteRegularFilter[numpy.ndarray],
 ):
     pass
