@@ -5,7 +5,7 @@ edition = "2021"
 resolver = "2"
 
 [lib]
-name = "faery"
+name = "extension"
 crate-type = ["cdylib"]
 
 [dependencies]

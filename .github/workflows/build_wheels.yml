@@ -52,6 +52,7 @@ jobs:
         name: wheelhouse-${{ matrix.os }}
         path: ./wheelhouse/
     - run: python -m pip install --find-links wheelhouse faery
+    - run: ls -lah .
     - run: python -m pip install pytest
     - uses: actions/checkout@v4
     - run: pytest python/tests/
