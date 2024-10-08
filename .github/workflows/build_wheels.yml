@@ -54,6 +54,7 @@ jobs:
     - uses: actions/checkout@v4
     - run: python -m pip install toml
     - run: python .github/workflows/install_dependencies.py
+    - run: ls -lah
     - run: python -m pip install --no-index --find-links wheelhouse faery
     - run: python -m pytest tests/
   build_sdist:
