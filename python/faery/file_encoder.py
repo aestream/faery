@@ -8,11 +8,11 @@ from . import file_type as file_type_module
 from . import timestamp
 
 if typing.TYPE_CHECKING:
-    from .extension_types import aedat  # type: ignore
-    from .extension_types import csv  # type: ignore
-    from .extension_types import dat  # type: ignore
-    from .extension_types import event_stream  # type: ignore
-    from .extension_types import evt  # type: ignore
+    from .types import aedat  # type: ignore
+    from .types import csv  # type: ignore
+    from .types import dat  # type: ignore
+    from .types import event_stream  # type: ignore
+    from .types import evt  # type: ignore
 else:
     from .faery import aedat
     from .faery import csv

@@ -11,7 +11,7 @@ from . import timestamp
 from . import udp_encoder
 
 if typing.TYPE_CHECKING:
-    from .extension_types import aedat  # type: ignore
+    from .types import aedat  # type: ignore
 else:
     from .faery import aedat
 

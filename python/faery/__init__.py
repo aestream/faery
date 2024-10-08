@@ -15,11 +15,11 @@ from .timestamp import timestamp_to_timecode as timestamp_to_timecode
 from .timestamp import timestamp_to_seconds as timestamp_to_seconds
 
 if typing.TYPE_CHECKING:
-    from .extension_types import aedat  # type: ignore
-    from .extension_types import csv  # type: ignore
-    from .extension_types import dat  # type: ignore
-    from .extension_types import event_stream  # type: ignore
-    from .extension_types import evt  # type: ignore
+    from .types import aedat  # type: ignore
+    from .types import csv  # type: ignore
+    from .types import dat  # type: ignore
+    from .types import event_stream  # type: ignore
+    from .types import evt  # type: ignore
 else:
     from .faery import aedat
     from .faery import csv
