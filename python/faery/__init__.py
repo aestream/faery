@@ -16,6 +16,7 @@ from .timestamp import Time as Time
 from .timestamp import parse_timestamp as parse_timestamp
 from .timestamp import timestamp_to_timecode as timestamp_to_timecode
 from .timestamp import timestamp_to_seconds as timestamp_to_seconds
+from . import cli as cli
 
 if typing.TYPE_CHECKING:
     from .types import aedat  # type: ignore
@@ -24,11 +25,11 @@ if typing.TYPE_CHECKING:
     from .types import event_stream  # type: ignore
     from .types import evt  # type: ignore
 else:
-    from .faery import aedat
-    from .faery import csv
-    from .faery import dat
-    from .faery import event_stream
-    from .faery import evt
+    from .extension import aedat
+    from .extension import csv
+    from .extension import dat
+    from .extension import event_stream
+    from .extension import evt
 
 __all__ = [
     "__version__",
@@ -50,4 +51,5 @@ __all__ = [
     "dat",
     "event_stream",
     "evt",
+    "cli",
 ]

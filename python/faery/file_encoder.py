@@ -14,11 +14,11 @@ if typing.TYPE_CHECKING:
     from .types import event_stream  # type: ignore
     from .types import evt  # type: ignore
 else:
-    from .faery import aedat
-    from .faery import csv
-    from .faery import dat
-    from .faery import event_stream
-    from .faery import evt
+    from .extension import aedat
+    from .extension import csv
+    from .extension import dat
+    from .extension import event_stream
+    from .extension import evt
 
 
 def save(

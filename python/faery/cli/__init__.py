@@ -1,9 +1,13 @@
-from dataclasses import dataclass
+from . import convert as convert
+from . import init as init
+from . import inline as inline
+from . import render as render
+from . import run as run
 
-from typing import Any
-
-
-@dataclass
-class CliConfig:
-    input: Any = None
-    output: Any = None
+__all__ = [
+    "convert",
+    "init",
+    "inline",
+    "render",
+    "run",
+]

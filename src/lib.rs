@@ -9,6 +9,7 @@ mod types;
 mod utilities;
 
 #[pymodule]
+#[pyo3(name="extension")]
 fn faery(python: Python<'_>, module: &pyo3::Bound<'_, pyo3::types::PyModule>) -> PyResult<()> {
     {
         let submodule = PyModule::new_bound(python, "aedat")?;

@@ -29,6 +29,7 @@ build-backend = "maturin"
 
 [tool.maturin]
 python-source = "python"
+module-name = "faery.extension"
 features = ["pyo3/extension-module"]
 
 [tool.pyright]
