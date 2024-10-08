@@ -13,7 +13,7 @@ from . import udp_encoder
 if typing.TYPE_CHECKING:
     from .types import aedat  # type: ignore
 else:
-    from .extension import aedat
+    from .faery import aedat
 
 # A type puzzle
 # =============
