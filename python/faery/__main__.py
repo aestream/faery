@@ -1,8 +1,7 @@
 import argparse
 import textwrap
-import sys
 
-import faery.cli
+import faery
 
 parser = argparse.ArgumentParser(
     prog="faery",
@@ -21,9 +20,7 @@ parser = argparse.ArgumentParser(
         """
     ),
 )
-parser.add_argument(
-    "--version", "-v", action="store_true", help="print the library version and exit"
-)
+parser.add_argument("-v", "--version", action="version", version=f"{faery.__version__}")
 subparsers = parser.add_subparsers()
 faery.cli.convert.add_to_subparsers(subparsers)
 faery.cli.render.add_to_subparsers(subparsers)
@@ -31,7 +28,3 @@ faery.cli.init.add_to_subparsers(subparsers)
 faery.cli.run.add_to_subparsers(subparsers)
 faery.cli.inline.add_to_subparsers(subparsers)
 args = parser.parse_args()
-
-if args.version:
-    print(faery.__version__)
-    sys.exit(0)
