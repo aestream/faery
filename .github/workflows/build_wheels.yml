@@ -1,0 +1,89 @@
+name: Build
+
+on:
+  push:
+  pull_request:
+  release:
+    types:
+      - published
+
+env:
+  CIBW_ARCHS_MACOS: x86_64 arm64
+  CIBW_ARCHS_LINUX: x86_64
+  CIBW_BEFORE_ALL_LINUX: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain=stable --profile=minimal -y
+  CIBW_ENVIRONMENT_LINUX: 'PATH="$HOME/.cargo/bin:$PATH"'
+  CIBW_SKIP: cp36-* cp37-* pp* *i686
+
+jobs:
+  build_wheels:
+    name: Build wheels on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - uses: dtolnay/rust-toolchain@stable
+      - run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
+        if: startsWith(matrix.os, 'macos')
+      - run: rustup target add i686-pc-windows-msvc
+        if: startsWith(matrix.os, 'windows')
+      - uses: pypa/cibuildwheel@v2.18.1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheelhouse-${{ matrix.os }}
+          path: ./wheelhouse/
+  test_library:
+    name: Test library on ${{ matrix.os }} with Python ${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
+    needs: [build_wheels]
+    strategy:
+      matrix:
+        python: ["3.9", "3.10", "3.11", "3.12"]
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python }}
+    - uses: actions/download-artifact@v4
+      with:
+        name: wheelhouse-${{ matrix.os }}
+        path: ./wheelhouse/
+    - run: python -m pip install toml
+    - run: python install_dependencies.py
+    - run: python -m pip install --no-index --find-links wheelhouse faery
+    - uses: actions/checkout@v4
+    - run: python -m pytest tests/
+  build_sdist:
+    name: Build source distribution
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - run: pipx run build --sdist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/*.tar.gz
+  upload_pypi:
+    name: Upload wheels and sidst to PyPI
+    runs-on: ubuntu-latest
+    needs: [build_wheels, test_library, build_sdist]
+    if: github.event_name == 'release' && github.event.action == 'published'
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: wheelhouse
+          pattern: wheelhouse-*
+          merge-multiple: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+      - run: mv wheelhouse/* dist/
+      - uses: pypa/gh-action-pypi-publish@v1.8.14
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}

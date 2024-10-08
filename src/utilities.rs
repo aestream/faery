@@ -13,10 +13,10 @@ pub enum ReadError {
     #[error(transparent)]
     Io(#[from] std::io::Error),
 
-    #[error("x overflow (x={x} should be strictly smaller than width={width})")]
+    #[error("x overflow (x={x} must be strictly smaller than width={width})")]
     XOverflow { x: u16, width: u16 },
 
-    #[error("y overflow (y={y} should be strictly smaller than height={height})")]
+    #[error("y overflow (y={y} must be strictly smaller than height={height})")]
     YOverflow { y: u16, height: u16 },
 }
 
@@ -36,13 +36,13 @@ pub enum WriteError {
     )]
     NonMonotonic { previous_t: u64, t: u64 },
 
-    #[error("x overflow (x={x} should be strictly smaller than width={width})")]
+    #[error("x overflow (x={x} must be strictly smaller than width={width})")]
     XOverflow { x: u16, width: u16 },
 
-    #[error("y overflow (y={y} should be strictly smaller than height={height})")]
+    #[error("y overflow (y={y} must be strictly smaller than height={height})")]
     YOverflow { y: u16, height: u16 },
 
-    #[error("trigger id overflow (id={id} should be strictly smaller than maximum={maximum})")]
+    #[error("trigger id overflow (id={id} must be strictly smaller than maximum={maximum})")]
     TriggerOverflow { id: u8, maximum: u8 },
 }
 

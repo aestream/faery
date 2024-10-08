@@ -8,9 +8,12 @@ authors = [
   { name = "Jens Egholm Pedersen", email = "jens@jepedersen.dk" },
   { name = "Gregor Lenz", email = "gregor@neurobus.space" },
 ]
-version = "0.1.1"
 requires-python = ">=3.9"
-dependencies = ["click", "numpy>=2"]
+dependencies = ["numpy>=1.26"]
+version = "0.1.1"
+
+[project.optional-dependencies]
+tests = ["pytest==8.3.3"]
 
 [project.scripts]
 faery = "faery.cli.cli:cli"
@@ -21,12 +24,13 @@ repository = "https://github.com/aestream/faery/"
 documentation = "https://github.com/aestream/faery/"
 
 [build-system]
-requires = ["maturin==1.6.0"]
+requires = ["maturin==1.7.4"]
 build-backend = "maturin"
 
 [tool.maturin]
+python-source = "python"
+module-name = "faery.extension"
 features = ["pyo3/extension-module"]
-module-name = "faery.rusty_faery"
 
 [tool.pyright]
 typeCheckingMode = "basic"

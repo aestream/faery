@@ -118,13 +118,13 @@ pub enum PacketError {
     )]
     NonMonotonic { previous_t: u64, t: u64 },
 
-    #[error("x overflow (x={x} should be strictly smaller than width={width})")]
+    #[error("x overflow (x={x} must be strictly smaller than width={width})")]
     XOverflow { x: u16, width: u16 },
 
-    #[error("y overflow (y={y} should be strictly smaller than height={height})")]
+    #[error("y overflow (y={y} must be strictly smaller than height={height})")]
     YOverflow { y: u16, height: u16 },
 
-    #[error("payload overflow (payload={0} should be strictly smaller than 8)")]
+    #[error("payload overflow (payload={0} must be strictly smaller than 8)")]
     PayloadOverflow(u8),
 }
 

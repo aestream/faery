@@ -1,7 +1,6 @@
-.venv/
-.vscode/
-faery-old/
-target/
-__pycache__/
+.venv
+.pytest_cache
+target
+__pycache__
 *.so
-udp_receiver_client/udp_event_receiver.py
+tests/data_generated

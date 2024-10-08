@@ -1,29 +1,27 @@
 [package]
 name = "python"
-version = "0.1.1"
 edition = "2021"
 resolver = "2"
 
 [lib]
-name = "rusty_faery"
+name = "faery"
 crate-type = ["cdylib"]
 
 [dependencies]
 flatbuffers = "24.3.25"
 #fontdue = "0.9.0"
 #image = {version = "0.25.1", default-features = false, features = ["png"]}
-lz4 = "1.25.0"
-#mp4 = "0.14.0"
-ndarray = "0.13"
+lz4 = "1.28.0"
+mp4 = "0.14.0"
 neuromorphic-types = "0.4.0"
 numpy = {path = "rust-numpy"}
-pyo3 = {version = "0.21.2", features = ["extension-module"]}
+pyo3 = {version = "0.21.0", features = ["extension-module"]}
 roxmltree = "0.20.0"
 thiserror = "1.0"
-zstd = "0.13.1"
+zstd = "0.13.2"
 
 [build-dependencies]
-bindgen = "0.69.4"
+bindgen = "0.70.1"
 
 [profile.release]
 lto = true

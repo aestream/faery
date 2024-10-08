@@ -116,12 +116,10 @@ pub enum ReadError {
     #[error("unknown trigger source")]
     UnknownTriggerSource,
 
-    #[error("x overflow (x={x} should be larger than 0 and strictly smaller than width={width})")]
+    #[error("x overflow (x={x} must be larger than 0 and strictly smaller than width={width})")]
     XOverflow { x: i16, width: u16 },
 
-    #[error(
-        "y overflow (y={y} should be larger than 0 and strictly smaller than height={height})"
-    )]
+    #[error("y overflow (y={y} must be larger than 0 and strictly smaller than height={height})")]
     YOverflow { y: i16, height: u16 },
 }
 
