@@ -3,4 +3,4 @@
 target
 __pycache__
 *.so
-python/tests/data_generated
+tests/data_generated
