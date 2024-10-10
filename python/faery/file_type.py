@@ -10,6 +10,21 @@ class FileType(enum.Enum):
     ES = 3
     EVT = 4
 
+    @staticmethod
+    def from_string(string: str):
+        string = string.lower()
+        if string == "aedat":
+            return FileType.AEDAT
+        if string == "csv":
+            return FileType.CSV
+        if string == "dat":
+            return FileType.DAT
+        if string == "es":
+            return FileType.ES
+        if string == "evt":
+            return FileType.EVT
+        raise Exception(f'unknown file format "{string}"')
+
     def magic(self) -> typing.Optional[bytes]:
         if self == FileType.AEDAT:
             return b"#!AER-DAT4.0\r\n"

@@ -16,7 +16,7 @@ version = "0.1.1"
 tests = ["pytest==8.3.3"]
 
 [project.scripts]
-faery = "faery.cli.cli:cli"
+faery = "faery:__main__.main"
 
 [project.urls]
 homepage = "https://github.com/aestream/faery/"

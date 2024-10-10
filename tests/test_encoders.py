@@ -246,7 +246,7 @@ def test_high_level_decoder_encoder(file: assets.File):
             version = output_format
         else:
             version = None
-        t0 = stream.save(
+        t0 = stream.to_file(
             output,
             version=version,  # type: ignore
         )

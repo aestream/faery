@@ -24,19 +24,26 @@ def add_to_subparsers(subparsers: argparse._SubParsersAction):
     parser.add_argument(
         "-f",
         "--input-format",
+        choices=[
+            "aedat",
+            "csv",
+            "dat",
+            "es",
+            "evt",
+        ],
         help="input format, required if the input is standard input",
     )
     parser.add_argument(
         "-x",
         "--width",
         type=int,
-        help="input width, required if the input format is CSV",
+        help="input width, required if the input format is csv",
     )
     parser.add_argument(
         "-y",
         "--height",
         type=int,
-        help="input height, required if the input format is CSV",
+        help="input height, required if the input format is csv",
     )
     parser.add_argument(
         "-o", "--output", help="path of the output file (defaults to standard output)"
@@ -44,6 +51,13 @@ def add_to_subparsers(subparsers: argparse._SubParsersAction):
     parser.add_argument(
         "-g",
         "--output-format",
+        choices=[
+            "aedat",
+            "csv",
+            "dat",
+            "es",
+            "evt",
+        ],
         help="output format, required if the output is standard output",
     )
     parser.add_argument(
@@ -613,7 +627,7 @@ def run(args: argparse.Namespace):
 
     if (args.width is None) != (args.height is None):
         sys.stderr.write(
-            "only one of width (-x/--width) and height (-y/--height) was provided (either both or neither should be provided)"
+            "only one of width (-x/--width) and height (-y/--height) was provided (either both or neither should be provided)\n"
         )
         sys.exit(1)
 
@@ -643,10 +657,7 @@ def run(args: argparse.Namespace):
         sys.exit(1)
 
     if args.output is None:
-        assert args.output_format is not None
         assert args.output_format == "csv"  # only supported stdout format at the moment
-        assert args.width is not None
-        assert args.height is not None
         stream.to_stdout()
     else:
         # @TODO add support for file properties?
