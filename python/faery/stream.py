@@ -160,7 +160,7 @@ class FiniteRegularFilter(FiniteRegularStream[ItemType]):
         return self.parent.period_us()
 
 
-TransposeAction: typing.TypeAlias = typing.Literal[
+TransposeAction = typing.Literal[
     "flip_left_right",
     "flip_bottom_top",
     "rotate_90_counterclockwise",

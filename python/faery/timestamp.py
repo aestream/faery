@@ -6,7 +6,7 @@ MINUTES_TIMECODE_PATTERN: re.Pattern = re.compile(r"^(\d+):(\d{2})(\.\d{0,6})?$"
 SECONDS_TIMECODE_PATTERN: re.Pattern = re.compile(r"^(\d+)(\.\d{0,6})?$")
 
 
-Time: typing.TypeAlias = typing.Union[int, float, str]
+Time = typing.Union[int, float, str]
 """
 A number of seconds encoded as an integer, a float, or a timecode.
 
