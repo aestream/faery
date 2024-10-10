@@ -158,3 +158,25 @@ class FiniteRegularFilter(FiniteRegularStream[ItemType]):
 
     def period_us(self) -> int:
         return self.parent.period_us()
+
+
+TransposeAction: typing.TypeAlias = typing.Literal[
+    "flip_left_right",
+    "flip_bottom_top",
+    "rotate_90_counterclockwise",
+    "rotate_180",
+    "rotate_270_counterclockwise",
+    "flip_up_diagonal",
+    "flip_down_diagonal",
+]
+"""
+Spatial transformation that applies to events and frames
+
+- flip_left_right mirrors horizontally
+- flip_bottom_top mirrors vertically
+- rotate_90_counterclockwise rotates to the left by 90º
+- rotate_180 rotates by 180º
+- rotate_270_counterclockwise rotates to the right by 90º
+- flip_up_diagonal mirrors alongside the diagonal that goes from the bottom left to the top right (also known as transverse)
+- flip_down_diagonal mirrors alongside the diagonal that goes from the top left to the bottom right (also known as transpose)
+"""

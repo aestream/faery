@@ -1,4 +1,5 @@
 import argparse
+import sys
 import textwrap
 
 import faery
@@ -20,11 +21,16 @@ parser = argparse.ArgumentParser(
         """
     ),
 )
-parser.add_argument("-v", "--version", action="version", version=f"{faery.__version__}")
-subparsers = parser.add_subparsers()
+parser.add_argument("-v", "--version", action="version", version=f"Faery {faery.__version__}")
+subparsers = parser.add_subparsers(dest="command")
 faery.cli.convert.add_to_subparsers(subparsers)
 faery.cli.render.add_to_subparsers(subparsers)
 faery.cli.init.add_to_subparsers(subparsers)
 faery.cli.run.add_to_subparsers(subparsers)
 faery.cli.inline.add_to_subparsers(subparsers)
 args = parser.parse_args()
+
+if args.command is None:
+    parser.print_help()
+else:
+    getattr(faery.cli, args.command).run(args)

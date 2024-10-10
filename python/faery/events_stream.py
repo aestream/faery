@@ -89,7 +89,7 @@ class Output:
     def dimensions(self) -> tuple[int, int]:
         raise NotImplementedError()
 
-    def save(
+    def to_file(
         self,
         path: typing.Union[pathlib.Path, str],
         version: typing.Optional[
@@ -126,7 +126,7 @@ class Output:
             EVT (.raw) and DAT files do not need this (t0 is written in their header), but it is returned here anyway for compatibility
             with software than do not support the t0 header field.
         """
-        return file_encoder.save(
+        return file_encoder.to_file(
             stream=self,
             path=path,
             dimensions=self.dimensions(),
@@ -136,8 +136,8 @@ class Output:
             file_type=file_type,
         )
 
-    def to_stdout(self):
-        return file_encoder.save(
+    def to_stdout(self) -> str:
+        return file_encoder.to_file(
             stream=self,
             path=None,
             dimensions=self.dimensions(),
@@ -153,7 +153,7 @@ class Output:
         format: typing.Literal[
             "t64_x16_y16_on8", "t32_x16_y15_on1"
         ] = "t64_x16_y16_on8",
-    ):
+    ) -> None:
         """
         Sends the stream to the given UDP address and port.
 
@@ -217,18 +217,7 @@ class EventsStream(stream.Stream[numpy.ndarray], Output):
 
     def mask(self, array: numpy.ndarray) -> "EventsStream": ...
 
-    def transpose(
-        self,
-        action: typing.Literal[
-            "flip_left_right",
-            "flip_bottom_top",
-            "rotate_90_counterclockwise",
-            "rotate_180",
-            "rotate_270_counterclockwise",
-            "flip_up_diagonal",
-            "flip_down_diagonal",
-        ],
-    ) -> "EventsStream": ...
+    def transpose(self, action: stream.TransposeAction) -> "EventsStream": ...
 
     def map(
         self,
@@ -284,18 +273,7 @@ class FiniteEventsStream(stream.FiniteStream[numpy.ndarray], Output):
 
     def mask(self, array: numpy.ndarray) -> "FiniteEventsStream": ...
 
-    def transpose(
-        self,
-        action: typing.Literal[
-            "flip_left_right",
-            "flip_bottom_top",
-            "rotate_90_counterclockwise",
-            "rotate_180",
-            "rotate_270_counterclockwise",
-            "flip_up_diagonal",
-            "flip_down_diagonal",
-        ],
-    ) -> "FiniteEventsStream": ...
+    def transpose(self, action: stream.TransposeAction) -> "FiniteEventsStream": ...
 
     def map(
         self,
@@ -354,18 +332,7 @@ class RegularEventsStream(stream.RegularStream[numpy.ndarray], Output):
 
     def mask(self, array: numpy.ndarray) -> "RegularEventsStream": ...
 
-    def transpose(
-        self,
-        action: typing.Literal[
-            "flip_left_right",
-            "flip_bottom_top",
-            "rotate_90_counterclockwise",
-            "rotate_180",
-            "rotate_270_counterclockwise",
-            "flip_up_diagonal",
-            "flip_down_diagonal",
-        ],
-    ) -> "RegularEventsStream": ...
+    def transpose(self, action: stream.TransposeAction) -> "RegularEventsStream": ...
 
     def map(
         self,
@@ -416,16 +383,7 @@ class FiniteRegularEventsStream(stream.FiniteRegularStream[numpy.ndarray], Outpu
     def mask(self, array: numpy.ndarray) -> "FiniteRegularEventsStream": ...
 
     def transpose(
-        self,
-        action: typing.Literal[
-            "flip_left_right",
-            "flip_bottom_top",
-            "rotate_90_counterclockwise",
-            "rotate_180",
-            "rotate_270_counterclockwise",
-            "flip_up_diagonal",
-            "flip_down_diagonal",
-        ],
+        self, action: stream.TransposeAction
     ) -> "FiniteRegularEventsStream": ...
 
     def map(
@@ -533,18 +491,7 @@ def bind(prefix: typing.Literal["", "Finite", "Regular", "FiniteRegular"]):
             array=array,
         )
 
-    def transpose(
-        self,
-        action: typing.Literal[
-            "flip_left_right",
-            "flip_bottom_top",
-            "rotate_90_counterclockwise",
-            "rotate_180",
-            "rotate_270_counterclockwise",
-            "flip_up_diagonal",
-            "flip_down_diagonal",
-        ],
-    ):
+    def transpose(self, action: stream.TransposeAction):
         from .events_filter import FILTERS
 
         return FILTERS[f"{prefix}Transpose"](
@@ -562,6 +509,17 @@ def bind(prefix: typing.Literal["", "Finite", "Regular", "FiniteRegular"]):
             parent=self,
             function=function,
         )
+
+    regularize.filter_return_annotation = f"{regularize_prefix}EventsStream"
+    chunks.filter_return_annotation = f"{chunks_prefix}EventsStream"
+    time_slice.filter_return_annotation = f"{time_slice_prefix}EventsStream"
+    event_slice.filter_return_annotation = f"{event_slice_prefix}EventsStream"
+    remove_on_events.filter_return_annotation = f"{prefix}EventsStream"
+    remove_off_events.filter_return_annotation = f"{prefix}EventsStream"
+    crop.filter_return_annotation = f"{prefix}EventsStream"
+    mask.filter_return_annotation = f"{prefix}EventsStream"
+    transpose.filter_return_annotation = f"{prefix}EventsStream"
+    map.filter_return_annotation = f"{prefix}EventsStream"
 
     globals()[f"{prefix}EventsStream"].regularize = regularize
     globals()[f"{prefix}EventsStream"].chunks = chunks

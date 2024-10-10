@@ -7,11 +7,14 @@ from .file_decoder import CsvProperties as CsvProperties
 from .events_filter import EVENTS_DTYPE as EVENTS_DTYPE
 from .events_input import events_stream_from_array as events_stream_from_array
 from .events_input import events_stream_from_file as events_stream_from_file
+from .events_input import events_stream_from_stdin as events_stream_from_stdin
+from .events_input import events_stream_from_udp as events_stream_from_udp
 from .events_stream import EventsStream as EventsStream
 from .events_stream import FiniteEventsStream as FiniteEventsStream
 from .events_stream import RegularEventsStream as RegularEventsStream
 from .events_stream import FiniteRegularEventsStream as FiniteRegularEventsStream
 from .file_type import FileType as FileType
+from .stream import TransposeAction as TransposeAction
 from .timestamp import Time as Time
 from .timestamp import parse_timestamp as parse_timestamp
 from .timestamp import timestamp_to_timecode as timestamp_to_timecode
@@ -37,11 +40,14 @@ __all__ = [
     "EVENTS_DTYPE",
     "events_stream_from_array",
     "events_stream_from_file",
+    "events_stream_from_stdin",
+    "events_stream_from_udp",
     "EventsStream",
     "FiniteEventsStream",
     "RegularEventsStream",
     "FiniteRegularEventsStream",
     "FileType",
+    "TransposeAction",
     "Time",
     "parse_timestamp",
     "timestamp_to_timecode",

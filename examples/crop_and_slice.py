@@ -15,6 +15,6 @@ faery.events_stream_from_file(
     start="00:00:00.400000",
     end="00:00:00.600000",
     zero=True,
-).save(
+).to_file(
     dirname.parent / "tests" / "data_generated" / "dvs_crop_and_slice.csv",
 )

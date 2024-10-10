@@ -97,7 +97,7 @@ class Decoder(events_stream.FiniteEventsStream):
         self.version_fallback = version_fallback
         self.t0 = timestamp.parse_timestamp(t0)
         if self.path is None:
-            if self.file_type != file_type_module.FileType.CSV:
+            if file_type != file_type_module.FileType.CSV:
                 raise Exception(
                     "`file_type` must be CSV (`faery.FileType.CSV`) when reading from stdin (`path` is None)"
                 )

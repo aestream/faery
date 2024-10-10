@@ -21,7 +21,7 @@ else:
     from .extension import evt
 
 
-def save(
+def to_file(
     stream: collections.abc.Iterable[numpy.ndarray],
     path: typing.Union[pathlib.Path, str, None],
     dimensions: tuple[int, int],
