@@ -2,7 +2,7 @@
   description = "Ferries AER data from inputs to outputs";
 
   inputs = {
-    nixpkgs.url = "nixpkgs/nixos-24.05";
+    nixpkgs.url = "nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
   };
 
@@ -12,18 +12,22 @@
         pkgs = import nixpkgs { inherit system; };
         faery =
           let
-            pypkgs = pkgs.python3Packages;
+            pypkgs = pkgs.python311Packages;
           in
           pkgs.mkShell {
             buildInputs = [
               pypkgs.python
-              pypkgs.numpy
-              pypkgs.sympy
               pypkgs.venvShellHook
-              pypkgs.torch
+              # pypkgs.torch
               pkgs.autoPatchelfHook
               pkgs.rustc
               pkgs.cargo
+              
+              # nixpkgs still uses numpy version 1
+              # When upgraded, replace the libz dependency
+              # with the numpy package
+              # pypkgs.numpy
+              pkgs.libz
             ];
             venvDir = "./.venv";
             propagatedBuildInputs = [
