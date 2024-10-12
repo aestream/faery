@@ -127,12 +127,8 @@ def test_low_level_decoder(file: assets.File):
                 field_to_hasher["atis_y"].update(
                     (decoder.dimensions[1] - 1 - packet["y"]).tobytes()
                 )
-                field_to_hasher["atis_exposure"].update(
-                    packet["exposure"].tobytes()
-                )
-                field_to_hasher["atis_polarity"].update(
-                    packet["polarity"].tobytes()
-                )
+                field_to_hasher["atis_exposure"].update(packet["exposure"].tobytes())
+                field_to_hasher["atis_polarity"].update(packet["polarity"].tobytes())
                 field_to_hasher["atis_y_original"].update(packet["y"].tobytes())
             for field, hasher in field_to_hasher.items():
                 assert (
@@ -218,9 +214,7 @@ def test_low_level_decoder(file: assets.File):
                 faery.timestamp_to_timecode(first_t),
                 faery.timestamp_to_timecode(last_t + 1),
             )
-            assert (
-                time_range == file.time_range
-            ), f"{time_range=}, {file.time_range=}"
+            assert time_range == file.time_range, f"{time_range=}, {file.time_range=}"
             assert (
                 field_to_hasher["t"].hexdigest() == file.field_to_digest["t"]
             ), f'{file=}, field="t"'

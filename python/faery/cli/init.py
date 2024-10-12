@@ -2,6 +2,7 @@ import argparse
 import os
 import pathlib
 
+
 def add_to_subparsers(subparsers: argparse._SubParsersAction):
     parser: argparse.ArgumentParser = subparsers.add_parser(
         "init", help="initialize a script to render multiple files"
@@ -60,6 +61,7 @@ def add_to_subparsers(subparsers: argparse._SubParsersAction):
         default=0,
         help="set t0 for Event Stream files (defaults to 0)",
     )
+
 
 def run(args: argparse.Namespace):
     pass
