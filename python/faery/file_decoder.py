@@ -54,6 +54,36 @@ class CsvProperties:
         )
 
 
+class TimeRangeCache:
+    def __init__(self):
+        self.path_to_hash_and_time_range_us: dict[
+            pathlib.Path, tuple[int, tuple[int, int]]
+        ] = {}
+
+    def path_hash(self, path: pathlib.Path) -> int:
+        stat = path.stat()
+        return hash((stat.st_mtime_ns, stat.st_size))
+
+    def get_time_range_us(
+        self, path: pathlib.Path, path_hash: int
+    ) -> typing.Optional[tuple[int, int]]:
+        if not path in self.path_to_hash_and_time_range_us:
+            return None
+        stored_path_hash, time_range_us = self.path_to_hash_and_time_range_us[path]
+        if path_hash == stored_path_hash:
+            return time_range_us
+        del self.path_to_hash_and_time_range_us[path]
+        return None
+
+    def set_time_range_us(
+        self, path: pathlib.Path, path_hash: int, time_range_us: tuple[int, int]
+    ):
+        self.path_to_hash_and_time_range_us[path] = (path_hash, time_range_us)
+
+
+TIME_RANGE_CACHE: TimeRangeCache = TimeRangeCache()
+
+
 class Decoder(events_stream.FiniteEventsStream):
     """
     An event file decoder (supports .aedat4, .es, .raw, and .dat).
@@ -89,6 +119,7 @@ class Decoder(events_stream.FiniteEventsStream):
         t0: timestamp.Time = 0,
         csv_properties: CsvProperties = CsvProperties.default(),
         file_type: typing.Optional[file_type_module.FileType] = None,
+        time_range_cache: typing.Optional[TimeRangeCache] = TIME_RANGE_CACHE,
     ):
         super().__init__()
         self.path = None if path is None else pathlib.Path(path)
@@ -96,6 +127,7 @@ class Decoder(events_stream.FiniteEventsStream):
         self.dimensions_fallback = dimensions_fallback
         self.version_fallback = version_fallback
         self.t0 = timestamp.parse_timestamp(t0)
+        self.csv_properties = csv_properties
         if self.path is None:
             if file_type != file_type_module.FileType.CSV:
                 raise Exception(
@@ -108,10 +140,9 @@ class Decoder(events_stream.FiniteEventsStream):
                 if file_type is None
                 else file_type
             )
-        self.csv_properties = csv_properties
+        self.time_range_cache = time_range_cache
         self.inner_dimensions: tuple[int, int]
         self.event_type: typing.Optional[str] = None
-        self._time_range_us: typing.Optional[tuple[int, int]] = None
         if self.file_type == file_type_module.FileType.AEDAT:
             assert self.path is not None
             with aedat.Decoder(self.path) as decoder:
@@ -190,19 +221,34 @@ class Decoder(events_stream.FiniteEventsStream):
         return self.inner_dimensions
 
     def time_range_us(self) -> tuple[int, int]:
-        if self._time_range_us is None:
-            begin: typing.Optional[int] = None
-            end: typing.Optional[int] = None
-            for events in self:
-                if len(events) > 0:
-                    if begin is None:
-                        begin = events["t"][0]
-                    end = events["t"][-1]
-            if begin is None or end is None:
-                self._time_range_us = (0, 1)
-            else:
-                self._time_range_us = (int(begin), int(end) + 1)
-        return self._time_range_us
+        if self.path is None:
+            raise NotImplementedError()
+        if self.time_range_cache is not None:
+            path_hash = self.time_range_cache.path_hash(path=self.path)
+            time_range_us = self.time_range_cache.get_time_range_us(
+                path=self.path, path_hash=path_hash
+            )
+            if time_range_us is not None:
+                return time_range_us
+        else:
+            path_hash = None
+        begin: typing.Optional[int] = None
+        end: typing.Optional[int] = None
+        for events in self:
+            if len(events) > 0:
+                if begin is None:
+                    begin = events["t"][0]
+                end = events["t"][-1]
+        if begin is None or end is None:
+            time_range_us = (0, 1)
+        else:
+            time_range_us = (int(begin), int(end) + 1)
+        if path_hash is not None:
+            assert self.time_range_cache is not None
+            self.time_range_cache.set_time_range_us(
+                path=self.path, path_hash=path_hash, time_range_us=time_range_us
+            )
+        return time_range_us
 
     def __iter__(self) -> collections.abc.Iterator[numpy.ndarray]:
         if self.file_type == file_type_module.FileType.AEDAT:
