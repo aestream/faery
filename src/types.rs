@@ -14,12 +14,17 @@ pub fn python_path_to_string(
     }
     let fspath_result = path.to_object(python).call_method0(python, "__fspath__")?;
     {
-        let fspath_as_string: PyResult<&pyo3::types::PyString> = fspath_result.extract(python);
+        let fspath_as_string: Result<
+            &pyo3::Bound<'_, pyo3::types::PyString>,
+            pyo3::DowncastError<'_, '_>,
+        > = fspath_result.downcast_bound(python);
         if let Ok(result) = fspath_as_string {
             return Ok(result.to_string());
         }
     }
-    let fspath_as_bytes: &pyo3::types::PyBytes = fspath_result.extract(python)?;
+    let fspath_as_bytes: &pyo3::Bound<'_, pyo3::types::PyBytes> = fspath_result
+        .downcast_bound(python)
+        .map_err(|__fspath__| pyo3::exceptions::PyTypeError::new_err("path must be a string, bytes, or an object with an __fspath__ method (such as pathlib.Path"))?;
     Ok(fspath_as_bytes.to_string())
 }
 
