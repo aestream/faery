@@ -29,7 +29,7 @@ jobs:
       - run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
         if: startsWith(matrix.os, 'macos')
       - uses: pypa/cibuildwheel@v2.18.1
-      - run: echo "wheelhouse_path=$(echo '${{ matrix.os }}' | awk '{split($0,input,"-"); print input[1]}')" >> $GITHUB_ENV
+      - run: echo "wheelhouse_path=wheelhouse-$(echo '${{ matrix.os }}' | awk '{split($0,input,"-"); print input[1]}')" >> $GITHUB_ENV
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ env.wheelhouse_path }}
@@ -50,7 +50,7 @@ jobs:
       with:
         python-version: ${{ matrix.python }}
     - uses: actions/checkout@v4
-    - run: echo "wheelhouse_path=$(echo '${{ matrix.os }}' | awk '{split($0,input,"-"); print input[1]}')" >> $GITHUB_ENV
+    - run: echo "wheelhouse_path=wheelhouse-$(echo '${{ matrix.os }}' | awk '{split($0,input,"-"); print input[1]}')" >> $GITHUB_ENV
     - uses: actions/download-artifact@v4
       with:
         name: ${{ env.wheelhouse_path }}
@@ -58,6 +58,7 @@ jobs:
     - run: python -m pip install toml
     - run: python -m pip install numpy==${{ matrix.numpy }}
     - run: python .github/workflows/install_dependencies.py
+    - run: ls -lah wheelhouse
     - run: python -m pip install --no-index --find-links wheelhouse faery
     - run: python -m pytest tests/
   build_sdist:
