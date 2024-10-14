@@ -43,6 +43,12 @@ jobs:
         numpy: ["==1.26.4", ">=2"]
         python: ["3.9", "3.10", "3.11", "3.12", "3.13"]
         os: [ubuntu-latest, windows-latest, macos-13, macos-latest]
+        exclude:
+          # this configuration yields 'Windows fatal exception: access violation'
+          # this may get fixed in a maintenance upgrade of 1.26.x (x > 4)
+          - numpy: ==1.26.4
+            os: windows-latest
+            python: 3.13
     env:
       wheelhouse_path: wheelhouse-${{ matrix.os }}
     steps:
