@@ -24,6 +24,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+      - run: rustup target add x86_64-apple-darwin
+        if: matrix.os == 'macos-13'
+      - run: rustup target add aarch64-apple-darwin
+        if: matrix.os == 'macos-14'
       - uses: pypa/cibuildwheel@v2.18.1
       - uses: actions/upload-artifact@v4
         with:
