@@ -28,7 +28,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
         if: startsWith(matrix.os, 'macos')
-      - uses: pypa/cibuildwheel@v2.18.1
+      - uses: pypa/cibuildwheel@v2.21.3
       - run: echo "wheelhouse_path=wheelhouse-$(echo '${{ matrix.os }}' | awk '{split($0,input,"-"); print input[1]}')" >> $GITHUB_ENV
       - uses: actions/upload-artifact@v4
         with:
