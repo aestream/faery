@@ -8,7 +8,6 @@ import types
 import numpy
 
 from . import events_stream
-from . import events_filter
 
 
 class Receiver:
@@ -95,7 +94,7 @@ class Decoder(events_stream.EventsStream):
                     raw_bytes = receiver.next()
                     events = numpy.frombuffer(
                         raw_bytes[0 : (len(raw_bytes) // 13) * 13],
-                        dtype=events_filter.EVENTS_DTYPE,
+                        dtype=events_stream.EVENTS_DTYPE,
                     )
                     if len(events) > 0:
                         if events["t"][0] >= previous_t:
@@ -113,7 +112,7 @@ class Decoder(events_stream.EventsStream):
                     if len(raw_events) > 0:
                         events = numpy.ndarray(
                             len(raw_events),
-                            dtype=events_filter.EVENTS_DTYPE,
+                            dtype=events_stream.EVENTS_DTYPE,
                         )
                         events["t"] = raw_events["t"]
                         events["x"] = raw_events["x"]

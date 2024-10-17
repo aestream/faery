@@ -31,6 +31,7 @@ def main():
     faery.cli.init.add_to_subparsers(subparsers)
     faery.cli.run.add_to_subparsers(subparsers)
     faery.cli.inline.add_to_subparsers(subparsers)
+    faery.cli.colormaps.add_to_subparsers(subparsers)
     args = parser.parse_args()
 
     if args.command is None:

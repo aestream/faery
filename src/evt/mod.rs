@@ -32,6 +32,7 @@ pub struct Decoder {
 #[pymethods]
 impl Decoder {
     #[new]
+    #[pyo3(signature = (path, dimensions_fallback, version_fallback))]
     fn new(
         path: &pyo3::Bound<'_, pyo3::types::PyAny>,
         dimensions_fallback: Option<(u16, u16)>,
@@ -74,6 +75,7 @@ impl Decoder {
         slf
     }
 
+    #[pyo3(signature = (_exception_type, _value, _traceback))]
     fn __exit__(
         &mut self,
         _exception_type: Option<PyObject>,
@@ -181,6 +183,7 @@ impl Encoder {
         slf
     }
 
+    #[pyo3(signature = (_exception_type, _value, _traceback))]
     fn __exit__(
         &mut self,
         _exception_type: Option<PyObject>,

@@ -66,6 +66,7 @@ pub struct Track {
 #[pymethods]
 impl Track {
     #[new]
+    #[pyo3(signature = (id, data_type, dimensions))]
     fn new(id: u32, data_type: String, dimensions: Option<(u16, u16)>) -> Self {
         Self {
             id,
@@ -184,6 +185,7 @@ impl Decoder {
         slf
     }
 
+    #[pyo3(signature = (_exception_type, _value, _traceback))]
     fn __exit__(
         &mut self,
         _exception_type: Option<PyObject>,
@@ -469,6 +471,7 @@ enum DescriptionOrTracks {
 #[pymethods]
 impl Encoder {
     #[new]
+    #[pyo3(signature = (path, description_or_tracks, compression))]
     fn new(
         path: &pyo3::Bound<'_, pyo3::types::PyAny>,
         description_or_tracks: DescriptionOrTracks,
@@ -512,6 +515,7 @@ impl Encoder {
         slf
     }
 
+    #[pyo3(signature = (_exception_type, _value, _traceback))]
     fn __exit__(
         &mut self,
         _exception_type: Option<PyObject>,

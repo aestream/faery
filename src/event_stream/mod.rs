@@ -80,6 +80,7 @@ impl Decoder {
         slf
     }
 
+    #[pyo3(signature = (_exception_type, _value, _traceback))]
     fn __exit__(
         &mut self,
         _exception_type: Option<PyObject>,
@@ -228,6 +229,7 @@ fn atis_payload_error(exposure: u8, polarity: u8) -> String {
 #[pymethods]
 impl Encoder {
     #[new]
+    #[pyo3(signature = (path, event_type, zero_t0, dimensions))]
     fn new(
         path: &pyo3::Bound<'_, pyo3::types::PyAny>,
         event_type: &str,
@@ -249,6 +251,7 @@ impl Encoder {
         slf
     }
 
+    #[pyo3(signature = (_exception_type, _value, _traceback))]
     fn __exit__(
         &mut self,
         _exception_type: Option<PyObject>,

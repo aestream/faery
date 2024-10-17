@@ -15,6 +15,10 @@ if typing.TYPE_CHECKING:
 else:
     from .extension import aedat
 
+EVENTS_DTYPE: numpy.dtype = numpy.dtype(
+    [("t", "<u8"), ("x", "<u2"), ("y", "<u2"), (("p", "on"), "?")]
+)
+
 # A type puzzle
 # =============
 #
@@ -539,8 +543,6 @@ for prefix in ("", "Finite", "Regular", "FiniteRegular"):
 
 class Array(FiniteEventsStream):
     def __init__(self, events: numpy.ndarray, dimensions: tuple[int, int]):
-        from .events_filter import EVENTS_DTYPE
-
         super().__init__()
         assert self.events.dtype == EVENTS_DTYPE
         self.events = events

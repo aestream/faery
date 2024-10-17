@@ -8,14 +8,10 @@ from . import events_stream
 from . import stream
 from . import timestamp
 
-EVENTS_DTYPE: numpy.dtype = numpy.dtype(
-    [("t", "<u8"), ("x", "<u2"), ("y", "<u2"), (("p", "on"), "?")]
-)
-
 # Empty arrays
 # ------------
 #
-# A stream must yield `numpy.ndarray` objects with dtype `EVENTS_DTYPE`.
+# A stream must yield `numpy.ndarray` objects with dtype `events_stream.EVENTS_DTYPE`.
 # Whilst yielding `None` is not allowed, a stream may yield empty event arrays.
 #
 # Filters that need to access event data (for instance `events["t"][0]`)
@@ -110,7 +106,7 @@ class Regularize(events_stream.FiniteRegularEventsFilter):
                     break
                 next_packet_start = packet_start + self.period_us()
                 if events["t"][0] >= next_packet_start:
-                    yield numpy.concatenate(events_buffers, dtype=EVENTS_DTYPE)
+                    yield numpy.concatenate(events_buffers, dtype=events_stream.EVENTS_DTYPE)
                     events_buffers = []
                     packet_start = next_packet_start
                     continue
@@ -122,16 +118,16 @@ class Regularize(events_stream.FiniteRegularEventsFilter):
                     yield events[:pivot]
                 else:
                     events_buffers.append(events[:pivot])
-                    yield numpy.concatenate(events_buffers, dtype=EVENTS_DTYPE)
+                    yield numpy.concatenate(events_buffers, dtype=events_stream.EVENTS_DTYPE)
                     events_buffers = []
                 events = events[pivot:]
                 packet_start = next_packet_start
         if len(events_buffers) > 0:
-            yield numpy.concatenate(events_buffers, dtype=EVENTS_DTYPE)
+            yield numpy.concatenate(events_buffers, dtype=events_stream.EVENTS_DTYPE)
             events_buffers = []
         if packet_start is not None and packet_end is not None:
             while packet_start < packet_end:
-                yield numpy.array([], dtype=EVENTS_DTYPE)
+                yield numpy.array([], dtype=events_stream.EVENTS_DTYPE)
                 packet_start += self.period_us()
 
 
@@ -161,11 +157,11 @@ class Chunks(events_stream.FiniteRegularEventsFilter):
                     yield events[:pivot]
                 else:
                     events_buffers.append(events[:pivot])
-                    yield numpy.concatenate(events_buffers, dtype=EVENTS_DTYPE)
+                    yield numpy.concatenate(events_buffers, dtype=events_stream.EVENTS_DTYPE)
                     events_buffers = []
                 events = events[pivot:]
         if len(events_buffers) > 0:
-            yield numpy.concatenate(events_buffers, dtype=EVENTS_DTYPE)
+            yield numpy.concatenate(events_buffers, dtype=events_stream.EVENTS_DTYPE)
             events_buffers = []
 
 
@@ -346,7 +342,7 @@ class RegularEventSlice(events_stream.RegularEventsFilter):
             if index >= self.start and index + length < self.end:
                 yield events
             else:
-                yield numpy.ndarray([], dtype=EVENTS_DTYPE)
+                yield numpy.ndarray([], dtype=events_stream.EVENTS_DTYPE)
             index += 1
 
 

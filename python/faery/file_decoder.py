@@ -6,7 +6,6 @@ import typing
 import numpy
 import numpy.lib.recfunctions
 
-from . import events_filter
 from . import events_stream
 from . import file_type as file_type_module
 from . import timestamp
@@ -289,7 +288,7 @@ class Decoder(events_stream.FiniteEventsStream):
                 for events in decoder:
                     numpy.clip(events["payload"], 0, 1, events["payload"])
                     yield events.astype(
-                        dtype=events_filter.EVENTS_DTYPE,
+                        dtype=events_stream.EVENTS_DTYPE,
                         casting="unsafe",
                         copy=False,
                     )
@@ -303,7 +302,7 @@ class Decoder(events_stream.FiniteEventsStream):
                             continue
                         events = numpy.zeros(
                             numpy.count_nonzero(mask),
-                            dtype=events_filter.EVENTS_DTYPE,
+                            dtype=events_stream.EVENTS_DTYPE,
                         )
                         events["t"] = atis_events["t"][mask]
                         events["x"] = atis_events["x"][mask]

@@ -80,6 +80,7 @@ impl Decoder {
         slf
     }
 
+    #[pyo3(signature = (_exception_type, _value, _traceback))]
     fn __exit__(
         &mut self,
         _exception_type: Option<PyObject>,
@@ -173,6 +174,7 @@ impl Encoder {
         slf
     }
 
+    #[pyo3(signature = (_exception_type, _value, _traceback))]
     fn __exit__(
         &mut self,
         _exception_type: Option<PyObject>,
