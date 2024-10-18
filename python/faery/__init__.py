@@ -3,7 +3,6 @@ import typing
 
 __version__ = importlib.metadata.version("faery")
 
-from . import cli as cli
 from . import colormaps as colormaps
 from .colormaps._base import Color as Color
 from .colormaps._base import Colormap as Colormap

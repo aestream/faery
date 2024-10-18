@@ -3,7 +3,7 @@ def main():
     import argparse
     import textwrap
 
-    import faery
+    import faery.cli
 
     parser = argparse.ArgumentParser(
         prog="faery",

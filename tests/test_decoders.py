@@ -87,7 +87,11 @@ def test_low_level_decoder(file: assets.File):
                 ), f"{file=}, {field=}"
     elif file.format == "dat2":
         print(f"faery.dat.Decoder ({file.path.name})")
-        with faery.dat.Decoder(path=file.path) as decoder:
+        with faery.dat.Decoder(
+            path=file.path,
+            dimensions_fallback=None,
+            version_fallback=None,
+        ) as decoder:
             assert decoder.version == "dat2"
             assert decoder.event_type == "cd"
             assert decoder.dimensions == file.dimensions
@@ -223,7 +227,9 @@ def test_low_level_decoder(file: assets.File):
         print(f"faery.evt.Decoder ({file.path.name})")
         assert file.dimensions is not None
         with faery.evt.Decoder(
-            path=file.path, dimensions_fallback=file.dimensions
+            path=file.path,
+            dimensions_fallback=file.dimensions,
+            version_fallback=None,
         ) as decoder:
             assert decoder.version == "evt2"
             assert decoder.dimensions == file.dimensions
@@ -240,7 +246,11 @@ def test_low_level_decoder(file: assets.File):
                 ), f"{file=}, {field=}"
     elif file.format == "evt3":
         print(f"faery.evt.Decoder ({file.path.name})")
-        with faery.evt.Decoder(path=file.path) as decoder:
+        with faery.evt.Decoder(
+            path=file.path,
+            dimensions_fallback=None,
+            version_fallback=None,
+        ) as decoder:
             assert decoder.version == "evt3"
             assert decoder.dimensions == file.dimensions
             field_to_hasher = file.field_to_hasher()
