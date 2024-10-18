@@ -4,8 +4,9 @@ import typing
 
 import numpy
 
+from . import enums
+from . import frame_stream
 from . import file_encoder
-from . import file_type as file_type_module
 from . import stream
 from . import timestamp
 from . import udp_encoder
@@ -96,14 +97,12 @@ class Output:
     def to_file(
         self,
         path: typing.Union[pathlib.Path, str],
-        version: typing.Optional[
-            typing.Literal["dat1", "dat2", "evt2", "evt2.1", "evt3"]
-        ] = None,
+        version: typing.Optional[enums.EventsFileVersion] = None,
         zero_t0: bool = True,
         compression: typing.Optional[
-            typing.Tuple[typing.Literal["lz4", "zstd"], int]
+            typing.Tuple[enums.EventsFileCompression, int]
         ] = aedat.LZ4_DEFAULT,
-        file_type: typing.Optional[file_type_module.FileType] = None,
+        file_type: typing.Optional[enums.EventsFileType] = None,
     ) -> str:
         """
         Writes the stream to an event file (supports .aedat4, .es, .raw, and .dat).
@@ -130,7 +129,7 @@ class Output:
             EVT (.raw) and DAT files do not need this (t0 is written in their header), but it is returned here anyway for compatibility
             with software than do not support the t0 header field.
         """
-        return file_encoder.to_file(
+        return file_encoder.events_to_file(
             stream=self,
             path=path,
             dimensions=self.dimensions(),
@@ -141,11 +140,11 @@ class Output:
         )
 
     def to_stdout(self) -> str:
-        return file_encoder.to_file(
+        return file_encoder.events_to_file(
             stream=self,
             path=None,
             dimensions=self.dimensions(),
-            file_type=file_type_module.FileType.CSV,
+            file_type="csv",
         )
 
     def to_udp(
@@ -221,7 +220,7 @@ class EventsStream(stream.Stream[numpy.ndarray], Output):
 
     def mask(self, array: numpy.ndarray) -> "EventsStream": ...
 
-    def transpose(self, action: stream.TransposeAction) -> "EventsStream": ...
+    def transpose(self, action: enums.TransposeAction) -> "EventsStream": ...
 
     def map(
         self,
@@ -232,6 +231,12 @@ class EventsStream(stream.Stream[numpy.ndarray], Output):
         self, filter_class: type["EventsFilter"], *args, **kwargs
     ) -> "EventsStream":
         return filter_class(self, *args, **kwargs)  # type: ignore
+
+    def envelope(
+        self,
+        decay: enums.Decay,
+        tau: timestamp.Time,
+    ) -> frame_stream.Float64FrameStream: ...
 
 
 class FiniteEventsStream(stream.FiniteStream[numpy.ndarray], Output):
@@ -277,7 +282,7 @@ class FiniteEventsStream(stream.FiniteStream[numpy.ndarray], Output):
 
     def mask(self, array: numpy.ndarray) -> "FiniteEventsStream": ...
 
-    def transpose(self, action: stream.TransposeAction) -> "FiniteEventsStream": ...
+    def transpose(self, action: enums.TransposeAction) -> "FiniteEventsStream": ...
 
     def map(
         self,
@@ -291,6 +296,12 @@ class FiniteEventsStream(stream.FiniteStream[numpy.ndarray], Output):
 
     def to_array(self) -> numpy.ndarray:
         return numpy.concatenate(list(self))
+
+    def envelope(
+        self,
+        decay: enums.Decay,
+        tau: timestamp.Time,
+    ) -> frame_stream.FiniteFloat64FrameStream: ...
 
 
 class RegularEventsStream(stream.RegularStream[numpy.ndarray], Output):
@@ -336,7 +347,7 @@ class RegularEventsStream(stream.RegularStream[numpy.ndarray], Output):
 
     def mask(self, array: numpy.ndarray) -> "RegularEventsStream": ...
 
-    def transpose(self, action: stream.TransposeAction) -> "RegularEventsStream": ...
+    def transpose(self, action: enums.TransposeAction) -> "RegularEventsStream": ...
 
     def map(
         self,
@@ -347,6 +358,12 @@ class RegularEventsStream(stream.RegularStream[numpy.ndarray], Output):
         self, filter_class: type["RegularEventsFilter"], *args, **kwargs
     ) -> "RegularEventsStream":
         return filter_class(self, *args, **kwargs)  # type: ignore
+
+    def envelope(
+        self,
+        decay: enums.Decay,
+        tau: timestamp.Time,
+    ) -> frame_stream.RegularFloat64FrameStream: ...
 
 
 class FiniteRegularEventsStream(stream.FiniteRegularStream[numpy.ndarray], Output):
@@ -387,7 +404,7 @@ class FiniteRegularEventsStream(stream.FiniteRegularStream[numpy.ndarray], Outpu
     def mask(self, array: numpy.ndarray) -> "FiniteRegularEventsStream": ...
 
     def transpose(
-        self, action: stream.TransposeAction
+        self, action: enums.TransposeAction
     ) -> "FiniteRegularEventsStream": ...
 
     def map(
@@ -402,6 +419,12 @@ class FiniteRegularEventsStream(stream.FiniteRegularStream[numpy.ndarray], Outpu
 
     def to_array(self) -> numpy.ndarray:
         return numpy.concatenate(list(self))
+
+    def envelope(
+        self,
+        decay: enums.Decay,
+        tau: timestamp.Time,
+    ) -> frame_stream.FiniteRegularFloat64FrameStream: ...
 
 
 def bind(prefix: typing.Literal["", "Finite", "Regular", "FiniteRegular"]):
@@ -495,7 +518,7 @@ def bind(prefix: typing.Literal["", "Finite", "Regular", "FiniteRegular"]):
             array=array,
         )
 
-    def transpose(self, action: stream.TransposeAction):
+    def transpose(self, action: enums.TransposeAction):
         from .events_filter import FILTERS
 
         return FILTERS[f"{prefix}Transpose"](
@@ -514,6 +537,15 @@ def bind(prefix: typing.Literal["", "Finite", "Regular", "FiniteRegular"]):
             function=function,
         )
 
+    def envelope(
+        self,
+        decay: enums.Decay,
+        tau: timestamp.Time,
+    ):
+        from .render import FILTERS
+
+        return FILTERS[f"{prefix}Float64Envelope"](parent=self, decay=decay, tau=tau)
+
     regularize.filter_return_annotation = f"{regularize_prefix}EventsStream"
     chunks.filter_return_annotation = f"{chunks_prefix}EventsStream"
     time_slice.filter_return_annotation = f"{time_slice_prefix}EventsStream"
@@ -524,6 +556,7 @@ def bind(prefix: typing.Literal["", "Finite", "Regular", "FiniteRegular"]):
     mask.filter_return_annotation = f"{prefix}EventsStream"
     transpose.filter_return_annotation = f"{prefix}EventsStream"
     map.filter_return_annotation = f"{prefix}EventsStream"
+    envelope.filter_return_annotation = f"{prefix}FrameStream"
 
     globals()[f"{prefix}EventsStream"].regularize = regularize
     globals()[f"{prefix}EventsStream"].chunks = chunks
@@ -535,6 +568,7 @@ def bind(prefix: typing.Literal["", "Finite", "Regular", "FiniteRegular"]):
     globals()[f"{prefix}EventsStream"].mask = mask
     globals()[f"{prefix}EventsStream"].transpose = transpose
     globals()[f"{prefix}EventsStream"].map = map
+    globals()[f"{prefix}EventsStream"].envelope = envelope
 
 
 for prefix in ("", "Finite", "Regular", "FiniteRegular"):

@@ -1,10 +1,12 @@
 import collections.abc
 import pathlib
 import typing
+import uuid
 
 import numpy
 
-from . import file_type as file_type_module
+from . import enums
+from . import frame_stream
 from . import timestamp
 
 if typing.TYPE_CHECKING:
@@ -21,20 +23,18 @@ else:
     from .extension import evt
 
 
-def to_file(
+def events_to_file(
     stream: collections.abc.Iterable[numpy.ndarray],
     path: typing.Union[pathlib.Path, str, None],
     dimensions: tuple[int, int],
-    version: typing.Optional[
-        typing.Literal["dat1", "dat2", "evt2", "evt2.1", "evt3"]
-    ] = None,
+    version: typing.Optional[enums.EventsFileVersion] = None,
     zero_t0: bool = True,
     compression: typing.Optional[
-        typing.Tuple[typing.Literal["lz4", "zstd"], int]
+        typing.Tuple[enums.EventsFileCompression, int]
     ] = aedat.LZ4_DEFAULT,
     csv_separator: bytes = b",",
     csv_header: bool = True,
-    file_type: typing.Optional[file_type_module.FileType] = None,
+    file_type: typing.Optional[enums.EventsFileType] = None,
 ) -> str:
     """Writes the stream to an event file (supports .aedat4, .es, .raw, and .dat).
 
@@ -63,16 +63,25 @@ def to_file(
         with software than do not support the t0 header field.
     """
     if path is None:
-        if file_type != file_type_module.FileType.CSV:
+        if file_type != "csv":
             raise Exception(
                 "`file_type` must be CSV (`faery.FileType.CSV`) when writing to stdout (`path` is None)"
             )
     else:
         path = pathlib.Path(path)
         file_type = (
-            file_type_module.FileType.guess(path) if file_type is None else file_type
+            enums.events_file_type_guess(path)
+            if file_type is None
+            else enums.validate_events_file_type(file_type)
         )
-    if file_type == file_type_module.FileType.AEDAT:
+    if version is not None:
+        version = enums.validate_events_file_version(version)
+    if compression is not None:
+        compression = (
+            enums.validate_events_file_compression(compression[0]),
+            compression[1],
+        )
+    if file_type == "aedat":
         assert path is not None
         with aedat.Encoder(
             path,
@@ -84,7 +93,7 @@ def to_file(
             for events in stream:
                 encoder.write(0, events)
         t0 = 0
-    elif file_type == file_type_module.FileType.CSV:
+    elif file_type == "csv":
         assert len(csv_separator) == 1
         with csv.Encoder(
             path=path,
@@ -97,7 +106,7 @@ def to_file(
 
                 encoder.write(events)
         t0 = 0
-    elif file_type == file_type_module.FileType.DAT:
+    elif file_type == "dat":
         assert path is not None
         with dat.Encoder(
             path,
@@ -125,7 +134,7 @@ def to_file(
                 t0 = 0
             else:
                 t0 = t0_candidate
-    elif file_type == file_type_module.FileType.ES:
+    elif file_type == "es":
         assert path is not None
         with event_stream.Encoder(
             path,
@@ -141,7 +150,7 @@ def to_file(
                 t0 = 0
             else:
                 t0 = t0_candidate
-    elif file_type == file_type_module.FileType.EVT:
+    elif file_type == "evt":
         assert path is not None
         with evt.Encoder(
             path,
@@ -159,3 +168,58 @@ def to_file(
     else:
         raise Exception(f"file type {file_type} not implemented")
     return timestamp.timestamp_to_timecode(t0)
+
+
+def frames_to_files(
+    stream: collections.abc.Iterable[frame_stream.Rgba8888Frame],
+    path_pattern: typing.Union[pathlib.Path, str],
+    compression_level: enums.ImageFileCompressionLevel = "fast",
+    file_type: typing.Optional[enums.ImageFileType] = None,
+):
+    path_pattern = pathlib.Path(path_pattern)
+    index_uuid = str(uuid.uuid4())
+    timestamp_uuid = str(uuid.uuid4())
+    found = False
+    try:
+        for part in path_pattern.parts:
+            formatted_part = part.format_map(
+                {
+                    "index": index_uuid,
+                    "timestamp": timestamp_uuid,
+                    "i": index_uuid,
+                    "t": timestamp_uuid,
+                }
+            )
+            if index_uuid in formatted_part or timestamp_uuid in formatted_part:
+                found = True
+                break
+    except KeyError as error:
+        raise Exception(
+            f'unexpected variable "{error.args[0]}" in "{path_pattern}" (Rgba8888FrameStream.to_files calculates paths with Python\'s `format` method and the variables {{i}}/{{index}} and/or {{t}}/{{timestamp}}, see https://docs.python.org/3/library/string.html#formatstrings to escape other variables)'
+        )
+    if not found:
+        raise Exception(
+            f'at least one of {{i}}/{{index}} or {{t}}/{{timestamp}} must appear in the path pattern (for example "output/{{i:05}}.png" or "output/{{index:05}}_{{timestamp:010}}.png")'
+        )
+    index = 0
+    for frame in stream:
+        path = pathlib.Path(
+            *(
+                part.format_map(
+                    {
+                        "index": index,
+                        "timestamp": frame.t,
+                        "i": index,
+                        "t": frame.t,
+                    }
+                )
+                for part in path_pattern.parts
+            )
+        )
+        path.parent.mkdir(exist_ok=True, parents=True)
+        frame.to_file(
+            path=path,
+            compression_level=compression_level,
+            file_type=file_type,
+        )
+        index += 1

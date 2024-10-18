@@ -3,9 +3,9 @@ import typing
 
 import numpy
 
+from . import enums
 from . import file_decoder
 from . import events_stream
-from . import file_type as file_type_module
 from . import timestamp
 from . import udp_decoder
 
@@ -21,11 +21,9 @@ def events_stream_from_file(
     path: typing.Union[str, pathlib.Path],
     track_id: typing.Optional[int] = None,
     dimensions_fallback: tuple[int, int] = (1280, 720),
-    version_fallback: typing.Optional[
-        typing.Literal["dat1", "dat2", "evt2", "evt2.1", "evt3"]
-    ] = None,
+    version_fallback: typing.Optional[enums.EventsFileVersion] = None,
     t0: timestamp.Time = 0,
-    file_type: typing.Optional[file_type_module.FileType] = None,
+    file_type: typing.Optional[enums.EventsFileType] = None,
     csv_properties: file_decoder.CsvProperties = file_decoder.CsvProperties.default(),
 ) -> events_stream.FiniteEventsStream:
     """An event file decoder (supports .aedat4, .es, .raw, and .dat).
@@ -72,7 +70,7 @@ def events_stream_from_stdin(
         version_fallback=None,
         t0=t0,
         csv_properties=csv_properties,
-        file_type=file_type_module.FileType.CSV,
+        file_type="csv",
     )
 
 

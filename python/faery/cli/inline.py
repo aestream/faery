@@ -195,23 +195,39 @@ for stream_class in STREAM_CLASSES:
                         else str(parameter.default)
                     ),
                 )
-            elif (
-                parameter.annotation == faery.TransposeAction
-                or parameter.annotation == str(faery.TransposeAction)
-            ):
-                filter.name_to_parameter[parameter_name] = FilterParameter(
-                    type="tranpose action",
-                    parse=lambda string: string,
-                    default=(
-                        None
-                        if parameter.default == inspect._empty
-                        else str(parameter.default)
-                    ),
-                )
             else:
-                raise Exception(
-                    f"unsupported parameter type {parameter.annotation} in filter {function_name} of {stream_class}"
-                )
+                found = False
+                for name, member in inspect.getmembers(faery.enums):
+                    if typing.get_origin(member) == typing.Literal:
+                        if (
+                            parameter.annotation == member
+                            or parameter.annotation == str(member)
+                        ):
+                            split_name = ""
+                            for character in name:
+                                if (
+                                    character.isupper()
+                                    and len(split_name) > 0
+                                    and split_name[-1] != " "
+                                ):
+                                    split_name += f" {character.lower()}"
+                                else:
+                                    split_name += character.lower()
+                            filter.name_to_parameter[parameter_name] = FilterParameter(
+                                type=split_name,
+                                parse=lambda string: string,
+                                default=(
+                                    None
+                                    if parameter.default == inspect._empty
+                                    else str(parameter.default)
+                                ),
+                            )
+                            found = True
+                            break
+                if not found:
+                    raise Exception(
+                        f"unsupported parameter type {parameter.annotation} in filter {function_name} of {stream_class}"
+                    )
         name_to_filter[function_name] = filter
     class_to_name_to_filter[stream_class] = name_to_filter
 

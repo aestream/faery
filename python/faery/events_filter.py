@@ -4,6 +4,7 @@ import typing
 
 import numpy
 
+from . import enums
 from . import events_stream
 from . import stream
 from . import timestamp
@@ -95,7 +96,7 @@ class Regularize(events_stream.FiniteRegularEventsFilter):
             packet_start = parent_time_range_us[0] if self.start is None else self.start
             packet_end = parent_time_range_us[1]
         except AttributeError:
-            packet_start = None
+            packet_start = self.start
             packet_end = None
         events_buffers: list[numpy.ndarray] = []
         for events in self.parent:
@@ -106,7 +107,9 @@ class Regularize(events_stream.FiniteRegularEventsFilter):
                     break
                 next_packet_start = packet_start + self.period_us()
                 if events["t"][0] >= next_packet_start:
-                    yield numpy.concatenate(events_buffers, dtype=events_stream.EVENTS_DTYPE)
+                    yield numpy.concatenate(
+                        events_buffers, dtype=events_stream.EVENTS_DTYPE
+                    )
                     events_buffers = []
                     packet_start = next_packet_start
                     continue
@@ -118,11 +121,15 @@ class Regularize(events_stream.FiniteRegularEventsFilter):
                     yield events[:pivot]
                 else:
                     events_buffers.append(events[:pivot])
-                    yield numpy.concatenate(events_buffers, dtype=events_stream.EVENTS_DTYPE)
+                    yield numpy.concatenate(
+                        events_buffers, dtype=events_stream.EVENTS_DTYPE
+                    )
                     events_buffers = []
                 events = events[pivot:]
                 packet_start = next_packet_start
         if len(events_buffers) > 0:
+            assert packet_start is not None
+            packet_start += self.period_us()
             yield numpy.concatenate(events_buffers, dtype=events_stream.EVENTS_DTYPE)
             events_buffers = []
         if packet_start is not None and packet_end is not None:
@@ -157,7 +164,9 @@ class Chunks(events_stream.FiniteRegularEventsFilter):
                     yield events[:pivot]
                 else:
                     events_buffers.append(events[:pivot])
-                    yield numpy.concatenate(events_buffers, dtype=events_stream.EVENTS_DTYPE)
+                    yield numpy.concatenate(
+                        events_buffers, dtype=events_stream.EVENTS_DTYPE
+                    )
                     events_buffers = []
                 events = events[pivot:]
         if len(events_buffers) > 0:
@@ -420,10 +429,10 @@ class Transpose(events_stream.FiniteRegularEventsFilter):
     def __init__(
         self,
         parent: stream.FiniteRegularStream[numpy.ndarray],
-        action: stream.TransposeAction,
+        action: enums.TransposeAction,
     ):
         self.init(parent=parent)
-        self.action = action
+        self.action = enums.validate_transpose_action(action)
 
     def dimensions(self) -> tuple[int, int]:
         dimensions = self.parent.dimensions()

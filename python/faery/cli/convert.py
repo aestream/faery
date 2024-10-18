@@ -1,5 +1,6 @@
 import argparse
 import sys
+import typing
 
 import faery
 
@@ -14,13 +15,7 @@ def add_to_subparsers(subparsers: argparse._SubParsersAction):
     parser.add_argument(
         "-f",
         "--input-format",
-        choices=[
-            "aedat",
-            "csv",
-            "dat",
-            "es",
-            "evt",
-        ],
+        choices=typing.get_args(faery.EventsFileType),
         help="input format, required if the input is standard input",
     )
     parser.add_argument(
@@ -32,7 +27,7 @@ def add_to_subparsers(subparsers: argparse._SubParsersAction):
     parser.add_argument(
         "-j",
         "--input-version",
-        choices=["dat1", "dat2", "evt2", "evt2.1", "evt3"],
+        choices=typing.get_args(faery.EventsFileVersion),
         help="set the version for evt (.raw) or dat files",
     )
     parser.add_argument(
@@ -59,19 +54,13 @@ def add_to_subparsers(subparsers: argparse._SubParsersAction):
     parser.add_argument(
         "-g",
         "--output-format",
-        choices=[
-            "aedat",
-            "csv",
-            "dat",
-            "es",
-            "evt",
-        ],
+        choices=typing.get_args(faery.EventsFileType),
         help="output format, required if the output is standard output",
     )
     parser.add_argument(
         "-k",
         "--output-version",
-        choices=["dat1", "dat2", "evt2", "evt2.1", "evt3"],
+        choices=typing.get_args(faery.EventsFileVersion),
         help="set the version for evt (.raw) or dat files",
     )
     parser.add_argument(
@@ -89,7 +78,7 @@ def add_to_subparsers(subparsers: argparse._SubParsersAction):
     parser.add_argument(
         "-c",
         "--compression-type",
-        choices=["lz4", "zstd"],
+        choices=typing.get_args(faery.EventsFileCompression),
         default="lz4",
         help='set the compression algorithm for aedat files (defaults to "lz4")',
     )

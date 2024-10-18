@@ -9,12 +9,10 @@ COLOR_PATTERN = re.compile(
     r"^#([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})?$"
 )
 
+Color = typing.Union[tuple[float, float, float], tuple[float, float, float, float], str]
 
-def parse_color(
-    color: typing.Union[
-        tuple[float, float, float], tuple[float, float, float, float], str
-    ]
-) -> tuple[float, float, float, float]:
+
+def parse_color(color: Color) -> tuple[float, float, float, float]:
     if isinstance(color, str):
         match = COLOR_PATTERN.match(color)
         if match is None:
@@ -135,12 +133,8 @@ class Colormap:
     @classmethod
     def sequential_from_pair(
         cls,
-        start: typing.Union[
-            tuple[float, float, float], tuple[float, float, float, float], str
-        ],
-        end: typing.Union[
-            tuple[float, float, float], tuple[float, float, float, float], str
-        ],
+        start: Color,
+        end: Color,
         samples: int,
     ):
         start = parse_color(color=start)
@@ -157,15 +151,9 @@ class Colormap:
     @classmethod
     def diverging_from_triplet(
         cls,
-        start: typing.Union[
-            tuple[float, float, float], tuple[float, float, float, float], str
-        ],
-        middle: typing.Union[
-            tuple[float, float, float], tuple[float, float, float, float], str
-        ],
-        end: typing.Union[
-            tuple[float, float, float], tuple[float, float, float, float], str
-        ],
+        start: Color,
+        middle: Color,
+        end: Color,
         half_samples: int,
     ):
         start = parse_color(color=start)
@@ -187,4 +175,10 @@ class Colormap:
                     )[1:],
                 ),
             ),
+        )
+
+    def flipped(self) -> "Colormap":
+        return Colormap(
+            type=self.type,
+            data=numpy.flip(self.data, axis=0).copy(),
         )

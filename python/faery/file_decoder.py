@@ -6,8 +6,8 @@ import typing
 import numpy
 import numpy.lib.recfunctions
 
+from . import enums
 from . import events_stream
-from . import file_type as file_type_module
 from . import timestamp
 
 if typing.TYPE_CHECKING:
@@ -112,37 +112,38 @@ class Decoder(events_stream.FiniteEventsStream):
         path: typing.Union[pathlib.Path, str, None],
         track_id: typing.Optional[int] = None,
         dimensions_fallback: tuple[int, int] = (1280, 720),
-        version_fallback: typing.Optional[
-            typing.Literal["dat1", "dat2", "evt2", "evt2.1", "evt3"]
-        ] = None,
+        version_fallback: typing.Optional[enums.EventsFileVersion] = None,
         t0: timestamp.Time = 0,
         csv_properties: CsvProperties = CsvProperties.default(),
-        file_type: typing.Optional[file_type_module.FileType] = None,
+        file_type: typing.Optional[enums.EventsFileType] = None,
         time_range_cache: typing.Optional[TimeRangeCache] = TIME_RANGE_CACHE,
     ):
         super().__init__()
         self.path = None if path is None else pathlib.Path(path)
         self.track_id = track_id
         self.dimensions_fallback = dimensions_fallback
-        self.version_fallback = version_fallback
+        if version_fallback is None:
+            self.version_fallback = None
+        else:
+            self.version_fallback = enums.validate_events_file_version(version_fallback)
         self.t0 = timestamp.parse_timestamp(t0)
         self.csv_properties = csv_properties
         if self.path is None:
-            if file_type != file_type_module.FileType.CSV:
+            if file_type != "csv":
                 raise Exception(
-                    "`file_type` must be CSV (`faery.FileType.CSV`) when reading from stdin (`path` is None)"
+                    '`file_type` must be "csv" when reading from stdin (path is None)'
                 )
-            self.file_type = file_type_module.FileType.CSV
+            self.file_type = "csv"
         else:
             self.file_type = (
-                file_type_module.FileType.guess(self.path)
+                enums.events_file_type_guess(self.path)
                 if file_type is None
-                else file_type
+                else enums.validate_events_file_type(file_type)
             )
         self.time_range_cache = time_range_cache
         self.inner_dimensions: tuple[int, int]
         self.event_type: typing.Optional[str] = None
-        if self.file_type == file_type_module.FileType.AEDAT:
+        if self.file_type == "aedat":
             assert self.path is not None
             with aedat.Decoder(self.path) as decoder:
                 found = False
@@ -171,10 +172,10 @@ class Decoder(events_stream.FiniteEventsStream):
                         raise Exception(
                             f"track {self.track_id} not found (the available ids are {[track.id for track in decoder.tracks()]})"
                         )
-        elif self.file_type == file_type_module.FileType.CSV:
+        elif self.file_type == "csv":
             self.inner_dimensions = dimensions_fallback
             assert len(self.csv_properties.separator) == 1
-        elif self.file_type == file_type_module.FileType.DAT:
+        elif self.file_type == "dat":
             assert self.path is not None
             if self.version_fallback is None:
                 self.version_fallback = "dat2"
@@ -190,7 +191,7 @@ class Decoder(events_stream.FiniteEventsStream):
                     )
                 assert decoder.dimensions is not None
                 self.inner_dimensions = decoder.dimensions
-        elif self.file_type == file_type_module.FileType.ES:
+        elif self.file_type == "es":
             assert self.path is not None
             with event_stream.Decoder(
                 path=self.path,
@@ -203,7 +204,7 @@ class Decoder(events_stream.FiniteEventsStream):
                     )
                 assert decoder.dimensions is not None
                 self.inner_dimensions = decoder.dimensions
-        elif self.file_type == file_type_module.FileType.EVT:
+        elif self.file_type == "evt":
             if self.version_fallback is None:
                 self.version_fallback = "evt3"
             assert self.path is not None
@@ -250,7 +251,7 @@ class Decoder(events_stream.FiniteEventsStream):
         return time_range_us
 
     def __iter__(self) -> collections.abc.Iterator[numpy.ndarray]:
-        if self.file_type == file_type_module.FileType.AEDAT:
+        if self.file_type == "aedat":
             assert self.path is not None
             with aedat.Decoder(self.path) as decoder:
                 for track, packet in decoder:
@@ -260,7 +261,7 @@ class Decoder(events_stream.FiniteEventsStream):
                         and len(packet) > 0  # type: ignore
                     ):
                         yield packet  # type: ignore
-        elif self.file_type == file_type_module.FileType.CSV:
+        elif self.file_type == "csv":
             with csv.Decoder(
                 path=self.path,
                 dimensions=self.dimensions_fallback,
@@ -278,7 +279,7 @@ class Decoder(events_stream.FiniteEventsStream):
             ) as decoder:
                 for events in decoder:
                     yield events
-        elif self.file_type == file_type_module.FileType.DAT:
+        elif self.file_type == "dat":
             assert self.path is not None
             with dat.Decoder(
                 path=self.path,
@@ -292,7 +293,7 @@ class Decoder(events_stream.FiniteEventsStream):
                         casting="unsafe",
                         copy=False,
                     )
-        elif self.file_type == file_type_module.FileType.ES:
+        elif self.file_type == "es":
             assert self.path is not None
             with event_stream.Decoder(path=self.path, t0=self.t0) as decoder:
                 if self.event_type == "atis":
@@ -315,7 +316,7 @@ class Decoder(events_stream.FiniteEventsStream):
                     for events in decoder:
                         events["y"] = self.inner_dimensions[1] - 1 - events["y"]
                         yield events
-        elif self.file_type == file_type_module.FileType.EVT:
+        elif self.file_type == "evt":
             with evt.Decoder(self.path, self.dimensions_fallback, self.version_fallback) as decoder:  # type: ignore
                 for packet in decoder:
                     if "events" in packet:
