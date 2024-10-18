@@ -1,5 +1,6 @@
-import faery
 import pytest
+
+import faery
 
 
 @pytest.mark.parametrize(

@@ -1,12 +1,12 @@
 import pathlib
-import pytest
 import shutil
 import time
 
+import pytest
+
 import faery
 
-from . import assets
-from . import test_decoders
+from . import assets, test_decoders
 
 data_generated = pathlib.Path(__file__).resolve().parent / "data_generated"
 if data_generated.is_dir():

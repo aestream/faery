@@ -1,6 +1,6 @@
 import pathlib
-import typing
 import types
+import typing
 
 import numpy
 

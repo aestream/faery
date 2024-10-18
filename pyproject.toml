@@ -38,3 +38,4 @@ executionEnvironments = [{ root = ".", venv = ".venv" }]
 
 [tool.isort]
 profile = "black"
+sort_reexports = true

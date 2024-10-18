@@ -1,14 +1,13 @@
 import collections.abc
 import dataclasses
+import pathlib
 import typing
 
 import numpy
 import numpy.typing
-import pathlib
 
+from . import enums, stream
 from .colormaps._base import Colormap
-from . import enums
-from . import stream
 
 if typing.TYPE_CHECKING:
     from .types import image  # type: ignore

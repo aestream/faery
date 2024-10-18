@@ -3,11 +3,7 @@ import typing
 
 import numpy
 
-from . import enums
-from . import file_decoder
-from . import events_stream
-from . import timestamp
-from . import udp_decoder
+from . import enums, events_stream, file_decoder, timestamp, udp_decoder
 
 
 def events_stream_from_array(

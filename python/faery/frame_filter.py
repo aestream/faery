@@ -4,8 +4,7 @@ import typing
 
 import numpy
 
-from . import frame_stream
-from . import stream
+from . import frame_stream, stream
 
 
 def restrict(

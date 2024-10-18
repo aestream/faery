@@ -1,3 +1,5 @@
+# isort: skip_file
+
 # https://www.fabiocrameri.ch/colourmaps
 # https://doi.org/10.1038/s41467-020-19160-7
 from .acton import colormap as acton

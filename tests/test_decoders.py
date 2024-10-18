@@ -1,6 +1,7 @@
-import faery
 import numpy
 import pytest
+
+import faery
 
 from . import assets
 

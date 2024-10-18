@@ -2,8 +2,8 @@ import collections.abc
 import socket
 import threading
 import time
-import typing
 import types
+import typing
 
 import numpy
 

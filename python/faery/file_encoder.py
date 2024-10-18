@@ -5,9 +5,7 @@ import uuid
 
 import numpy
 
-from . import enums
-from . import frame_stream
-from . import timestamp
+from . import enums, frame_stream, timestamp
 
 if typing.TYPE_CHECKING:
     from .types import aedat  # type: ignore
@@ -16,11 +14,7 @@ if typing.TYPE_CHECKING:
     from .types import event_stream  # type: ignore
     from .types import evt  # type: ignore
 else:
-    from .extension import aedat
-    from .extension import csv
-    from .extension import dat
-    from .extension import event_stream
-    from .extension import evt
+    from .extension import aedat, csv, dat, event_stream, evt
 
 
 def events_to_file(

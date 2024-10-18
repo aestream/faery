@@ -2,8 +2,9 @@ import argparse
 import inspect
 import math
 
-import faery
 import numpy
+
+import faery
 
 PADDING_TOP: int = 20
 TITLE_SIZE: int = 20

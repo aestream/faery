@@ -6,9 +6,7 @@ import typing
 import numpy
 import numpy.lib.recfunctions
 
-from . import enums
-from . import events_stream
-from . import timestamp
+from . import enums, events_stream, timestamp
 
 if typing.TYPE_CHECKING:
     from .types import aedat  # type: ignore
@@ -17,11 +15,7 @@ if typing.TYPE_CHECKING:
     from .types import event_stream  # type: ignore
     from .types import evt  # type: ignore
 else:
-    from .extension import aedat
-    from .extension import csv
-    from .extension import dat
-    from .extension import event_stream
-    from .extension import evt
+    from .extension import aedat, csv, dat, event_stream, evt
 
 
 @dataclasses.dataclass

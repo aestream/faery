@@ -4,12 +4,7 @@ import typing
 
 import numpy
 
-from . import enums
-from . import frame_stream
-from . import file_encoder
-from . import stream
-from . import timestamp
-from . import udp_encoder
+from . import enums, file_encoder, frame_stream, stream, timestamp, udp_encoder
 
 if typing.TYPE_CHECKING:
     from .types import aedat  # type: ignore

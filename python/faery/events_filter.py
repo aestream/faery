@@ -4,10 +4,7 @@ import typing
 
 import numpy
 
-from . import enums
-from . import events_stream
-from . import stream
-from . import timestamp
+from . import enums, events_stream, stream, timestamp
 
 # Empty arrays
 # ------------

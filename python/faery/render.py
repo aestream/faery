@@ -4,11 +4,8 @@ import typing
 
 import numpy
 
+from . import enums, frame_stream, stream, timestamp
 from .colormaps._base import Colormap
-from . import enums
-from . import frame_stream
-from . import stream
-from . import timestamp
 
 
 def restrict(
