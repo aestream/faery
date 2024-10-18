@@ -12,8 +12,8 @@ class Decoder:
     def __init__(
         self,
         path: typing.Union[pathlib.Path, str],
-        dimensions_fallback: typing.Optional[tuple[int, int]] = None,
-        version_fallback: typing.Optional[typing.Literal["dat1", "dat2"]] = None,
+        dimensions_fallback: typing.Optional[tuple[int, int]],
+        version_fallback: typing.Optional[typing.Literal["dat1", "dat2"]],
     ): ...
     def __enter__(self) -> Decoder: ...
     def __exit__(

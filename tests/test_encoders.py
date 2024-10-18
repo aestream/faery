@@ -56,7 +56,11 @@ def test_low_level_decoder_encoder(file: assets.File):
                     encoder.write(events)
     elif file.format == "dat2":
         print(f"faery.dat.Decoder + faery.dat.Encoder ({file.path.name})")
-        with faery.dat.Decoder(path=file.path) as decoder:
+        with faery.dat.Decoder(
+            path=file.path,
+            dimensions_fallback=None,
+            version_fallback=None,
+        ) as decoder:
             assert decoder.dimensions is not None
             with faery.dat.Encoder(
                 path=output,
@@ -136,7 +140,11 @@ def test_low_level_decoder_encoder(file: assets.File):
                     encoder.write(packet)
     elif file.format == "evt2":
         print(f"faery.evt.Decoder + faery.evt.Encoder ({file.path.name})")
-        with faery.evt.Decoder(file.path, file.dimensions) as decoder:
+        with faery.evt.Decoder(
+            path=file.path,
+            dimensions_fallback=file.dimensions,
+            version_fallback=None,
+        ) as decoder:
             with faery.evt.Encoder(
                 path=output,
                 version="evt2",
@@ -147,7 +155,11 @@ def test_low_level_decoder_encoder(file: assets.File):
                     encoder.write(packet)
     elif file.format == "evt3":
         print(f"faery.evt.Decoder + faery.evt.Encoder ({file.path.name})")
-        with faery.evt.Decoder(file.path) as decoder:
+        with faery.evt.Decoder(
+            file.path,
+            dimensions_fallback=None,
+            version_fallback=None,
+        ) as decoder:
             with faery.evt.Encoder(
                 path=output,
                 version="evt3",
