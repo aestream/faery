@@ -2,7 +2,7 @@ from ._base import Colormap
 
 colormap = Colormap.from_rgb_table(
     type="sequential",
-    data=[
+    rgb=[
         (0.10144, 0.20011, 0.70019),
         (0.10328, 0.20301, 0.69881),
         (0.10496, 0.2059, 0.69742),

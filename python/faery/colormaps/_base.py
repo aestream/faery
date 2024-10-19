@@ -5,6 +5,8 @@ import typing
 import numpy
 import numpy.typing
 
+from .. import enums
+
 COLOR_PATTERN = re.compile(
     r"^#([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})?$"
 )
@@ -84,6 +86,101 @@ def lab_to_rgb(
     return rgb
 
 
+def rgb_to_lrgb(
+    rgb: numpy.typing.NDArray[numpy.float64],
+) -> numpy.typing.NDArray[numpy.float64]:
+    mask = rgb < 0.04045
+    rgb[mask] /= 12.92
+    rgb[numpy.logical_not(mask)] = numpy.power(
+        (rgb[numpy.logical_not(mask)] + 0.055) / 1.055, 2.4
+    )
+    return numpy.clip(rgb, 0, 1.0)
+
+
+def lrgb_to_rgb(
+    lrgb: numpy.typing.NDArray[numpy.float64],
+) -> numpy.typing.NDArray[numpy.float64]:
+    mask = lrgb < 0.0031308
+    lrgb[mask] *= 12.92
+    lrgb[numpy.logical_not(mask)] = (
+        numpy.power(lrgb[numpy.logical_not(mask)], 1.0 / 2.4) * 1.055 - 0.055
+    )
+    return numpy.clip(lrgb, 0, 1.0)
+
+
+BRETTEL_PROTANOPIA_NORMAL: numpy.typing.NDArray[numpy.float64] = numpy.array(
+    [0.00048, 0.00393, -0.00441], dtype=numpy.float64
+)
+BRETTEL_PROTANOPIA: tuple[
+    numpy.typing.NDArray[numpy.float64], numpy.typing.NDArray[numpy.float64]
+] = (
+    numpy.array(
+        [
+            [0.1498, 0.10764, 0.00384],
+            [1.19548, 0.84864, -0.0054],
+            [-0.34528, 0.04372, 1.00156],
+        ],
+        dtype=numpy.float64,
+    ),
+    numpy.array(
+        [
+            [0.1457, 0.10816, 0.00386],
+            [1.16172, 0.85291, -0.00524],
+            [-0.30742, 0.03892, 1.00139],
+        ],
+        dtype=numpy.float64,
+    ),
+)
+
+BRETTEL_DEUTERANOPIA_NORMAL: numpy.typing.NDArray[numpy.float64] = numpy.array(
+    [-0.00281, -0.00611, 0.00892], dtype=numpy.float64
+)
+BRETTEL_DEUTERANOPIA: tuple[
+    numpy.typing.NDArray[numpy.float64], numpy.typing.NDArray[numpy.float64]
+] = (
+    numpy.array(
+        [
+            [0.36477, 0.26294, -0.02006],
+            [0.86381, 0.64245, 0.02728],
+            [-0.22858, 0.09462, 0.99278],
+        ],
+        dtype=numpy.float64,
+    ),
+    numpy.array(
+        [
+            [0.37298, 0.25954, -0.0198],
+            [0.88166, 0.63506, 0.02784],
+            [-0.25464, 0.1054, 0.99196],
+        ],
+        dtype=numpy.float64,
+    ),
+)
+
+BRETTEL_TRITANOPIA_NORMAL: numpy.typing.NDArray[numpy.float64] = numpy.array(
+    [0.03901, -0.02788, -0.01113], dtype=numpy.float64
+)
+BRETTEL_TRITANOPIA: tuple[
+    numpy.typing.NDArray[numpy.float64], numpy.typing.NDArray[numpy.float64]
+] = (
+    numpy.array(
+        [
+            [1.01277, -0.01243, 0.07589],
+            [0.13548, 0.86812, 0.805],
+            [-0.14826, 0.14431, 0.11911],
+        ],
+        dtype=numpy.float64,
+    ),
+    numpy.array(
+        [
+            [0.93678, 0.06154, -0.37562],
+            [0.18979, 0.81526, 1.12767],
+            [-0.12657, 0.1232, 0.24796],
+        ],
+        dtype=numpy.float64,
+    ),
+)
+
+
 def gradient(
     start: tuple[float, float, float, float],
     end: tuple[float, float, float, float],
@@ -107,28 +204,26 @@ def gradient(
 @dataclasses.dataclass
 class Colormap:
     type: typing.Literal["sequential", "diverging"]
-    data: numpy.typing.NDArray[numpy.float64]
+    rgba: numpy.typing.NDArray[numpy.float64]
 
     @classmethod
     def from_rgb_table(
         cls,
         type: typing.Literal["sequential", "diverging"],
-        data: list[tuple[float, float, float]],
+        rgb: list[tuple[float, float, float]],
     ):
         return cls(
             type=type,
-            data=numpy.c_[
-                numpy.array(data, dtype=numpy.float64), numpy.ones(len(data))
-            ],
+            rgba=numpy.c_[numpy.array(rgb, dtype=numpy.float64), numpy.ones(len(rgb))],
         )
 
     @classmethod
     def from_rgba_table(
         cls,
         type: typing.Literal["sequential", "diverging"],
-        data: list[tuple[float, float, float, float]],
+        rgba: list[tuple[float, float, float, float]],
     ):
-        return cls(type=type, data=numpy.array(data, dtype=numpy.float64))
+        return cls(type=type, rgba=numpy.array(rgba, dtype=numpy.float64))
 
     @classmethod
     def sequential_from_pair(
@@ -141,7 +236,7 @@ class Colormap:
         end = parse_color(color=end)
         return cls(
             type="sequential",
-            data=gradient(
+            rgba=gradient(
                 start=start,
                 end=end,
                 samples=samples,
@@ -161,7 +256,7 @@ class Colormap:
         end = parse_color(color=end)
         return cls(
             type="diverging",
-            data=numpy.vstack(
+            rgba=numpy.vstack(
                 (
                     gradient(
                         start=start,
@@ -180,5 +275,36 @@ class Colormap:
     def flipped(self) -> "Colormap":
         return Colormap(
             type=self.type,
-            data=numpy.flip(self.data, axis=0).copy(),
+            rgba=numpy.flip(self.rgba, axis=0).copy(),
+        )
+
+    def colorblindness_simulation(
+        self,
+        type: enums.ColorblindnessType,
+    ) -> "Colormap":
+        type = enums.validate_colorblindness_type(type)
+        # https://doi.org/10.1002/(SICI)1520-6378(199908)24:4<243::AID-COL5>3.0.CO;2-3
+        # https://vision.psychol.cam.ac.uk/jdmollon/papers/colourmaps.pdf
+        rgb = self.rgba[:, 0:3].copy()
+        lrgb = rgb_to_lrgb(rgb)
+        if type == "protanopia":
+            normal = BRETTEL_PROTANOPIA_NORMAL
+            matrices = BRETTEL_PROTANOPIA
+        elif type == "deuteranopia":
+            normal = BRETTEL_DEUTERANOPIA_NORMAL
+            matrices = BRETTEL_DEUTERANOPIA
+        elif type == "tritanopia":
+            normal = BRETTEL_TRITANOPIA_NORMAL
+            matrices = BRETTEL_TRITANOPIA
+        else:
+            raise Exception(f"{type} not implemented")
+        mask = (lrgb @ normal) < 0.0
+        below = lrgb @ matrices[1]
+        above = lrgb @ matrices[0]
+        lrgb[mask] = below[mask]
+        lrgb[numpy.logical_not(mask)] = above[numpy.logical_not(mask)]
+        rgb = lrgb_to_rgb(lrgb)
+        return Colormap(
+            type=self.type,
+            rgba=numpy.c_[numpy.array(rgb, dtype=numpy.float64), self.rgba[:, 3]],
         )

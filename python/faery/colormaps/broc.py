@@ -2,7 +2,7 @@ from ._base import Colormap
 
 colormap = Colormap.from_rgb_table(
     type="diverging",
-    data=[
+    rgb=[
         (0.17081, 0.10027, 0.29985),
         (0.17075, 0.10634, 0.30558),
         (0.17061, 0.11229, 0.3113),

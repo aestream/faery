@@ -43,6 +43,8 @@ ImageFileCompressionLevel = typing.Literal["default", "fast", "best"]
 
 VideoFileType = typing.Literal["mp4"]
 
+ColorblindnessType = typing.Literal["protanopia", "deuteranopia", "tritanopia"]
+
 VALIDATORS: dict[str, typing.Any] = {}
 
 
@@ -84,6 +86,12 @@ def validate_video_file_type(
     value: VideoFileType,
 ) -> VideoFileType:
     return VALIDATORS["validate_video_file_type"](value)
+
+
+def validate_colorblindness_type(
+    value: ColorblindnessType,
+) -> ColorblindnessType:
+    return VALIDATORS["validate_colorblindness_type"](value)
 
 
 def bind(name: str, type: typing.Any):

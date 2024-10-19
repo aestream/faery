@@ -1,6 +1,7 @@
 import argparse
 import inspect
 import math
+import typing
 
 import numpy
 
@@ -9,6 +10,8 @@ import faery
 PADDING_TOP: int = 20
 TITLE_SIZE: int = 20
 TITLE_PADDING_BOTTOM: int = 16
+SUBTITLE_SIZE: int = 16
+SUBTITLE_OFFSET: int = 4
 LABEL_SIZE: int = 16
 LABEL_OFFSET: int = -1
 ROW_HEIGHT: int = 20
@@ -18,7 +21,7 @@ PADDING_LEFT: int = 20
 PADDING_RIGHT: int = 20
 FONT_RATIO: float = 0.6
 COLUMN_GAP: int = 20
-WIDTH: int = 720
+WIDTH: int = 1440
 
 
 def add_to_subparsers(subparsers: argparse._SubParsersAction):
@@ -56,14 +59,41 @@ def run(args: argparse.Namespace):
             max([len(name) for name, _ in names_and_colormaps]),
         )
     maximum_label_width = int(math.ceil(maximum_label_width * LABEL_SIZE * FONT_RATIO))
-    colorbar_width = (
-        WIDTH - PADDING_LEFT - PADDING_RIGHT - COLUMN_GAP - maximum_label_width
+    colorbar_total = (
+        WIDTH - PADDING_LEFT - PADDING_RIGHT - 4 * COLUMN_GAP - maximum_label_width
     )
+    colorbar_width = round(colorbar_total / 2)
+    colorblind_colorbar_width = round(colorbar_total / 6)
     colorbar_points = numpy.arange(0, colorbar_width, dtype=numpy.float64) / (
         colorbar_width - 1
     )
+    colorblind_colorbar_points = numpy.arange(
+        0, colorblind_colorbar_width, dtype=numpy.float64
+    ) / (colorblind_colorbar_width - 1)
     frame = numpy.full((height, WIDTH, 3), 0x19, dtype=numpy.uint8)
     offset = PADDING_TOP
+    for index, colorblindness_type in enumerate(
+        typing.get_args(faery.ColorblindnessType)
+    ):
+        faery.image.annotate(
+            frame=frame,
+            text=colorblindness_type.capitalize(),
+            x_offset=PADDING_LEFT
+            + maximum_label_width
+            + COLUMN_GAP * 2
+            + colorbar_width
+            + (COLUMN_GAP + colorblind_colorbar_width) * index
+            + int(
+                round(
+                    colorblind_colorbar_width / 2
+                    - len(colorblindness_type) / 2 * SUBTITLE_SIZE * FONT_RATIO
+                )
+            ),
+            y_offset=offset + SUBTITLE_OFFSET,
+            scale=SUBTITLE_SIZE,
+            color=(0xFF, 0xFF, 0xFF, 0xFF),
+        )
+
     for type in sorted(type_to_names_and_colormaps.keys()):
         faery.image.annotate(
             frame=frame,
@@ -75,22 +105,31 @@ def run(args: argparse.Namespace):
         )
         offset += TITLE_SIZE + TITLE_PADDING_BOTTOM
         for name, colormap in type_to_names_and_colormaps[type]:
+            label_width = int(math.ceil(len(name) * LABEL_SIZE * FONT_RATIO))
+            faery.image.annotate(
+                frame=frame,
+                text=name,
+                x_offset=PADDING_LEFT + maximum_label_width - label_width,
+                y_offset=offset + LABEL_OFFSET,
+                scale=LABEL_SIZE,
+                color=(0xFF, 0xFF, 0xFF, 0xFF),
+            )
             colormap_points = numpy.arange(
-                0, colormap.data.shape[0], dtype=numpy.float64
-            ) / (colormap.data.shape[0] - 1)
+                0, colormap.rgba.shape[0], dtype=numpy.float64
+            ) / (colormap.rgba.shape[0] - 1)
             colorbar = numpy.tile(
                 numpy.column_stack(
                     (
                         numpy.interp(
-                            colorbar_points, colormap_points, colormap.data[:, 0]
+                            colorbar_points, colormap_points, colormap.rgba[:, 0]
                         )
                         * 255.0,
                         numpy.interp(
-                            colorbar_points, colormap_points, colormap.data[:, 1]
+                            colorbar_points, colormap_points, colormap.rgba[:, 1]
                         )
                         * 255.0,
                         numpy.interp(
-                            colorbar_points, colormap_points, colormap.data[:, 2]
+                            colorbar_points, colormap_points, colormap.rgba[:, 2]
                         )
                         * 255.0,
                     )
@@ -98,19 +137,62 @@ def run(args: argparse.Namespace):
                 (ROW_HEIGHT, 1, 1),
             )
             colorbar = numpy.round(colorbar).astype(numpy.uint8)
+            left = PADDING_LEFT + maximum_label_width + COLUMN_GAP
             frame[
                 offset : offset + ROW_HEIGHT,
-                PADDING_LEFT : PADDING_LEFT + colorbar_width,
+                left : left + colorbar_width,
             ] = colorbar
-            faery.image.annotate(
-                frame=frame,
-                text=name,
-                x_offset=PADDING_LEFT + colorbar_width + COLUMN_GAP,
-                y_offset=offset + LABEL_OFFSET,
-                scale=LABEL_SIZE,
-                color=(0xFF, 0xFF, 0xFF, 0xFF),
-            )
+            for index, colorblindness_type in enumerate(
+                typing.get_args(faery.ColorblindnessType)
+            ):
+                colorblind_colormap = colormap.colorblindness_simulation(
+                    colorblindness_type
+                )
+                colorblind_colormap_points = numpy.arange(
+                    0, colorblind_colormap.rgba.shape[0], dtype=numpy.float64
+                ) / (colorblind_colormap.rgba.shape[0] - 1)
+                colorblind_colorbar = numpy.tile(
+                    numpy.column_stack(
+                        (
+                            numpy.interp(
+                                colorblind_colorbar_points,
+                                colorblind_colormap_points,
+                                colorblind_colormap.rgba[:, 0],
+                            )
+                            * 255.0,
+                            numpy.interp(
+                                colorblind_colorbar_points,
+                                colorblind_colormap_points,
+                                colorblind_colormap.rgba[:, 1],
+                            )
+                            * 255.0,
+                            numpy.interp(
+                                colorblind_colorbar_points,
+                                colorblind_colormap_points,
+                                colorblind_colormap.rgba[:, 2],
+                            )
+                            * 255.0,
+                        )
+                    ),
+                    (ROW_HEIGHT, 1, 1),
+                )
+                colorblind_colorbar = numpy.round(colorblind_colorbar).astype(
+                    numpy.uint8
+                )
+                left = (
+                    PADDING_LEFT
+                    + maximum_label_width
+                    + COLUMN_GAP * 2
+                    + colorbar_width
+                    + (COLUMN_GAP + colorblind_colorbar_width) * index
+                )
+                frame[
+                    offset : offset + ROW_HEIGHT,
+                    left : left + colorblind_colorbar_width,
+                ] = colorblind_colorbar
+
             offset += ROW_HEIGHT + ROW_GAP
         offset += ROWS_PADDING - ROW_GAP
+
     with open(args.output, "wb") as output:
-        output.write(faery.image.encode(frame=frame, compression_level="best"))
+        output.write(faery.image.encode(frame=frame, compression_level="default"))

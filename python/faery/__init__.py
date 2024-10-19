@@ -8,6 +8,7 @@ from .colormaps._base import Color as Color
 from .colormaps._base import Colormap as Colormap
 from .colormaps._base import gradient as gradient
 from .colormaps._base import parse_color as parse_color
+from .enums import ColorblindnessType as ColorblindnessType
 from .enums import Decay as Decay
 from .enums import EventsFileCompression as EventsFileCompression
 from .enums import EventsFileType as EventsFileType
@@ -43,6 +44,7 @@ else:
 
 __all__ = [
     "Color",
+    "ColorblindnessType",
     "Colormap",
     "CsvProperties",
     "Decay",
@@ -61,7 +63,6 @@ __all__ = [
     "VideoFileType",
     "__version__",
     "aedat",
-    "cli",
     "colormaps",
     "csv",
     "dat",

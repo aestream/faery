@@ -193,7 +193,7 @@ class Colorize(frame_stream.FiniteRegularRgba8888FrameStream):
         return self.parent.period_us()
 
     def __iter__(self) -> collections.abc.Iterator[frame_stream.Rgba8888Frame]:
-        colormap_data = numpy.round(self.colormap.data * 255.0).astype(
+        colormap_data = numpy.round(self.colormap.rgba * 255.0).astype(
             dtype=numpy.uint8
         )
         if self.colormap.type == "diverging":
