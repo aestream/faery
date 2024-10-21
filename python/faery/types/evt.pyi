@@ -12,9 +12,7 @@ class Decoder:
         self,
         path: typing.Union[pathlib.Path, str],
         dimensions_fallback: typing.Optional[tuple[int, int]],
-        version_fallback: typing.Optional[
-            typing.Literal["evt2", "evt2.1", "evt3"]
-        ],
+        version_fallback: typing.Optional[typing.Literal["evt2", "evt2.1", "evt3"]],
     ): ...
     def __enter__(self) -> Decoder: ...
     def __exit__(

@@ -1,15 +1,36 @@
 import dataclasses
+import pathlib
 import re
 import typing
 
+import math
 import numpy
 import numpy.typing
 
 from .. import enums
 
+if typing.TYPE_CHECKING:
+    from ..types import image  # type: ignore
+else:
+    from ..extension import image
+
 COLOR_PATTERN = re.compile(
     r"^#([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})?$"
 )
+
+TITLE_SIZE: int = 20
+TITLE_PADDING_BOTTOM: int = 16
+LABEL_SIZE: int = 16
+LABEL_OFFSET: int = -1
+ROW_HEIGHT: int = 20
+ROW_GAP: int = 6
+PADDING_TOP: int = 20
+PADDING_BOTTOM: int = 20
+PADDING_LEFT: int = 20
+PADDING_RIGHT: int = 20
+FONT_RATIO: float = 0.6
+COLUMN_GAP: int = 20
+WIDTH: int = 720
 
 Color = typing.Union[tuple[float, float, float], tuple[float, float, float, float], str]
 
@@ -230,7 +251,7 @@ class Colormap:
         cls,
         start: Color,
         end: Color,
-        samples: int,
+        samples: int = 256,
     ):
         start = parse_color(color=start)
         end = parse_color(color=end)
@@ -249,7 +270,7 @@ class Colormap:
         start: Color,
         middle: Color,
         end: Color,
-        half_samples: int,
+        half_samples: int = 128,
     ):
         start = parse_color(color=start)
         middle = parse_color(color=middle)
@@ -308,3 +329,87 @@ class Colormap:
             type=self.type,
             rgba=numpy.c_[numpy.array(rgb, dtype=numpy.float64), self.rgba[:, 3]],
         )
+
+    def to_file(
+        self,
+        path: typing.Union[pathlib.Path, str],
+        name: str,
+    ):
+        frame = numpy.full(
+            (
+                TITLE_SIZE
+                + TITLE_PADDING_BOTTOM
+                + PADDING_TOP
+                + PADDING_BOTTOM
+                + 4 * ROW_HEIGHT
+                + 3 * ROW_GAP,
+                WIDTH,
+                3,
+            ),
+            0x19,
+            dtype=numpy.uint8,
+        )
+        labels = ("",) + typing.get_args(enums.ColorblindnessType)
+        maximum_label_width = int(
+            math.ceil(max(len(label) for label in labels) * LABEL_SIZE * FONT_RATIO)
+        )
+        colorbar_width = (
+            WIDTH - PADDING_LEFT - PADDING_RIGHT - COLUMN_GAP - maximum_label_width
+        )
+        colorbar_points = numpy.arange(0, colorbar_width, dtype=numpy.float64) / (
+            colorbar_width - 1
+        )
+        offset = PADDING_TOP
+        image.annotate(
+            frame=frame,
+            text=name,
+            x_offset=PADDING_LEFT,
+            y_offset=offset,
+            scale=TITLE_SIZE,
+            color=(0xFF, 0xFF, 0xFF, 0xFF),
+        )
+        offset += TITLE_SIZE + TITLE_PADDING_BOTTOM
+        for label in labels:
+            if len(label) > 0:
+                colormap = self.colorblindness_simulation(label)  # type: ignore
+            else:
+                colormap = self
+            colormap_points = numpy.arange(
+                0, colormap.rgba.shape[0], dtype=numpy.float64
+            ) / (colormap.rgba.shape[0] - 1)
+            colorbar = numpy.tile(
+                numpy.column_stack(
+                    (
+                        numpy.interp(
+                            colorbar_points, colormap_points, colormap.rgba[:, 0]
+                        )
+                        * 255.0,
+                        numpy.interp(
+                            colorbar_points, colormap_points, colormap.rgba[:, 1]
+                        )
+                        * 255.0,
+                        numpy.interp(
+                            colorbar_points, colormap_points, colormap.rgba[:, 2]
+                        )
+                        * 255.0,
+                    )
+                ),
+                (ROW_HEIGHT, 1, 1),
+            )
+            colorbar = numpy.round(colorbar).astype(numpy.uint8)
+            frame[
+                offset : offset + ROW_HEIGHT,
+                PADDING_LEFT : PADDING_LEFT + colorbar_width,
+            ] = colorbar
+            if len(label) > 0:
+                image.annotate(
+                    frame=frame,
+                    text=label.capitalize(),
+                    x_offset=PADDING_LEFT + colorbar_width + COLUMN_GAP,
+                    y_offset=offset + LABEL_OFFSET,
+                    scale=LABEL_SIZE,
+                    color=(0xFF, 0xFF, 0xFF, 0xFF),
+                )
+            offset += ROW_HEIGHT + ROW_GAP
+        with open(path, "wb") as output:
+            output.write(image.encode(frame, compression_level="default"))

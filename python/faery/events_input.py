@@ -14,7 +14,7 @@ def events_stream_from_array(
 
 
 def events_stream_from_file(
-    path: typing.Union[str, pathlib.Path],
+    path: typing.Union[pathlib.Path, str],
     track_id: typing.Optional[int] = None,
     dimensions_fallback: tuple[int, int] = (1280, 720),
     version_fallback: typing.Optional[enums.EventsFileVersion] = None,
@@ -44,7 +44,7 @@ def events_stream_from_file(
         file_type: Override the type determination algorithm. Defaults to None.
     """
     return file_decoder.Decoder(
-        path=pathlib.Path(path),
+        path=path,
         track_id=track_id,
         dimensions_fallback=dimensions_fallback,
         version_fallback=version_fallback,
