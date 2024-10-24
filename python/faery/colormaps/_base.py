@@ -1,9 +1,9 @@
 import dataclasses
+import math
 import pathlib
 import re
 import typing
 
-import math
 import numpy
 import numpy.typing
 

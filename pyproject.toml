@@ -35,9 +35,12 @@ features = ["pyo3/extension-module"]
 [tool.pyright]
 typeCheckingMode = "basic"
 executionEnvironments = [{ root = ".", venv = ".venv" }]
-exclude = ["src"]
+exclude = ["**/__pycache__", "**/.*", "src"]
 
 [tool.isort]
 profile = "black"
 sort_reexports = true
-exclude = ["src"]
+extend_skip = ["src"]
+
+[tool.black]
+extend-exclude = "src"
