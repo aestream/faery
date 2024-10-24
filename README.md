@@ -37,10 +37,17 @@ maturin develop  # or maturin develop --release to build with optimizations
 
 ### Format and lint
 
-```
+```sh
 cargo fmt
 cargo clippy
 isort .; black .; pyright .
+```
+
+### Test
+
+```sh
+pip install pytest
+pytest tests
 ```
 
 ### Upload a new version

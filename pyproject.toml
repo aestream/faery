@@ -35,7 +35,9 @@ features = ["pyo3/extension-module"]
 [tool.pyright]
 typeCheckingMode = "basic"
 executionEnvironments = [{ root = ".", venv = ".venv" }]
+exclude = ["src"]
 
 [tool.isort]
 profile = "black"
 sort_reexports = true
+exclude = ["src"]
