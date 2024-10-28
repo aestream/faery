@@ -33,12 +33,7 @@ from .timestamp import timestamp_to_seconds as timestamp_to_seconds
 from .timestamp import timestamp_to_timecode as timestamp_to_timecode
 
 if typing.TYPE_CHECKING:
-    from .types import aedat  # type: ignore
-    from .types import csv  # type: ignore
-    from .types import dat  # type: ignore
-    from .types import event_stream  # type: ignore
-    from .types import evt  # type: ignore
-    from .types import image  # type: ignore
+    from .types import aedat, csv, dat, event_stream, evt, image  # type: ignore
 else:
     from .extension import aedat, csv, dat, event_stream, evt, image
 

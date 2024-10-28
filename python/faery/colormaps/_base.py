@@ -363,9 +363,9 @@ class Colormap:
         image.annotate(
             frame=frame,
             text=name,
-            x_offset=PADDING_LEFT,
-            y_offset=offset,
-            scale=TITLE_SIZE,
+            x=PADDING_LEFT,
+            y=offset,
+            size=TITLE_SIZE,
             color=(0xFF, 0xFF, 0xFF, 0xFF),
         )
         offset += TITLE_SIZE + TITLE_PADDING_BOTTOM
@@ -405,9 +405,9 @@ class Colormap:
                 image.annotate(
                     frame=frame,
                     text=label.capitalize(),
-                    x_offset=PADDING_LEFT + colorbar_width + COLUMN_GAP,
-                    y_offset=offset + LABEL_OFFSET,
-                    scale=LABEL_SIZE,
+                    x=PADDING_LEFT + colorbar_width + COLUMN_GAP,
+                    y=offset + LABEL_OFFSET,
+                    size=LABEL_SIZE,
                     color=(0xFF, 0xFF, 0xFF, 0xFF),
                 )
             offset += ROW_HEIGHT + ROW_GAP

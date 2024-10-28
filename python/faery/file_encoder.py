@@ -8,13 +8,9 @@ import numpy
 from . import enums, frame_stream, timestamp
 
 if typing.TYPE_CHECKING:
-    from .types import aedat  # type: ignore
-    from .types import csv  # type: ignore
-    from .types import dat  # type: ignore
-    from .types import event_stream  # type: ignore
-    from .types import evt  # type: ignore
+    from .types import aedat, csv, dat, event_stream, evt, mp4  # type: ignore
 else:
-    from .extension import aedat, csv, dat, event_stream, evt
+    from .extension import aedat, csv, dat, event_stream, evt, mp4
 
 
 def events_to_file(
@@ -217,3 +213,35 @@ def frames_to_files(
             file_type=file_type,
         )
         index += 1
+
+
+def frames_to_file(
+    stream: collections.abc.Iterable[frame_stream.Rgba8888Frame],
+    path: typing.Union[pathlib.Path, str],
+    dimensions: tuple[int, int],
+    frequency_hz: float = 60,
+    crf: float = 15.0,
+    preset: enums.VideoFilePreset = "ultrafast",
+    tune: enums.VideoFileTune = "none",
+    profile: enums.VideoFileProfile = "baseline",
+    file_type: typing.Optional[enums.VideoFileType] = None,
+):
+    path = pathlib.Path(path)
+    preset = enums.validate_video_file_preset(preset)
+    tune = enums.validate_video_file_tune(tune)
+    profile = enums.validate_video_file_profile(profile)
+    if file_type is None:
+        file_type = enums.video_file_type_guess(path)
+    else:
+        file_type = enums.validate_video_file_type(file_type)
+    with mp4.Encoder(
+        path=path,
+        dimensions=dimensions,
+        frequency_hz=frequency_hz,
+        crf=crf,
+        preset=preset,
+        tune=tune,
+        profile=profile,
+    ) as encoder:
+        for frame in stream:
+            encoder.write(frame=frame.pixels)

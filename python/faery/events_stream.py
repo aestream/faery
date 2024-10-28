@@ -183,15 +183,15 @@ class Output:
 class EventsStream(stream.Stream[numpy.ndarray], Output):
     def regularize(
         self,
-        period: timestamp.Time,
+        frequency_hz: float,
         start: typing.Optional[timestamp.Time] = None,
     ) -> "RegularEventsStream":
         """
-        Converts the stream to a regular stream with the given period.
+        Converts the stream to a regular stream with the given frequency (or packet rate).
 
         Args:
             parent: An iterable of event arrays (structured arrays with dtype faery.EVENTS_DTYPE).
-            period: Time interval covered by each packet.
+            frequency: Number of packets per second.
             start: Optional starting time of the first packet. If None (default), the timestamp of the first event is used.
         """
         ...
@@ -237,15 +237,15 @@ class EventsStream(stream.Stream[numpy.ndarray], Output):
 class FiniteEventsStream(stream.FiniteStream[numpy.ndarray], Output):
     def regularize(
         self,
-        period: timestamp.Time,
+        frequency_hz: float,
         start: typing.Optional[timestamp.Time] = None,
     ) -> "FiniteRegularEventsStream":
         """
-        Converts the stream to a regular stream with the given period.
+        Converts the stream to a regular stream with the given frequency (or packet rate).
 
         Args:
             parent: An iterable of event arrays (structured arrays with dtype faery.EVENTS_DTYPE).
-            period: Time interval covered by each packet.
+            frequency: Number of packets per second.
             start: Optional starting time of the first packet. If None (default), the start of the time range (`parent.time_range_us()[0]`) is used.
         """
         ...
@@ -302,11 +302,11 @@ class FiniteEventsStream(stream.FiniteStream[numpy.ndarray], Output):
 class RegularEventsStream(stream.RegularStream[numpy.ndarray], Output):
     def regularize(
         self,
-        period: timestamp.Time,
+        frequency_hz: float,
         start: typing.Optional[timestamp.Time] = None,
     ) -> "RegularEventsStream":
         """
-        Change the period of the stream.
+        Changes the frequency of the stream.
 
         Args:
             parent: An iterable of event arrays (structured arrays with dtype faery.EVENTS_DTYPE).
@@ -323,10 +323,10 @@ class RegularEventsStream(stream.RegularStream[numpy.ndarray], Output):
             chunk_length=chunk_length,
         )
 
-    def time_slice(
+    def packet_slice(
         self,
-        start: timestamp.Time,
-        end: timestamp.Time,
+        start: int,
+        end: int,
         zero: bool = False,
     ) -> "FiniteRegularEventsStream": ...
 
@@ -364,11 +364,11 @@ class RegularEventsStream(stream.RegularStream[numpy.ndarray], Output):
 class FiniteRegularEventsStream(stream.FiniteRegularStream[numpy.ndarray], Output):
     def regularize(
         self,
-        period: timestamp.Time,
+        frequency_hz: float,
         start: typing.Optional[timestamp.Time] = None,
     ) -> "FiniteRegularEventsStream":
         """
-        Change the period of the stream.
+        Changes the frequency of the stream.
 
         Args:
             parent: An iterable of event arrays (structured arrays with dtype faery.EVENTS_DTYPE).
@@ -379,10 +379,10 @@ class FiniteRegularEventsStream(stream.FiniteRegularStream[numpy.ndarray], Outpu
 
     def chunks(self, chunk_length: int) -> "FiniteEventsStream": ...
 
-    def time_slice(
+    def packet_slice(
         self,
-        start: timestamp.Time,
-        end: timestamp.Time,
+        start: int,
+        end: int,
         zero: bool = False,
     ) -> "FiniteRegularEventsStream": ...
 
@@ -427,23 +427,20 @@ def bind(prefix: typing.Literal["", "Finite", "Regular", "FiniteRegular"]):
         "Regular" if prefix == "" or prefix == "Regular" else "FiniteRegular"
     )
     chunks_prefix = "" if prefix == "" or prefix == "Regular" else "Finite"
-    time_slice_prefix = (
-        "Finite" if prefix == "" or prefix == "Finite" else "FiniteRegular"
-    )
     event_slice_prefix = (
         "Finite" if prefix == "" or prefix == "Finite" else "FiniteRegular"
     )
 
     def regularize(
         self,
-        period: timestamp.Time,
+        frequency_hz: float,
         start: typing.Optional[timestamp.Time] = None,
     ):
         from .events_filter import FILTERS
 
         return FILTERS[f"{regularize_prefix}Regularize"](
             parent=self,
-            period=period,
+            frequency_hz=frequency_hz,
             start=start,
         )
 
@@ -455,17 +452,42 @@ def bind(prefix: typing.Literal["", "Finite", "Regular", "FiniteRegular"]):
 
         return FILTERS[f"{chunks_prefix}Chunks"](parent=self, chunk_length=chunk_length)
 
-    def time_slice(
-        self, start: timestamp.Time, end: timestamp.Time, zero: bool = False
-    ):
-        from .events_filter import FILTERS
+    if prefix == "" or prefix == "Finite":
 
-        return FILTERS[f"{time_slice_prefix}TimeSlice"](
-            parent=self,
-            start=start,
-            end=end,
-            zero=zero,
-        )
+        def time_slice(
+            self, start: timestamp.Time, end: timestamp.Time, zero: bool = False
+        ):
+            from .events_filter import FILTERS
+
+            return FILTERS[f"FiniteTimeSlice"](
+                parent=self,
+                start=start,
+                end=end,
+                zero=zero,
+            )
+
+        time_slice.filter_return_annotation = f"FiniteEventsStream"
+        globals()[f"{prefix}EventsStream"].time_slice = time_slice
+
+    else:
+
+        def packet_slice(
+            self,
+            start: int,
+            end: int,
+            zero: bool = False,
+        ):
+            from .events_filter import FILTERS
+
+            return FILTERS[f"FiniteRegularPacketSlice"](
+                parent=self,
+                start=start,
+                end=end,
+                zero=zero,
+            )
+
+        packet_slice.filter_return_annotation = f"FiniteRegularPacketSlice"
+        globals()[f"{prefix}EventsStream"].packet_slice = packet_slice
 
     def event_slice(
         self,
@@ -543,7 +565,6 @@ def bind(prefix: typing.Literal["", "Finite", "Regular", "FiniteRegular"]):
 
     regularize.filter_return_annotation = f"{regularize_prefix}EventsStream"
     chunks.filter_return_annotation = f"{chunks_prefix}EventsStream"
-    time_slice.filter_return_annotation = f"{time_slice_prefix}EventsStream"
     event_slice.filter_return_annotation = f"{event_slice_prefix}EventsStream"
     remove_on_events.filter_return_annotation = f"{prefix}EventsStream"
     remove_off_events.filter_return_annotation = f"{prefix}EventsStream"
@@ -555,7 +576,6 @@ def bind(prefix: typing.Literal["", "Finite", "Regular", "FiniteRegular"]):
 
     globals()[f"{prefix}EventsStream"].regularize = regularize
     globals()[f"{prefix}EventsStream"].chunks = chunks
-    globals()[f"{prefix}EventsStream"].time_slice = time_slice
     globals()[f"{prefix}EventsStream"].event_slice = event_slice
     globals()[f"{prefix}EventsStream"].remove_on_events = remove_on_events
     globals()[f"{prefix}EventsStream"].remove_off_events = remove_off_events

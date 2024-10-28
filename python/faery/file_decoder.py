@@ -9,11 +9,7 @@ import numpy.lib.recfunctions
 from . import enums, events_stream, timestamp
 
 if typing.TYPE_CHECKING:
-    from .types import aedat  # type: ignore
-    from .types import csv  # type: ignore
-    from .types import dat  # type: ignore
-    from .types import event_stream  # type: ignore
-    from .types import evt  # type: ignore
+    from .types import aedat, csv, dat, event_stream, evt  # type: ignore
 else:
     from .extension import aedat, csv, dat, event_stream, evt
 

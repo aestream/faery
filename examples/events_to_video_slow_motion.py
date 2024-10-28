@@ -8,13 +8,13 @@ dirname = pathlib.Path(__file__).resolve().parent
     faery.events_stream_from_file(
         dirname.parent / "tests" / "data" / "dvs.es",
     )
-    .regularize(frequency_hz=60.0)
+    .regularize(frequency_hz=600.0)
     .envelope(
         decay="exponential",
         tau="00:00:00.200000",
     )
     .colorize(colormap=faery.colormaps.managua.flipped())
-    .to_files(
-        dirname.parent / "tests" / "data_generated" / "dvs_frames" / "{index:04}.png"
-    )
+    .scale(factor=4.0)
+    .add_timecode()
+    .to_file(dirname.parent / "tests" / "data_generated" / "dvs_slow_motion.mp4")
 )

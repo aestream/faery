@@ -78,7 +78,7 @@ def run(args: argparse.Namespace):
         faery.image.annotate(
             frame=frame,
             text=colorblindness_type.capitalize(),
-            x_offset=PADDING_LEFT
+            x=PADDING_LEFT
             + maximum_label_width
             + COLUMN_GAP * 2
             + colorbar_width
@@ -89,8 +89,8 @@ def run(args: argparse.Namespace):
                     - len(colorblindness_type) / 2 * SUBTITLE_SIZE * FONT_RATIO
                 )
             ),
-            y_offset=offset + SUBTITLE_OFFSET,
-            scale=SUBTITLE_SIZE,
+            y=offset + SUBTITLE_OFFSET,
+            size=SUBTITLE_SIZE,
             color=(0xFF, 0xFF, 0xFF, 0xFF),
         )
 
@@ -98,9 +98,9 @@ def run(args: argparse.Namespace):
         faery.image.annotate(
             frame=frame,
             text=type.capitalize(),
-            x_offset=PADDING_LEFT,
-            y_offset=offset,
-            scale=TITLE_SIZE,
+            x=PADDING_LEFT,
+            y=offset,
+            size=TITLE_SIZE,
             color=(0xFF, 0xFF, 0xFF, 0xFF),
         )
         offset += TITLE_SIZE + TITLE_PADDING_BOTTOM
@@ -109,9 +109,9 @@ def run(args: argparse.Namespace):
             faery.image.annotate(
                 frame=frame,
                 text=name,
-                x_offset=PADDING_LEFT + maximum_label_width - label_width,
-                y_offset=offset + LABEL_OFFSET,
-                scale=LABEL_SIZE,
+                x=PADDING_LEFT + maximum_label_width - label_width,
+                y=offset + LABEL_OFFSET,
+                size=LABEL_SIZE,
                 color=(0xFF, 0xFF, 0xFF, 0xFF),
             )
             colormap_points = numpy.arange(

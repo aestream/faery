@@ -14,7 +14,7 @@ dirname = pathlib.Path(__file__).resolve().parent
         tau="00:00:00.200000",
     )
     .colorize(colormap=faery.colormaps.managua.flipped())
-    .to_files(
-        dirname.parent / "tests" / "data_generated" / "dvs_frames" / "{index:04}.png"
-    )
+    .scale(factor=4.0)
+    .add_timecode()
+    .to_file(dirname.parent / "tests" / "data_generated" / "dvs_rescaled_annotated.mp4")
 )
