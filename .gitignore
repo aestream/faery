@@ -5,4 +5,4 @@ __pycache__
 .vscode
 *.so
 tests/data_generated
-src/x264-build
+src/mp4/x264-build
