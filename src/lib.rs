@@ -6,6 +6,7 @@ mod dat;
 mod event_stream;
 mod evt;
 mod image;
+mod mp4;
 mod types;
 mod utilities;
 
@@ -52,8 +53,15 @@ fn faery(python: Python<'_>, module: &pyo3::Bound<'_, pyo3::types::PyModule>) ->
     }
     {
         let submodule = PyModule::new_bound(python, "image")?;
+        submodule.add_function(wrap_pyfunction!(image::decode, &submodule)?)?;
         submodule.add_function(wrap_pyfunction!(image::encode, &submodule)?)?;
         submodule.add_function(wrap_pyfunction!(image::annotate, &submodule)?)?;
+        submodule.add_function(wrap_pyfunction!(image::resize, &submodule)?)?;
+        module.add_submodule(&submodule)?;
+    }
+    {
+        let submodule = PyModule::new_bound(python, "mp4")?;
+        submodule.add_class::<mp4::Encoder>()?;
         module.add_submodule(&submodule)?;
     }
     Ok(())

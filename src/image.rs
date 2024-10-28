@@ -1,7 +1,24 @@
 use image::ImageEncoder;
 use numpy::PyArrayMethods;
 use numpy::PyUntypedArrayMethods;
+use numpy::ToPyArray;
 use pyo3::prelude::*;
+
+#[pyfunction]
+pub fn decode(bytes: &[u8]) -> PyResult<PyObject> {
+    let decoder = image::codecs::png::PngDecoder::new(std::io::Cursor::new(bytes))
+        .map_err(|error| pyo3::exceptions::PyException::new_err(format!("{error}")))?;
+    let image = image::DynamicImage::from_decoder(decoder)
+        .map_err(|error| pyo3::exceptions::PyException::new_err(format!("{error}")))?
+        .to_rgba8();
+    let (width, height) = image.dimensions();
+    let array =
+        numpy::ndarray::ArrayView3::<u8>::from_shape((height as usize, width as usize, 4), &image)
+            .map_err(|error| pyo3::exceptions::PyException::new_err(format!("{error}")))?;
+    Ok(Python::with_gil(|python| {
+        array.to_pyarray_bound(python).into()
+    }))
+}
 
 #[pyfunction]
 pub fn encode(
@@ -98,14 +115,14 @@ fn write_text(
     text: &str,
     mut x_offset: i32,
     y_offset: i32,
-    scale: i32,
+    size: i32,
     color: (u8, u8, u8, u8),
     font: &fontdue::Font,
 ) {
     for character in text.chars() {
-        let (metrics, bitmap) = font.rasterize(character, scale as f32);
+        let (metrics, bitmap) = font.rasterize(character, size as f32);
         let xmin = x_offset as i32 + metrics.xmin;
-        let ymin = y_offset as i32 - metrics.ymin + scale - metrics.height as i32;
+        let ymin = y_offset as i32 - metrics.ymin + size - metrics.height as i32;
         for y in 0..metrics.height as i32 {
             let output_y = y + ymin;
             if output_y >= 0 && output_y < dimensions.0 as i32 {
@@ -200,9 +217,9 @@ static SCALES_AND_FONTS: pyo3::sync::GILProtected<std::cell::RefCell<Vec<(i32, f
 pub fn annotate(
     frame: &pyo3::Bound<'_, numpy::PyArray3<u8>>,
     text: &str,
-    x_offset: i32,
-    y_offset: i32,
-    scale: i32,
+    x: i32,
+    y: i32,
+    size: i32,
     color: (u8, u8, u8, u8),
 ) -> PyResult<()> {
     if !frame.is_contiguous() {
@@ -222,10 +239,8 @@ pub fn annotate(
     Python::with_gil(|python| {
         let mut scales_and_fonts = SCALES_AND_FONTS.get(python).borrow_mut();
         for (font_scale, font) in scales_and_fonts.iter() {
-            if *font_scale == scale {
-                write_text(
-                    array, dimensions, text, x_offset, y_offset, scale, color, font,
-                );
+            if *font_scale == size {
+                write_text(array, dimensions, text, x, y, size, color, font);
                 return;
             }
         }
@@ -233,15 +248,71 @@ pub fn annotate(
             include_bytes!("RobotoMono-Regular.ttf") as &[u8],
             fontdue::FontSettings {
                 collection_index: 0,
-                scale: scale as f32,
+                scale: size as f32,
                 load_substitutions: true,
             },
         )
         .expect("loading RobotoMono-Regular.ttf did not fail");
-        write_text(
-            array, dimensions, text, x_offset, y_offset, scale, color, &font,
-        );
-        scales_and_fonts.push((scale, font));
+        write_text(array, dimensions, text, x, y, size, color, &font);
+        scales_and_fonts.push((size, font));
     });
     Ok(())
+}
+
+fn parse_filter(string: &str) -> PyResult<image::imageops::FilterType> {
+    match string {
+        "nearest" => Ok(image::imageops::FilterType::Nearest),
+        "triangle" => Ok(image::imageops::FilterType::Triangle),
+        "catmull_rom" => Ok(image::imageops::FilterType::CatmullRom),
+        "gaussian" => Ok(image::imageops::FilterType::Gaussian),
+        "lanczos3" => Ok(image::imageops::FilterType::Lanczos3),
+        string => Err(pyo3::exceptions::PyAttributeError::new_err(format!(
+            "unknwon filter type \"{string}\""
+        ))),
+    }
+}
+
+#[pyfunction]
+pub fn resize(
+    frame: &pyo3::Bound<'_, numpy::PyArray3<u8>>,
+    new_dimensions: (u16, u16),
+    filter: &str,
+) -> PyResult<PyObject> {
+    if !frame.is_contiguous() {
+        return Err(pyo3::exceptions::PyAttributeError::new_err(format!(
+            "the frame's memory must be contiguous"
+        )));
+    }
+    let readonly_frame = frame.readonly();
+    let dimensions = {
+        let array = readonly_frame.as_array();
+        let dimensions = array.dim();
+        if dimensions.2 != 3 && dimensions.2 != 4 {
+            return Err(pyo3::exceptions::PyAttributeError::new_err(format!(
+                "expected an array whose last dimension is 3 (RGB) or 4 (RGBA) (got a {} x {} x {} array)",
+                dimensions.0, dimensions.1, dimensions.2,
+            )));
+        }
+        dimensions
+    };
+    let image = image::ImageBuffer::<image::Rgba<u8>, &[u8]>::from_raw(
+        dimensions.1 as u32,
+        dimensions.0 as u32,
+        readonly_frame.as_slice().expect("the frame is contiguous"),
+    )
+    .expect("from_raw does not allocate");
+    let resized_image = image::imageops::resize(
+        &image,
+        new_dimensions.0 as u32,
+        new_dimensions.1 as u32,
+        parse_filter(filter)?,
+    );
+    let array = numpy::ndarray::ArrayView3::<u8>::from_shape(
+        (new_dimensions.1 as usize, new_dimensions.0 as usize, 4),
+        &resized_image,
+    )
+    .map_err(|error| pyo3::exceptions::PyException::new_err(format!("{error}")))?;
+    Ok(Python::with_gil(|python| {
+        array.to_pyarray_bound(python).into()
+    }))
 }
