@@ -127,7 +127,7 @@ impl Decoder {
                             let mut event_array = [0u8; 8 + std::mem::size_of::<usize>()];
                             event_array[0..8].copy_from_slice(&event.t.to_le_bytes());
                             let pybytes = pyo3::ffi::PyBytes_FromStringAndSize(
-                                event.bytes.as_ptr() as *const i8,
+                                event.bytes.as_ptr() as *const core::ffi::c_char,
                                 event.bytes.len() as pyo3::ffi::Py_ssize_t,
                             );
                             event_array[8..8 + std::mem::size_of::<usize>()]

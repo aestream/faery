@@ -1,6 +1,10 @@
-fn copy_directory(source: impl AsRef<std::path::Path>, destination: impl AsRef<std::path::Path>) {
+fn copy_directory(
+    source: impl AsRef<std::path::Path> + std::fmt::Debug,
+    destination: impl AsRef<std::path::Path>,
+) {
     let _ = std::fs::create_dir_all(&destination);
-    for entry in std::fs::read_dir(source).unwrap() {
+    let expect_message = format!("{:?} exists", &source);
+    for entry in std::fs::read_dir(source).expect(&expect_message) {
         let entry = entry.unwrap();
         let file_type = entry.file_type().unwrap();
         if file_type.is_dir() {
@@ -11,16 +15,48 @@ fn copy_directory(source: impl AsRef<std::path::Path>, destination: impl AsRef<s
     }
 }
 
+fn bash() -> std::process::Command {
+    match std::env::var("CARGO_CFG_TARGET_OS").unwrap().as_str() {
+        "windows" => {
+            let mut command = std::process::Command::new("bash");
+            command.env("CC", "cl");
+            command
+        }
+        _ => std::process::Command::new("/bin/bash"),
+    }
+}
+
+fn make() -> std::process::Command {
+    match std::env::var("CARGO_CFG_TARGET_OS").unwrap().as_str() {
+        "windows" => {
+            let mut command = std::process::Command::new("make");
+            command.env("CC", "cl");
+            command
+        }
+        _ => std::process::Command::new("make"),
+    }
+}
+
+fn x264() -> &'static str {
+    match std::env::var("CARGO_CFG_TARGET_OS").unwrap().as_str() {
+        "windows" => "libx264",
+        _ => "x264",
+    }
+}
+
 fn main() -> std::io::Result<()> {
     let cargo_manifest_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
     println!("cargo:rerun-if-changed={cargo_manifest_dir}/src/mp4/x264.h",);
-    let x264_directory: std::path::PathBuf = [&cargo_manifest_dir, "src", "mp4", "x264"].iter().collect();
+    let x264_directory: std::path::PathBuf =
+        [&cargo_manifest_dir, "src", "mp4", "x264"].iter().collect();
     let x264_build_directory: std::path::PathBuf =
-        [&cargo_manifest_dir, "src", "mp4", "x264-build"].iter().collect();
+        [&cargo_manifest_dir, "src", "mp4", "x264-build"]
+            .iter()
+            .collect();
     copy_directory(x264_directory, &x264_build_directory);
     println!("cargo:rustc-link-search=native={cargo_manifest_dir}/src/mp4/x264-build/");
-    println!("cargo:rustc-link-lib=static=x264");
-    if !std::process::Command::new("/bin/bash")
+    println!("cargo:rustc-link-lib=static={}", x264());
+    if !bash()
         .args([
             "configure",
             "--disable-cli",
@@ -35,15 +71,16 @@ fn main() -> std::io::Result<()> {
             "--disable-ffms",
             "--disable-gpac",
             "--disable-lsmash",
+            "--enable-pic",
         ])
         .current_dir(&x264_build_directory)
         .status()
-        .expect("Failed to spawn '/bin/bash configure' for x264")
+        .expect("Failed to spawn 'bash configure' for x264")
         .success()
     {
         panic!("Failed to configure x264");
     }
-    if !std::process::Command::new("make")
+    if !make()
         .args(["clean"])
         .current_dir(&x264_build_directory)
         .status()
@@ -52,7 +89,7 @@ fn main() -> std::io::Result<()> {
     {
         panic!("Failed to make clean x264");
     }
-    if !std::process::Command::new("make")
+    if !make()
         .current_dir(&x264_build_directory)
         .status()
         .expect("Failed to spawn 'make' for x264")

@@ -8,11 +8,23 @@ on:
       - published
 
 env:
-  CIBW_ARCHS_MACOS: x86_64 arm64
-  CIBW_ARCHS_LINUX: x86_64
-  CIBW_BEFORE_ALL_LINUX: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain=stable --profile=minimal -y
-  CIBW_ENVIRONMENT_LINUX: 'PATH="$HOME/.cargo/bin:$PATH"'
   CIBW_SKIP: cp36-* cp37-* cp38-* pp* *i686 *win32
+
+  # cibuildhweel macOS configuration
+  CIBW_ARCHS_MACOS: native
+
+  # cibuildhweel linux configuration
+  CIBW_ARCHS_LINUX: x86_64
+  CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28
+  CIBW_MUSLLINUX_X86_64_IMAGE: musllinux_1_2
+  # On Linux, wheels are built inside a container on the GitHub runner (unlike macOS and Windows which use the GitHub runner directly)
+  # Any build dependencies must thus be installed on the container (using CIBW_BEFORE_ALL_LINUX), *not* on the runner with the regular workflow
+  # This command must be compatible with manylinux_2_28 (AlmaLinux 8) and musllinux_1_2 (Alpine Linux 3.20)
+  CIBW_BEFORE_ALL_LINUX: dnf install -y clang nasm; apk add clang-dev nasm; curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain=stable --profile=minimal -y
+  CIBW_ENVIRONMENT_LINUX: 'PATH="$HOME/.cargo/bin:$PATH"'
+
+  # cibuildhweel Windows configuration
+  CIBW_ARCHS_WINDOWS: AMD64
 
 jobs:
   build_wheels:
@@ -20,19 +32,30 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-    env:
-      wheelhouse_path: wheelhouse-${{ matrix.os }}
+        # macos-13 is an Intel runner, macos-latest is an ARM runner
+        os: [macos-13, macos-latest, ubuntu-latest, windows-latest]
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
-        if: startsWith(matrix.os, 'macos')
-      - uses: pypa/cibuildwheel@v2.21.3
-      - run: echo "wheelhouse_path=wheelhouse-$(echo '${{ matrix.os }}' | awk '{split($0,input,"-"); print input[1]}')" >> $GITHUB_ENV
+      - run: python -m pip install cibuildwheel==2.21.3
+      - run: |
+          brew install nasm
+          python -m cibuildwheel
+        if: startsWith(matrix.os, 'macos-13')
+      - run: python -m cibuildwheel
+        if: startsWith(matrix.os, 'macos-latest')
+      - run: python -m cibuildwheel
+        if: startsWith(matrix.os, 'ubuntu-latest')
+      - run: |
+          choco install nasm
+          set "PATH=C:\Program Files\NASM;%PATH%"
+          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+          python -m cibuildwheel
+        shell: cmd
+        if: startsWith(matrix.os, 'windows')
       - uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.wheelhouse_path }}
+          name: ${{ matrix.os }}
           path: ./wheelhouse/
   test_library:
     name: Test library on ${{ matrix.os }} with Python ${{ matrix.python }} and numpy ${{ matrix.numpy }}
@@ -42,24 +65,22 @@ jobs:
       matrix:
         numpy: ["==1.26.4", ">=2"]
         python: ["3.9", "3.10", "3.11", "3.12", "3.13"]
-        os: [ubuntu-latest, windows-latest, macos-13, macos-latest]
+        # macos-13 is an Intel runner, macos-latest is an ARM runner
+        os: [macos-13, macos-latest, ubuntu-latest, windows-latest]
         exclude:
           # this configuration yields 'Windows fatal exception: access violation'
           # this may get fixed in a maintenance upgrade of 1.26.x (x > 4)
           - numpy: ==1.26.4
             os: windows-latest
             python: 3.13
-    env:
-      wheelhouse_path: wheelhouse-${{ matrix.os }}
     steps:
     - uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python }}
     - uses: actions/checkout@v4
-    - run: echo "wheelhouse_path=wheelhouse-$(echo '${{ matrix.os }}' | awk '{split($0,input,"-"); print input[1]}')" >> $GITHUB_ENV
     - uses: actions/download-artifact@v4
       with:
-        name: ${{ env.wheelhouse_path }}
+        name: ${{ matrix.os }}
         path: ./wheelhouse/
     - run: python -m pip install toml
     - run: python -m pip install 'numpy${{ matrix.numpy }}'

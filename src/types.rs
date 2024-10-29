@@ -116,7 +116,7 @@ pub fn check_array(
             as *mut numpy::npyffi::PyArray_Descr;
         let expected_description = expected_field.dtype(python);
         unsafe {
-            (*expected_description).byteorder = b'<' as i8;
+            (*expected_description).byteorder = b'<' as core::ffi::c_char;
         }
         if unsafe {
             numpy::PY_ARRAY_API.PyArray_EquivTypes(python, expected_description, actual_description)

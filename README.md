@@ -23,6 +23,7 @@ Local build (first run).
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh # see https://rustup.rs
 python3 -m venv .venv
 source .venv/bin/activate
+# x86 platforms may need to install https://www.nasm.us
 pip install --upgrade pip
 pip install maturin
 maturin develop  # or maturin develop --release to build with optimizations
