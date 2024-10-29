@@ -9,7 +9,7 @@ class Encoder:
         self,
         path: typing.Union[pathlib.Path, str],
         dimensions: tuple[int, int],
-        frequency_hz: float,
+        frame_rate: float,
         crf: float,
         preset: typing.Literal[
             "ultrafast",

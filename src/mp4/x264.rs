@@ -288,7 +288,7 @@ pub struct Parameters<const Colorspace: u8> {
     pub crf: f32,
     pub width: u16,
     pub height: u16,
-    pub frequency_hz: f64,
+    pub frame_rate: f64,
     pub use_opencl: bool,
 }
 
@@ -549,13 +549,13 @@ impl<const Colorspace: u8> Parameters<{ Colorspace }> {
         parameters.b_opencl = self.use_opencl as ::std::os::raw::c_int;
         parameters.i_log_level = X264_LOG_NONE;
         parameters.b_vfr_input = 0;
-        if self.frequency_hz.round() == self.frequency_hz {
+        if self.frame_rate.round() == self.frame_rate {
             parameters.i_timebase_num = 1;
-            parameters.i_timebase_den = self.frequency_hz.round() as u32;
+            parameters.i_timebase_den = self.frame_rate.round() as u32;
         } else {
             parameters.i_timebase_num = TIMEBASE_NUMERATOR;
             parameters.i_timebase_den =
-                (self.frequency_hz * TIMEBASE_NUMERATOR as f64).round() as u32;
+                (self.frame_rate * TIMEBASE_NUMERATOR as f64).round() as u32;
         }
         parameters.vui.b_fullrange = 1;
         parameters.b_repeat_headers = 0;

@@ -16,5 +16,10 @@ dirname = pathlib.Path(__file__).resolve().parent
     .colorize(colormap=faery.colormaps.managua.flipped())
     .scale(factor=4.0)
     .add_timecode()
+    .add_overlay(
+        overlay=dirname.parent / "tests" / "data" / "logo.png",
+        x=0,
+        y=874,
+    )
     .to_file(dirname.parent / "tests" / "data_generated" / "dvs_slow_motion.mp4")
 )

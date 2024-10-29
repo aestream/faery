@@ -30,7 +30,7 @@ impl Encoder {
     fn new(
         path: &pyo3::Bound<'_, pyo3::types::PyAny>,
         dimensions: (u16, u16),
-        frequency_hz: f64,
+        frame_rate: f64,
         crf: f32,
         preset: &str,
         tune: &str,
@@ -47,7 +47,7 @@ impl Encoder {
                         width: dimensions.0,
                         height: dimensions.1,
                         use_opencl: false,
-                        frequency_hz,
+                        frame_rate,
                     },
                     types::python_path_to_string(python, path)?,
                 )?),

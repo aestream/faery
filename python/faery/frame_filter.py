@@ -1,8 +1,10 @@
 import collections.abc
+import pathlib
 import types
 import typing
 
 import numpy
+import numpy.typing
 
 from . import enums, frame_stream, stream, timestamp
 from .colormaps._base import Color, parse_color
@@ -215,7 +217,7 @@ class AddTimecodeAndSpeedup(frame_stream.FiniteRegularRgba8888FrameFilter):
         y: int = 15,
         size: int = 30,
         color: Color = "#FFFFFF",
-        speed_up_label_output_frequency_hz: typing.Optional[float] = 60.0,
+        output_frame_rate: typing.Optional[float] = 60.0,
     ):
         self.init(parent=parent)
         self.x = x
@@ -228,12 +230,12 @@ class AddTimecodeAndSpeedup(frame_stream.FiniteRegularRgba8888FrameFilter):
             int(round(color[2] * 255.0)),
             int(round(color[3] * 255.0)),
         )
-        self.speed_up_label_output_frequency_hz = speed_up_label_output_frequency_hz
+        self.output_frame_rate = output_frame_rate
 
     def __iter__(self) -> collections.abc.Iterator[frame_stream.Rgba8888Frame]:
-        if self.speed_up_label_output_frequency_hz is not None:
+        if self.output_frame_rate is not None:
             frequency_hz = self.frequency_hz()
-            speed_up = self.speed_up_label_output_frequency_hz / frequency_hz
+            speed_up = self.output_frame_rate / frequency_hz
             if (
                 speed_up < 1.0 + SPEED_UP_PRECISION
                 and speed_up > 1.0 - SPEED_UP_PRECISION
@@ -266,4 +268,45 @@ class AddTimecodeAndSpeedup(frame_stream.FiniteRegularRgba8888FrameFilter):
                     size=self.size,
                     color=self.color,
                 )
+            yield frame
+
+
+@typed_filter(
+    {"Rgba8888", "FiniteRgba8888", "RegularRgba8888", "FiniteRegularRgba8888"}
+)
+class AddOverlay(frame_stream.FiniteRegularRgba8888FrameFilter):
+    def __init__(
+        self,
+        parent: stream.FiniteRegularStream[frame_stream.Rgba8888Frame],
+        overlay: typing.Union[pathlib.Path, str, numpy.typing.NDArray[numpy.uint8]],
+        x: int = 0,
+        y: int = 0,
+        scale_factor: float = 1.0,
+        scale_filter: enums.ImageResizeFilter = "nearest",
+    ):
+        self.init(parent=parent)
+        self.overlay = overlay
+        self.x = x
+        self.y = y
+        self.scale_factor = scale_factor
+        self.scale_filter: enums.ImageResizeFilter = scale_filter
+
+    def __iter__(self) -> collections.abc.Iterator[frame_stream.Rgba8888Frame]:
+        if isinstance(self.overlay, (pathlib.Path, str)):
+            with open(self.overlay, "rb") as overlay_file:
+                overlay = image.decode(overlay_file.read())
+        else:
+            overlay = self.overlay
+        for frame in self.parent:
+            image.overlay(
+                frame=frame.pixels,
+                overlay=overlay,
+                x=self.x,
+                y=self.y,
+                new_dimensions=(
+                    int(round(overlay.shape[0] * self.scale_factor)),
+                    int(round(overlay.shape[1] * self.scale_factor)),
+                ),
+                filter=self.scale_filter,
+            )
             yield frame

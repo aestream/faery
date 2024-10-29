@@ -77,7 +77,7 @@ class Rgba8888Output:
     def to_file(
         self,
         path: typing.Union[pathlib.Path, str],
-        frequency_hz: float = 60,
+        frame_rate: float = 60.0,
         crf: float = 15.0,
         preset: enums.VideoFilePreset = "ultrafast",
         tune: enums.VideoFileTune = "none",
@@ -90,7 +90,7 @@ class Rgba8888Output:
             stream=self,
             path=path,
             dimensions=self.dimensions(),
-            frequency_hz=frequency_hz,
+            frame_rate=frame_rate,
             crf=crf,
             preset=preset,
             tune=tune,
@@ -139,6 +139,15 @@ class Rgba8888FrameStream(stream.Stream[Rgba8888Frame], Rgba8888Output):
         color: Color = "#FFFFFF",
     ) -> "Rgba8888FrameStream": ...
 
+    def add_overlay(
+        self,
+        overlay: typing.Union[pathlib.Path, str, numpy.typing.NDArray[numpy.uint8]],
+        x: int = 0,
+        y: int = 0,
+        scale_factor: float = 1.0,
+        scale_filter: enums.ImageResizeFilter = "nearest",
+    ) -> "Rgba8888FrameStream": ...
+
 
 class FiniteRgba8888FrameStream(stream.FiniteStream[Rgba8888Frame], Rgba8888Output):
     def scale(
@@ -164,6 +173,15 @@ class FiniteRgba8888FrameStream(stream.FiniteStream[Rgba8888Frame], Rgba8888Outp
         color: Color = "#FFFFFF",
     ) -> "FiniteRgba8888FrameStream": ...
 
+    def add_overlay(
+        self,
+        overlay: typing.Union[pathlib.Path, str, numpy.typing.NDArray[numpy.uint8]],
+        x: int = 0,
+        y: int = 0,
+        scale_factor: float = 1.0,
+        scale_filter: enums.ImageResizeFilter = "nearest",
+    ) -> "FiniteRgba8888FrameStream": ...
+
 
 class RegularRgba8888FrameStream(stream.RegularStream[Rgba8888Frame], Rgba8888Output):
     def scale(
@@ -187,7 +205,16 @@ class RegularRgba8888FrameStream(stream.RegularStream[Rgba8888Frame], Rgba8888Ou
         y: int = 15,
         size: int = 30,
         color: Color = "#FFFFFF",
-        speed_up_label_output_frequency_hz: typing.Optional[int] = 60,
+        output_frame_rate: typing.Optional[float] = 60.0,
+    ) -> "RegularRgba8888FrameStream": ...
+
+    def add_overlay(
+        self,
+        overlay: typing.Union[pathlib.Path, str, numpy.typing.NDArray[numpy.uint8]],
+        x: int = 0,
+        y: int = 0,
+        scale_factor: float = 1.0,
+        scale_filter: enums.ImageResizeFilter = "nearest",
     ) -> "RegularRgba8888FrameStream": ...
 
 
@@ -215,7 +242,16 @@ class FiniteRegularRgba8888FrameStream(
         y: int = 15,
         size: int = 30,
         color: Color = "#FFFFFF",
-        speed_up_label_output_frequency_hz: typing.Optional[int] = 60,
+        output_frame_rate: typing.Optional[float] = 60.0,
+    ) -> "FiniteRegularRgba8888FrameStream": ...
+
+    def add_overlay(
+        self,
+        overlay: typing.Union[pathlib.Path, str, numpy.typing.NDArray[numpy.uint8]],
+        x: int = 0,
+        y: int = 0,
+        scale_factor: float = 1.0,
+        scale_filter: enums.ImageResizeFilter = "nearest",
     ) -> "FiniteRegularRgba8888FrameStream": ...
 
 
@@ -304,7 +340,7 @@ def bind_rgb8888(prefix: typing.Literal["", "Finite", "Regular", "FiniteRegular"
             y: int = 15,
             size: int = 30,
             color: Color = "#FFFFFF",
-            speed_up_label_output_frequency_hz: typing.Optional[int] = 60,
+            output_frame_rate: typing.Optional[float] = 60.0,
         ):
             from .frame_filter import FILTERS
 
@@ -314,7 +350,7 @@ def bind_rgb8888(prefix: typing.Literal["", "Finite", "Regular", "FiniteRegular"
                 y=y,
                 size=size,
                 color=color,
-                speed_up_label_output_frequency_hz=speed_up_label_output_frequency_hz,
+                output_frame_rate=output_frame_rate,
             )
 
         add_timecode_and_speedup.filter_return_annotation = (
@@ -324,11 +360,31 @@ def bind_rgb8888(prefix: typing.Literal["", "Finite", "Regular", "FiniteRegular"
             f"{prefix}Rgba8888FrameStream"
         ].add_timecode = add_timecode_and_speedup
 
+    def add_overlay(
+        self,
+        overlay: typing.Union[pathlib.Path, str, numpy.typing.NDArray[numpy.uint8]],
+        x: int = 0,
+        y: int = 0,
+        scale_factor: float = 1.0,
+        scale_filter: enums.ImageResizeFilter = "nearest",
+    ):
+        from .frame_filter import FILTERS
+
+        return FILTERS[f"{prefix}Rgba8888AddOverlay"](
+            parent=self,
+            overlay=overlay,
+            x=x,
+            y=y,
+            scale_factor=scale_factor,
+            scale_filter=scale_filter,
+        )
+
     scale.filter_return_annotation = f"{prefix}Rgba8888FrameStream"
     annotate.filter_return_annotation = f"{prefix}Rgba8888FrameStream"
 
     globals()[f"{prefix}Rgba8888FrameStream"].scale = scale
     globals()[f"{prefix}Rgba8888FrameStream"].annotate = annotate
+    globals()[f"{prefix}Rgba8888FrameStream"].add_overlay = add_overlay
 
 
 for prefix in ("", "Finite", "Regular", "FiniteRegular"):

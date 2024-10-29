@@ -219,7 +219,7 @@ def frames_to_file(
     stream: collections.abc.Iterable[frame_stream.Rgba8888Frame],
     path: typing.Union[pathlib.Path, str],
     dimensions: tuple[int, int],
-    frequency_hz: float = 60,
+    frame_rate: float = 60.0,
     crf: float = 15.0,
     preset: enums.VideoFilePreset = "ultrafast",
     tune: enums.VideoFileTune = "none",
@@ -237,7 +237,7 @@ def frames_to_file(
     with mp4.Encoder(
         path=path,
         dimensions=dimensions,
-        frequency_hz=frequency_hz,
+        frame_rate=frame_rate,
         crf=crf,
         preset=preset,
         tune=tune,

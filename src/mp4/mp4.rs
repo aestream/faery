@@ -56,7 +56,7 @@ impl<W: std::io::Write + std::io::Seek> Encoder<W> {
                 },
             )?,
             initial_dts: None,
-            frame_duration_in_timescale: (TIMESCALE as f64 / parameters.frequency_hz).round()
+            frame_duration_in_timescale: (TIMESCALE as f64 / parameters.frame_rate).round()
                 as u32,
         };
         {
