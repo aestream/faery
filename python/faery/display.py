@@ -2,9 +2,7 @@ import os
 import sys
 import typing
 
-from . import events_stream
-from . import frame_stream
-from . import timestamp
+from . import events_stream, frame_stream, timestamp
 
 
 def generate_progress_bar(width: int, progress: typing.Optional[float]) -> str:

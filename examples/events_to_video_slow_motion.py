@@ -21,5 +21,7 @@ dirname = pathlib.Path(__file__).resolve().parent
         x=0,
         y=874,
     )
-    .to_file(dirname.parent / "tests" / "data_generated" / "dvs_slow_motion_with_logo.mp4")
+    .to_file(
+        dirname.parent / "tests" / "data_generated" / "dvs_slow_motion_with_logo.mp4"
+    )
 )
