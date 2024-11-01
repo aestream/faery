@@ -1,10 +1,11 @@
 import collections.abc
+import dataclasses
 import pathlib
 import typing
 
 import numpy
 
-from . import enums, file_encoder, frame_stream, stream, timestamp, udp_encoder
+from . import enums, frame_stream, stream, timestamp
 
 if typing.TYPE_CHECKING:
     from .types import aedat  # type: ignore
@@ -81,8 +82,10 @@ EVENTS_DTYPE: numpy.dtype = numpy.dtype(
 # However, this would require that library contributors write non-quite-Python code and pre-process
 # the code before testing it.
 
+OutputState = typing.TypeVar("OutputState")
 
-class Output:
+
+class Output(typing.Generic[OutputState]):
     def __iter__(self) -> collections.abc.Iterator[numpy.ndarray]:
         raise NotImplementedError()
 
@@ -98,6 +101,7 @@ class Output:
             typing.Tuple[enums.EventsFileCompression, int]
         ] = aedat.LZ4_DEFAULT,
         file_type: typing.Optional[enums.EventsFileType] = None,
+        on_progress: typing.Callable[[OutputState], None] = lambda _: None,
     ) -> str:
         """
         Writes the stream to an event file (supports .aedat4, .es, .raw, and .dat).
@@ -124,6 +128,8 @@ class Output:
             EVT (.raw) and DAT files do not need this (t0 is written in their header), but it is returned here anyway for compatibility
             with software than do not support the t0 header field.
         """
+        from . import file_encoder
+
         return file_encoder.events_to_file(
             stream=self,
             path=path,
@@ -132,14 +138,21 @@ class Output:
             zero_t0=zero_t0,
             compression=compression,
             file_type=file_type,
+            on_progress=on_progress,  # type: ignore
         )
 
-    def to_stdout(self) -> str:
+    def to_stdout(
+        self,
+        on_progress: typing.Callable[[OutputState], None] = lambda _: None,
+    ) -> str:
+        from . import file_encoder
+
         return file_encoder.events_to_file(
             stream=self,
             path=None,
             dimensions=self.dimensions(),
             file_type="csv",
+            on_progress=on_progress,  # type: ignore
         )
 
     def to_udp(
@@ -151,6 +164,7 @@ class Output:
         format: typing.Literal[
             "t64_x16_y16_on8", "t32_x16_y15_on1"
         ] = "t64_x16_y16_on8",
+        on_progress: typing.Callable[[OutputState], None] = lambda _: None,
     ) -> None:
         """
         Sends the stream to the given UDP address and port.
@@ -172,6 +186,8 @@ class Output:
             and 1208 if format is "t32_x16_y15_on1".
             format: Event encoding format. Defaults to "t64_x16_y16_on8".
         """
+        from . import udp_encoder
+
         return udp_encoder.encode(
             stream=self,
             address=address,
@@ -180,7 +196,7 @@ class Output:
         )
 
 
-class EventsStream(stream.Stream[numpy.ndarray], Output):
+class EventsStream(stream.Stream[numpy.ndarray], Output["EventsStreamState"]):
     def regularize(
         self,
         frequency_hz: float,
@@ -234,7 +250,9 @@ class EventsStream(stream.Stream[numpy.ndarray], Output):
     ) -> frame_stream.Float64FrameStream: ...
 
 
-class FiniteEventsStream(stream.FiniteStream[numpy.ndarray], Output):
+class FiniteEventsStream(
+    stream.FiniteStream[numpy.ndarray], Output["FiniteEventsStreamState"]
+):
     def regularize(
         self,
         frequency_hz: float,
@@ -299,7 +317,9 @@ class FiniteEventsStream(stream.FiniteStream[numpy.ndarray], Output):
     ) -> frame_stream.FiniteFloat64FrameStream: ...
 
 
-class RegularEventsStream(stream.RegularStream[numpy.ndarray], Output):
+class RegularEventsStream(
+    stream.RegularStream[numpy.ndarray], Output["RegularEventsStreamState"]
+):
     def regularize(
         self,
         frequency_hz: float,
@@ -361,7 +381,9 @@ class RegularEventsStream(stream.RegularStream[numpy.ndarray], Output):
     ) -> frame_stream.RegularFloat64FrameStream: ...
 
 
-class FiniteRegularEventsStream(stream.FiniteRegularStream[numpy.ndarray], Output):
+class FiniteRegularEventsStream(
+    stream.FiniteRegularStream[numpy.ndarray], Output["FiniteRegularEventsStreamState"]
+):
     def regularize(
         self,
         frequency_hz: float,
@@ -635,3 +657,209 @@ class FiniteRegularEventsFilter(
     stream.FiniteRegularFilter[numpy.ndarray],
 ):
     pass
+
+
+@dataclasses.dataclass
+class PacketState:
+    index: int
+    time_range_us: tuple[int, int]
+
+
+@dataclasses.dataclass
+class EventsStreamState:
+    packet: typing.Union[PacketState, typing.Literal["start", "end"]]
+    """
+    "start" indicates the beginning of the stream (before reading the first packet)
+
+    "end" indicates the end of the stream (after reading the last packet)
+    """
+
+
+@dataclasses.dataclass
+class FiniteEventsStreamState:
+    packet: typing.Union[PacketState, typing.Literal["start", "end"]]
+    """
+    "start" indicates the beginning of the stream (before reading the first packet)
+
+    "end" indicates the end of the stream (after reading the last packet)
+    """
+    stream_time_range_us: tuple[int, int]
+    progress: float
+
+
+@dataclasses.dataclass
+class RegularEventsStreamState:
+    packet: typing.Union[PacketState, typing.Literal["start", "end"]]
+    """
+    "start" indicates the beginning of the stream (before reading the first packet)
+
+    "end" indicates the end of the stream (after reading the last packet)
+    """
+    frequency_hz: float
+
+
+@dataclasses.dataclass
+class FiniteRegularEventsStreamState:
+    packet: typing.Union[PacketState, typing.Literal["start", "end"]]
+    """
+    "start" indicates the beginning of the stream (before reading the first packet)
+
+    "end" indicates the end of the stream (after reading the last packet)
+    """
+    stream_time_range_us: tuple[int, int]
+    frequency_hz: float
+    progress: float
+    packet_count: int
+
+
+class StateManager:
+    def __init__(
+        self,
+        stream: typing.Any,
+        on_progress: typing.Callable[[typing.Any], None],
+    ):
+        self.index = 0
+        try:
+            self.time_range_us = stream.time_range_us()
+        except AttributeError:
+            self.time_range_us = None
+        try:
+            self.frequency_hz = stream.frequency_hz()
+        except AttributeError:
+            self.frequency_hz = None
+        self.on_progress = on_progress
+        if self.time_range_us is None or self.frequency_hz is None:
+            self.packet_count = None
+        else:
+            self.packet_count = 1
+            period_us = 1e6 / self.frequency_hz
+            while True:
+                end = int(round(self.time_range_us[0] + self.packet_count * period_us))
+                if end >= self.time_range_us[1]:
+                    break
+                self.packet_count += 1
+
+    def start(self):
+        if self.time_range_us is None:
+            if self.frequency_hz is None:
+                self.on_progress(EventsStreamState(packet="start"))
+            else:
+                assert self.packet_count is not None
+                self.on_progress(
+                    RegularEventsStreamState(
+                        packet="start",
+                        frequency_hz=self.frequency_hz,
+                    )
+                )
+        else:
+            if self.frequency_hz is None:
+                self.on_progress(
+                    FiniteEventsStreamState(
+                        packet="start",
+                        stream_time_range_us=self.time_range_us,
+                        progress=0.0,
+                    )
+                )
+            else:
+                assert self.packet_count is not None
+                self.on_progress(
+                    FiniteRegularEventsStreamState(
+                        packet="start",
+                        stream_time_range_us=self.time_range_us,
+                        frequency_hz=self.frequency_hz,
+                        progress=0.0,
+                        packet_count=self.packet_count,
+                    )
+                )
+
+    def commit(self, events: numpy.ndarray):
+        if len(events) == 0:
+            if self.frequency_hz is None:
+                return
+            if self.time_range_us is None:
+                pass
+            else:
+                pass
+        else:
+            if self.frequency_hz is None:
+                if self.time_range_us is None:
+                    self.on_progress(
+                        EventsStreamState(
+                            packet=PacketState(
+                                index=self.index,
+                                time_range_us=(events["t"][0], events["t"][-1] + 1),
+                            )
+                        )
+                    )
+                else:
+                    self.on_progress(
+                        FiniteEventsStreamState(
+                            packet=PacketState(
+                                index=self.index,
+                                time_range_us=(events["t"][0], events["t"][-1] + 1),
+                            ),
+                            stream_time_range_us=self.time_range_us,
+                            progress=(events["t"][-1] + 1 - self.time_range_us[0])
+                            / (self.time_range_us[1] - self.time_range_us[0]),
+                        )
+                    )
+            else:
+                if self.time_range_us is None:
+                    self.on_progress(
+                        RegularEventsStreamState(
+                            packet=PacketState(
+                                index=self.index,
+                                time_range_us=(events["t"][0], events["t"][-1] + 1),
+                            ),
+                            frequency_hz=self.frequency_hz,
+                        )
+                    )
+                else:
+                    assert self.packet_count is not None
+                    self.on_progress(
+                        FiniteRegularEventsStreamState(
+                            packet=PacketState(
+                                index=self.index,
+                                time_range_us=(events["t"][0], events["t"][-1] + 1),
+                            ),
+                            stream_time_range_us=self.time_range_us,
+                            frequency_hz=self.frequency_hz,
+                            progress=(events["t"][-1] + 1 - self.time_range_us[0])
+                            / (self.time_range_us[1] - self.time_range_us[0]),
+                            packet_count=self.packet_count,
+                        )
+                    )
+        self.index += 1
+
+    def end(self):
+        if self.time_range_us is None:
+            if self.frequency_hz is None:
+                self.on_progress(EventsStreamState(packet="end"))
+            else:
+                assert self.packet_count is not None
+                self.on_progress(
+                    RegularEventsStreamState(
+                        packet="end",
+                        frequency_hz=self.frequency_hz,
+                    )
+                )
+        else:
+            if self.frequency_hz is None:
+                self.on_progress(
+                    FiniteEventsStreamState(
+                        packet="end",
+                        stream_time_range_us=self.time_range_us,
+                        progress=1.0,
+                    )
+                )
+            else:
+                assert self.packet_count is not None
+                self.on_progress(
+                    FiniteRegularEventsStreamState(
+                        packet="end",
+                        stream_time_range_us=self.time_range_us,
+                        frequency_hz=self.frequency_hz,
+                        progress=1.0,
+                        packet_count=self.packet_count,
+                    )
+                )

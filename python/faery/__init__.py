@@ -26,7 +26,14 @@ from .events_stream import EventsStream as EventsStream
 from .events_stream import FiniteEventsStream as FiniteEventsStream
 from .events_stream import FiniteRegularEventsStream as FiniteRegularEventsStream
 from .events_stream import RegularEventsStream as RegularEventsStream
+from .events_stream import EventsStreamState as EventsStreamState
+from .events_stream import FiniteEventsStreamState as FiniteEventsStreamState
+from .events_stream import RegularEventsStreamState as RegularEventsStreamState
+from .events_stream import (
+    FiniteRegularEventsStreamState as FiniteRegularEventsStreamState,
+)
 from .file_decoder import CsvProperties as CsvProperties
+from .display import progress_bar as progress_bar
 from .timestamp import Time as Time
 from .timestamp import parse_timestamp as parse_timestamp
 from .timestamp import timestamp_to_seconds as timestamp_to_seconds
@@ -66,11 +73,16 @@ __all__ = [
     "events_stream_from_file",
     "events_stream_from_stdin",
     "events_stream_from_udp",
+    "EventsStreamState",
+    "FiniteEventsStreamState",
+    "RegularEventsStreamState",
+    "FiniteRegularEventsStreamState",
     "evt",
     "gradient",
     "image",
     "parse_color",
     "parse_timestamp",
+    "progress_bar",
     "timestamp_to_seconds",
     "timestamp_to_timecode",
 ]

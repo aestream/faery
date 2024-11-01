@@ -4,6 +4,8 @@ import typing
 
 import numpy
 
+from . import events_stream
+
 
 def encode(
     stream: collections.abc.Iterable[numpy.ndarray],
@@ -12,6 +14,9 @@ def encode(
     ],
     payload_length: typing.Optional[int] = None,
     format: typing.Literal["t64_x16_y16_on8", "t32_x16_y15_on1"] = "t64_x16_y16_on8",
+    on_progress: typing.Callable[
+        [events_stream.EventsStreamState], None
+    ] = lambda _: None,
 ):
     ipv6 = len(address) == 4
     if ipv6:
@@ -23,15 +28,19 @@ def encode(
         socket.AF_INET6 if ipv6 else socket.AF_INET,
         socket.SOCK_DGRAM,
     )
+    state_manager = events_stream.StateManager(stream=stream, on_progress=on_progress)
     if format == "t64_x16_y16_on8":
         if payload_length is None:
             payload_length = 1209
         assert payload_length % 13 == 0
+        state_manager.start()
         for events in stream:
             for index in range(0, len(events), payload_length):
                 udp_socket.sendto(
                     events[index : index + payload_length].tobytes(), address
                 )
+            state_manager.commit(events=events)
+        state_manager.end()
     elif format == "t32_x16_y15_on1":
         if payload_length is None:
             payload_length = 1208
@@ -40,6 +49,7 @@ def encode(
             payload_length,
             [("t", "<u4"), ("x", "<u2"), ("y+on", "<u2")],
         )
+        state_manager.start()
         for events in stream:
             for index in range(0, len(events), payload_length):
                 selection = events[index : index + payload_length]
@@ -49,5 +59,7 @@ def encode(
                     (selection["y"] << 1) & 0x7FFF
                 ) | (selection["on"] & 1)
                 udp_socket.sendto(buffer[0 : len(selection)].tobytes(), address)
+            state_manager.commit(events=events)
+        state_manager.end()
     else:
         raise Exception(f'unknown format "{format}"')

@@ -5,7 +5,7 @@ import uuid
 
 import numpy
 
-from . import enums, frame_stream, timestamp
+from . import enums, events_stream, frame_stream, timestamp
 
 if typing.TYPE_CHECKING:
     from .types import aedat, csv, dat, event_stream, evt, mp4  # type: ignore
@@ -25,6 +25,9 @@ def events_to_file(
     csv_separator: bytes = b",",
     csv_header: bool = True,
     file_type: typing.Optional[enums.EventsFileType] = None,
+    on_progress: typing.Callable[
+        [events_stream.EventsStreamState], None
+    ] = lambda _: None,
 ) -> str:
     """Writes the stream to an event file (supports .aedat4, .es, .raw, and .dat).
 
@@ -59,6 +62,7 @@ def events_to_file(
             )
     else:
         path = pathlib.Path(path)
+        path.parent.mkdir(exist_ok=True, parents=True)
         file_type = (
             enums.events_file_type_guess(path)
             if file_type is None
@@ -71,6 +75,7 @@ def events_to_file(
             enums.validate_events_file_compression(compression[0]),
             compression[1],
         )
+    state_manager = events_stream.StateManager(stream=stream, on_progress=on_progress)
     if file_type == "aedat":
         assert path is not None
         with aedat.Encoder(
@@ -80,8 +85,11 @@ def events_to_file(
             ],
             compression=compression,
         ) as encoder:
+            state_manager.start()
             for events in stream:
                 encoder.write(0, events)
+                state_manager.commit(events)
+        state_manager.end()
         t0 = 0
     elif file_type == "csv":
         assert len(csv_separator) == 1
@@ -91,10 +99,11 @@ def events_to_file(
             header=csv_header,
             dimensions=dimensions,
         ) as encoder:
-
+            state_manager.start()
             for events in stream:
-
                 encoder.write(events)
+                state_manager.commit(events)
+        state_manager.end()
         t0 = 0
     elif file_type == "dat":
         assert path is not None
@@ -105,6 +114,7 @@ def events_to_file(
             zero_t0=zero_t0,
             dimensions=dimensions,
         ) as encoder:
+            state_manager.start()
             for events in stream:
                 events = events.astype(
                     dtype=numpy.dtype(
@@ -119,11 +129,13 @@ def events_to_file(
                     copy=False,
                 )
                 encoder.write(events)
+                state_manager.commit(events)
             t0_candidate = encoder.t0()
             if t0_candidate is None:
                 t0 = 0
             else:
                 t0 = t0_candidate
+        state_manager.end()
     elif file_type == "es":
         assert path is not None
         with event_stream.Encoder(
@@ -132,14 +144,17 @@ def events_to_file(
             zero_t0=zero_t0,
             dimensions=dimensions,
         ) as encoder:
+            state_manager.start()
             for events in stream:
                 events["y"] = dimensions[1] - 1 - events["y"]
                 encoder.write(events)
+                state_manager.commit(events)
             t0_candidate = encoder.t0()
             if t0_candidate is None:
                 t0 = 0
             else:
                 t0 = t0_candidate
+        state_manager.end()
     elif file_type == "evt":
         assert path is not None
         with evt.Encoder(
@@ -148,13 +163,16 @@ def events_to_file(
             zero_t0=zero_t0,
             dimensions=dimensions,
         ) as encoder:
+            state_manager.start()
             for events in stream:
                 encoder.write({"events": events})
+                state_manager.commit(events)
             t0_candidate = encoder.t0()
             if t0_candidate is None:
                 t0 = 0
             else:
                 t0 = t0_candidate
+        state_manager.end()
     else:
         raise Exception(f"file type {file_type} not implemented")
     return timestamp.timestamp_to_timecode(t0)
@@ -165,6 +183,9 @@ def frames_to_files(
     path_pattern: typing.Union[pathlib.Path, str],
     compression_level: enums.ImageFileCompressionLevel = "fast",
     file_type: typing.Optional[enums.ImageFileType] = None,
+    on_progress: typing.Callable[
+        [frame_stream.Rgba8888OutputState], None
+    ] = lambda _: None,
 ):
     path_pattern = pathlib.Path(path_pattern)
     index_uuid = str(uuid.uuid4())
@@ -191,6 +212,8 @@ def frames_to_files(
         raise Exception(
             f'at least one of {{i}}/{{index}} or {{t}}/{{timestamp}} must appear in the path pattern (for example "output/{{i:05}}.png" or "output/{{index:05}}_{{timestamp:010}}.png")'
         )
+    state_manager = frame_stream.StateManager(stream=stream, on_progress=on_progress)
+    state_manager.start()
     index = 0
     for frame in stream:
         path = pathlib.Path(
@@ -206,13 +229,14 @@ def frames_to_files(
                 for part in path_pattern.parts
             )
         )
-        path.parent.mkdir(exist_ok=True, parents=True)
         frame.to_file(
             path=path,
             compression_level=compression_level,
             file_type=file_type,
         )
+        state_manager.commit(frame=frame)
         index += 1
+    state_manager.end()
 
 
 def frames_to_file(
@@ -225,8 +249,12 @@ def frames_to_file(
     tune: enums.VideoFileTune = "none",
     profile: enums.VideoFileProfile = "baseline",
     file_type: typing.Optional[enums.VideoFileType] = None,
+    on_progress: typing.Callable[
+        [frame_stream.Rgba8888OutputState], None
+    ] = lambda _: None,
 ):
     path = pathlib.Path(path)
+    path.parent.mkdir(exist_ok=True, parents=True)
     preset = enums.validate_video_file_preset(preset)
     tune = enums.validate_video_file_tune(tune)
     profile = enums.validate_video_file_profile(profile)
@@ -234,6 +262,7 @@ def frames_to_file(
         file_type = enums.video_file_type_guess(path)
     else:
         file_type = enums.validate_video_file_type(file_type)
+    state_manager = frame_stream.StateManager(stream=stream, on_progress=on_progress)
     with mp4.Encoder(
         path=path,
         dimensions=dimensions,
@@ -243,5 +272,8 @@ def frames_to_file(
         tune=tune,
         profile=profile,
     ) as encoder:
+        state_manager.start()
         for frame in stream:
             encoder.write(frame=frame.pixels)
+            state_manager.commit(frame=frame)
+    state_manager.end()
