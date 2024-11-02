@@ -1,8 +1,8 @@
-from . import colormaps as colormaps
-from . import convert as convert
-from . import init as init
-from . import inline as inline
-from . import render as render
-from . import run as run
+from . import colormaps
+from . import commands
+from . import init
+from . import parser
+from . import render
+from . import run
 
-__all__ = ["colormaps", "convert", "init", "inline", "render", "run"]
+__all__ = ["colormaps", "commands", "init", "parser", "render", "run"]

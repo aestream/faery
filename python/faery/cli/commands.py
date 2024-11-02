@@ -1,7 +1,7 @@
+import argparse
 import dataclasses
-from typing import TextIO, Literal
+from typing import Callable, Literal
 
-from faery.events_stream import EventsStream
 from faery.events_input import (
     events_stream_from_file,
     events_stream_from_stdin,
@@ -9,7 +9,22 @@ from faery.events_input import (
 )
 
 
-class InputCommand:
+class Command:
+    parser: argparse.ArgumentParser
+
+
+class SubCommand(Command):
+    def run(self):
+        raise NotImplementedError
+
+
+class FilterCommand(Command):
+    def to_filter(self, stream):
+        raise NotImplementedError
+
+
+class InputCommand(Command):
+
     def to_stream(self):
         raise NotImplementedError
 
@@ -45,7 +60,8 @@ class InputUdp(InputCommand):
         )
 
 
-class OutputCommand:
+class OutputCommand(Command):
+
     def to_output(self, stream) -> None:
         raise NotImplementedError
 
@@ -72,3 +88,20 @@ class OutputUdp(OutputCommand):
 
     def to_output(self, stream):
         return stream.to_udp(address=(self.address, self.port), format=self.protocol)
+
+
+class CommandGroup:
+    parser: argparse.ArgumentParser
+    runner: Callable[[argparse.Namespace], Command]
+
+
+@dataclasses.dataclass
+class SubCommandGroup(CommandGroup):
+    parser: argparse.ArgumentParser
+    runner: Callable[[argparse.Namespace], Command]
+
+
+@dataclasses.dataclass
+class PipelineCommandGroup(CommandGroup):
+    parser: argparse.ArgumentParser
+    runner: Callable[[argparse.Namespace], Command]

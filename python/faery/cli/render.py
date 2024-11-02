@@ -1,11 +1,21 @@
 import argparse
+import dataclasses
+from typing import List
+
+from . import commands
 
 
-def add_to_subparsers(subparsers: argparse._SubParsersAction):
-    parser: argparse.ArgumentParser = subparsers.add_parser(
-        "render", help="generate a video or frames from an event file"
+@dataclasses.dataclass
+class RenderCommand(commands.SubCommand):
+    def run(self):
+        raise NotImplementedError("render command not implemented")
+
+
+def render_group():
+    def run(args: argparse.Namespace):
+        return RenderCommand()
+
+    parser = argparse.ArgumentParser(
+        "render", description="generate a video or frames from an event file"
     )
-
-
-def run(args: argparse.Namespace):
-    pass
+    return commands.SubCommandGroup(parser, run)

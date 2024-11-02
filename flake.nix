@@ -22,11 +22,8 @@
               pkgs.autoPatchelfHook
               pkgs.rustc
               pkgs.cargo
-              
-              # nixpkgs still uses numpy version 1
-              # When upgraded, replace the libz dependency
-              # with the numpy package
-              # pypkgs.numpy
+              pkgs.nasm
+              pkgs.libclang
               pkgs.libz
             ];
             venvDir = "./.venv";
@@ -40,6 +37,7 @@
             '';
             postShellHook = ''
               unset SOURCE_DATE_EPOCH
+              export AS="nasm" # Maturin build configuration for nasm
             '';
           };
       in

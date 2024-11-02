@@ -149,5 +149,5 @@ __all__ = [
     "event_stream",
     "evt",
     "image",
-    "mp4"
+    "mp4",
 ]
