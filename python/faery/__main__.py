@@ -39,8 +39,8 @@ def print_help():
             # Read from UDP and write to file out.aedat4
             faery input udp output file out.aedat4
 
-            # Display available colormaps
-            faery colormaps
+            # Renders available colormaps to map.png
+            faery colormaps map.png
         """
         )
     )
