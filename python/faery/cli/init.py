@@ -1,11 +1,42 @@
 import argparse
+import dataclasses
 import os
 import pathlib
+from typing import List
+
+from . import commands
 
 
-def add_to_subparsers(subparsers: argparse._SubParsersAction):
-    parser: argparse.ArgumentParser = subparsers.add_parser(
-        "init", help="initialize a script to render multiple files"
+@dataclasses.dataclass
+class InitCommand(commands.SubCommand):
+    configuration: str
+    scan: str
+    input_format: str
+    track_id: int
+    input_version: str
+    width: int
+    height: int
+    t0: int
+
+    def run(self):
+        pass
+
+
+def init_group() -> commands.SubCommandGroup:
+    def parse_init(args: argparse.Namespace) -> InitCommand:
+        return InitCommand(
+            configuration=args.configuration,
+            scan=args.scan,
+            input_format=args.input_format,
+            track_id=args.track_id,
+            input_version=args.input_version,
+            width=args.width,
+            height=args.height,
+            t0=args.t0,
+        )
+
+    parser: argparse.ArgumentParser = argparse.ArgumentParser(
+        "init", description="initialize a script to render multiple files"
     )
     parser.add_argument(
         "-c",
@@ -61,7 +92,4 @@ def add_to_subparsers(subparsers: argparse._SubParsersAction):
         default=0,
         help="set t0 for Event Stream files (defaults to 0)",
     )
-
-
-def run(args: argparse.Namespace):
-    pass
+    return commands.SubCommandGroup(parser, parse_init)
