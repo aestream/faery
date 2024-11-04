@@ -6,7 +6,7 @@ import typing
 import numpy
 import numpy.typing
 
-from . import enums, stream
+from . import enums, frame_stream_state, stream
 from .colormaps._base import Color, Colormap
 
 if typing.TYPE_CHECKING:
@@ -124,7 +124,7 @@ class FiniteRegularFloat64FrameStream(stream.FiniteRegularStream[Float64Frame]):
 
 
 class Rgba8888FrameStream(
-    stream.Stream[Rgba8888Frame], Rgba8888Output["FrameStreamState"]
+    stream.Stream[Rgba8888Frame], Rgba8888Output[frame_stream_state.FrameStreamState]
 ):
     def scale(
         self,
@@ -160,7 +160,8 @@ class Rgba8888FrameStream(
 
 
 class FiniteRgba8888FrameStream(
-    stream.FiniteStream[Rgba8888Frame], Rgba8888Output["FiniteFrameStreamState"]
+    stream.FiniteStream[Rgba8888Frame],
+    Rgba8888Output[frame_stream_state.FiniteFrameStreamState],
 ):
     def scale(
         self,
@@ -196,7 +197,8 @@ class FiniteRgba8888FrameStream(
 
 
 class RegularRgba8888FrameStream(
-    stream.RegularStream[Rgba8888Frame], Rgba8888Output["RegularFrameStreamState"]
+    stream.RegularStream[Rgba8888Frame],
+    Rgba8888Output[frame_stream_state.RegularFrameStreamState],
 ):
     def scale(
         self,
@@ -234,7 +236,7 @@ class RegularRgba8888FrameStream(
 
 class FiniteRegularRgba8888FrameStream(
     stream.FiniteRegularStream[Rgba8888Frame],
-    Rgba8888Output["FiniteRegularFrameStreamState"],
+    Rgba8888Output[frame_stream_state.FiniteRegularFrameStreamState],
 ):
     def scale(
         self,
@@ -460,207 +462,3 @@ class FiniteRegularRgba8888FrameFilter(
     stream.FiniteRegularFilter[Rgba8888Frame],
 ):
     pass
-
-
-@dataclasses.dataclass
-class FrameState:
-    index: int
-    t: int
-
-
-@dataclasses.dataclass
-class FrameStreamState:
-    frame: typing.Union[FrameState, typing.Literal["start", "end"]]
-    """
-    "start" indicates the beginning of the stream (before reading the first frame)
-
-    "end" indicates the end of the stream (after reading the last frame)
-    """
-
-
-@dataclasses.dataclass
-class FiniteFrameStreamState:
-    frame: typing.Union[FrameState, typing.Literal["start", "end"]]
-    """
-    "start" indicates the beginning of the stream (before reading the first frame)
-
-    "end" indicates the end of the stream (after reading the last frame)
-    """
-    stream_time_range_us: tuple[int, int]
-    progress: float
-
-
-@dataclasses.dataclass
-class RegularFrameStreamState:
-    frame: typing.Union[FrameState, typing.Literal["start", "end"]]
-    """
-    "start" indicates the beginning of the stream (before reading the first frame)
-
-    "end" indicates the end of the stream (after reading the last frame)
-    """
-    frequency_hz: float
-
-
-@dataclasses.dataclass
-class FiniteRegularFrameStreamState:
-    frame: typing.Union[FrameState, typing.Literal["start", "end"]]
-    """
-    "start" indicates the beginning of the stream (before reading the first packet)
-
-    "end" indicates the end of the stream (after reading the last packet)
-    """
-    stream_time_range_us: tuple[int, int]
-    frequency_hz: float
-    progress: float
-    packet_count: int
-
-
-class StateManager:
-    def __init__(
-        self,
-        stream: typing.Any,
-        on_progress: typing.Callable[[typing.Any], None],
-    ):
-        self.index = 0
-        try:
-            self.time_range_us = stream.time_range_us()
-        except AttributeError:
-            self.time_range_us = None
-        try:
-            self.frequency_hz = stream.frequency_hz()
-        except AttributeError:
-            self.frequency_hz = None
-        self.on_progress = on_progress
-        if self.time_range_us is None or self.frequency_hz is None:
-            self.packet_count = None
-        else:
-            self.packet_count = 1
-            period_us = 1e6 / self.frequency_hz
-            while True:
-                end = int(round(self.time_range_us[0] + self.packet_count * period_us))
-                if end >= self.time_range_us[1]:
-                    break
-                self.packet_count += 1
-
-    def start(self):
-        if self.time_range_us is None:
-            if self.frequency_hz is None:
-                self.on_progress(FrameStreamState(frame="start"))
-            else:
-                assert self.packet_count is not None
-                self.on_progress(
-                    RegularFrameStreamState(
-                        frame="start",
-                        frequency_hz=self.frequency_hz,
-                    )
-                )
-        else:
-            if self.frequency_hz is None:
-                self.on_progress(
-                    FiniteFrameStreamState(
-                        frame="start",
-                        stream_time_range_us=self.time_range_us,
-                        progress=0.0,
-                    )
-                )
-            else:
-                assert self.packet_count is not None
-                self.on_progress(
-                    FiniteRegularFrameStreamState(
-                        frame="start",
-                        stream_time_range_us=self.time_range_us,
-                        frequency_hz=self.frequency_hz,
-                        progress=0.0,
-                        packet_count=self.packet_count,
-                    )
-                )
-
-    def commit(
-        self,
-        frame: typing.Union[
-            Float64Frame,
-            Rgba8888Frame,
-        ],
-    ):
-        if self.frequency_hz is None:
-            if self.time_range_us is None:
-                self.on_progress(
-                    FrameStreamState(
-                        frame=FrameState(
-                            index=self.index,
-                            t=frame.t,
-                        )
-                    )
-                )
-            else:
-                self.on_progress(
-                    FiniteFrameStreamState(
-                        frame=FrameState(
-                            index=self.index,
-                            t=frame.t,
-                        ),
-                        stream_time_range_us=self.time_range_us,
-                        progress=(frame.t - self.time_range_us[0])
-                        / (self.time_range_us[1] - self.time_range_us[0]),
-                    )
-                )
-        else:
-            if self.time_range_us is None:
-                self.on_progress(
-                    RegularFrameStreamState(
-                        frame=FrameState(
-                            index=self.index,
-                            t=frame.t,
-                        ),
-                        frequency_hz=self.frequency_hz,
-                    )
-                )
-            else:
-                assert self.packet_count is not None
-                self.on_progress(
-                    FiniteRegularFrameStreamState(
-                        frame=FrameState(
-                            index=self.index,
-                            t=frame.t,
-                        ),
-                        stream_time_range_us=self.time_range_us,
-                        frequency_hz=self.frequency_hz,
-                        progress=(frame.t + 1 - self.time_range_us[0])
-                        / (self.time_range_us[1] - self.time_range_us[0]),
-                        packet_count=self.packet_count,
-                    )
-                )
-        self.index += 1
-
-    def end(self):
-        if self.time_range_us is None:
-            if self.frequency_hz is None:
-                self.on_progress(FrameStreamState(frame="end"))
-            else:
-                assert self.packet_count is not None
-                self.on_progress(
-                    RegularFrameStreamState(
-                        frame="end",
-                        frequency_hz=self.frequency_hz,
-                    )
-                )
-        else:
-            if self.frequency_hz is None:
-                self.on_progress(
-                    FiniteFrameStreamState(
-                        frame="end",
-                        stream_time_range_us=self.time_range_us,
-                        progress=1.0,
-                    )
-                )
-            else:
-                assert self.packet_count is not None
-                self.on_progress(
-                    FiniteRegularFrameStreamState(
-                        frame="end",
-                        stream_time_range_us=self.time_range_us,
-                        frequency_hz=self.frequency_hz,
-                        progress=1.0,
-                        packet_count=self.packet_count,
-                    )
-                )

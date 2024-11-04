@@ -2,7 +2,7 @@ import os
 import sys
 import typing
 
-from . import events_stream, frame_stream, timestamp
+from . import events_stream_state, frame_stream_state, timestamp
 
 
 def generate_progress_bar(width: int, progress: typing.Optional[float]) -> str:
@@ -29,30 +29,30 @@ def generate_progress_bar(width: int, progress: typing.Optional[float]) -> str:
 
 def progress_bar(
     state: typing.Union[
-        events_stream.EventsStreamState,
-        events_stream.FiniteEventsStreamState,
-        events_stream.RegularEventsStreamState,
-        events_stream.FiniteRegularEventsStreamState,
-        frame_stream.FrameStreamState,
-        frame_stream.FiniteFrameStreamState,
-        frame_stream.RegularFrameStreamState,
-        frame_stream.FiniteRegularFrameStreamState,
+        events_stream_state.EventsStreamState,
+        events_stream_state.FiniteEventsStreamState,
+        events_stream_state.RegularEventsStreamState,
+        events_stream_state.FiniteRegularEventsStreamState,
+        frame_stream_state.FrameStreamState,
+        frame_stream_state.FiniteFrameStreamState,
+        frame_stream_state.RegularFrameStreamState,
+        frame_stream_state.FiniteRegularFrameStreamState,
     ]
 ):
     if isinstance(
         state,
         (
-            events_stream.EventsStreamState,
-            events_stream.RegularEventsStreamState,
-            frame_stream.FrameStreamState,
-            frame_stream.RegularFrameStreamState,
+            events_stream_state.EventsStreamState,
+            events_stream_state.RegularEventsStreamState,
+            frame_stream_state.FrameStreamState,
+            frame_stream_state.RegularFrameStreamState,
         ),
     ):
         if isinstance(
             state,
             (
-                events_stream.EventsStreamState,
-                events_stream.RegularEventsStreamState,
+                events_stream_state.EventsStreamState,
+                events_stream_state.RegularEventsStreamState,
             ),
         ):
             if state.packet == "start":
@@ -88,10 +88,10 @@ def progress_bar(
     elif isinstance(
         state,
         (
-            events_stream.FiniteEventsStreamState,
-            events_stream.FiniteRegularEventsStreamState,
-            frame_stream.FiniteFrameStreamState,
-            frame_stream.FiniteRegularFrameStreamState,
+            events_stream_state.FiniteEventsStreamState,
+            events_stream_state.FiniteRegularEventsStreamState,
+            frame_stream_state.FiniteFrameStreamState,
+            frame_stream_state.FiniteRegularFrameStreamState,
         ),
     ):
         if state.progress <= 0.0:
@@ -111,8 +111,8 @@ def progress_bar(
         if isinstance(
             state,
             (
-                events_stream.FiniteEventsStreamState,
-                events_stream.FiniteRegularEventsStreamState,
+                events_stream_state.FiniteEventsStreamState,
+                events_stream_state.FiniteRegularEventsStreamState,
             ),
         ):
             if state.packet == "start":

@@ -4,7 +4,7 @@ import typing
 
 import numpy
 
-from . import events_stream
+from . import events_stream_state
 
 
 def encode(
@@ -15,7 +15,7 @@ def encode(
     payload_length: typing.Optional[int] = None,
     format: typing.Literal["t64_x16_y16_on8", "t32_x16_y15_on1"] = "t64_x16_y16_on8",
     on_progress: typing.Callable[
-        [events_stream.EventsStreamState], None
+        [events_stream_state.EventsStreamState], None
     ] = lambda _: None,
 ):
     ipv6 = len(address) == 4
@@ -28,7 +28,9 @@ def encode(
         socket.AF_INET6 if ipv6 else socket.AF_INET,
         socket.SOCK_DGRAM,
     )
-    state_manager = events_stream.StateManager(stream=stream, on_progress=on_progress)
+    state_manager = events_stream_state.StateManager(
+        stream=stream, on_progress=on_progress
+    )
     if format == "t64_x16_y16_on8":
         if payload_length is None:
             payload_length = 1209

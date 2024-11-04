@@ -5,7 +5,7 @@ import uuid
 
 import numpy
 
-from . import enums, events_stream, frame_stream, timestamp
+from . import enums, events_stream_state, frame_stream, frame_stream_state, timestamp
 
 if typing.TYPE_CHECKING:
     from .types import aedat, csv, dat, event_stream, evt, mp4  # type: ignore
@@ -26,7 +26,7 @@ def events_to_file(
     csv_header: bool = True,
     file_type: typing.Optional[enums.EventsFileType] = None,
     on_progress: typing.Callable[
-        [events_stream.EventsStreamState], None
+        [events_stream_state.EventsStreamState], None
     ] = lambda _: None,
 ) -> str:
     """Writes the stream to an event file (supports .aedat4, .es, .raw, and .dat).
@@ -75,7 +75,9 @@ def events_to_file(
             enums.validate_events_file_compression(compression[0]),
             compression[1],
         )
-    state_manager = events_stream.StateManager(stream=stream, on_progress=on_progress)
+    state_manager = events_stream_state.StateManager(
+        stream=stream, on_progress=on_progress
+    )
     if file_type == "aedat":
         assert path is not None
         with aedat.Encoder(
@@ -212,7 +214,9 @@ def frames_to_files(
         raise Exception(
             f'at least one of {{i}}/{{index}} or {{t}}/{{timestamp}} must appear in the path pattern (for example "output/{{i:05}}.png" or "output/{{index:05}}_{{timestamp:010}}.png")'
         )
-    state_manager = frame_stream.StateManager(stream=stream, on_progress=on_progress)
+    state_manager = frame_stream_state.StateManager(
+        stream=stream, on_progress=on_progress
+    )
     state_manager.start()
     index = 0
     for frame in stream:
@@ -262,7 +266,9 @@ def frames_to_file(
         file_type = enums.video_file_type_guess(path)
     else:
         file_type = enums.validate_video_file_type(file_type)
-    state_manager = frame_stream.StateManager(stream=stream, on_progress=on_progress)
+    state_manager = frame_stream_state.StateManager(
+        stream=stream, on_progress=on_progress
+    )
     with mp4.Encoder(
         path=path,
         dimensions=dimensions,

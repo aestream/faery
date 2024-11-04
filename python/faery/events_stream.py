@@ -5,7 +5,7 @@ import typing
 
 import numpy
 
-from . import enums, frame_stream, stream, timestamp
+from . import enums, events_stream_state, frame_stream, stream, timestamp
 
 if typing.TYPE_CHECKING:
     from .types import aedat  # type: ignore
@@ -196,7 +196,9 @@ class Output(typing.Generic[OutputState]):
         )
 
 
-class EventsStream(stream.Stream[numpy.ndarray], Output["EventsStreamState"]):
+class EventsStream(
+    stream.Stream[numpy.ndarray], Output[events_stream_state.EventsStreamState]
+):
     def regularize(
         self,
         frequency_hz: float,
@@ -251,7 +253,8 @@ class EventsStream(stream.Stream[numpy.ndarray], Output["EventsStreamState"]):
 
 
 class FiniteEventsStream(
-    stream.FiniteStream[numpy.ndarray], Output["FiniteEventsStreamState"]
+    stream.FiniteStream[numpy.ndarray],
+    Output[events_stream_state.FiniteEventsStreamState],
 ):
     def regularize(
         self,
@@ -318,7 +321,8 @@ class FiniteEventsStream(
 
 
 class RegularEventsStream(
-    stream.RegularStream[numpy.ndarray], Output["RegularEventsStreamState"]
+    stream.RegularStream[numpy.ndarray],
+    Output[events_stream_state.RegularEventsStreamState],
 ):
     def regularize(
         self,
@@ -382,7 +386,8 @@ class RegularEventsStream(
 
 
 class FiniteRegularEventsStream(
-    stream.FiniteRegularStream[numpy.ndarray], Output["FiniteRegularEventsStreamState"]
+    stream.FiniteRegularStream[numpy.ndarray],
+    Output[events_stream_state.FiniteRegularEventsStreamState],
 ):
     def regularize(
         self,
@@ -657,209 +662,3 @@ class FiniteRegularEventsFilter(
     stream.FiniteRegularFilter[numpy.ndarray],
 ):
     pass
-
-
-@dataclasses.dataclass
-class PacketState:
-    index: int
-    time_range_us: tuple[int, int]
-
-
-@dataclasses.dataclass
-class EventsStreamState:
-    packet: typing.Union[PacketState, typing.Literal["start", "end"]]
-    """
-    "start" indicates the beginning of the stream (before reading the first packet)
-
-    "end" indicates the end of the stream (after reading the last packet)
-    """
-
-
-@dataclasses.dataclass
-class FiniteEventsStreamState:
-    packet: typing.Union[PacketState, typing.Literal["start", "end"]]
-    """
-    "start" indicates the beginning of the stream (before reading the first packet)
-
-    "end" indicates the end of the stream (after reading the last packet)
-    """
-    stream_time_range_us: tuple[int, int]
-    progress: float
-
-
-@dataclasses.dataclass
-class RegularEventsStreamState:
-    packet: typing.Union[PacketState, typing.Literal["start", "end"]]
-    """
-    "start" indicates the beginning of the stream (before reading the first packet)
-
-    "end" indicates the end of the stream (after reading the last packet)
-    """
-    frequency_hz: float
-
-
-@dataclasses.dataclass
-class FiniteRegularEventsStreamState:
-    packet: typing.Union[PacketState, typing.Literal["start", "end"]]
-    """
-    "start" indicates the beginning of the stream (before reading the first packet)
-
-    "end" indicates the end of the stream (after reading the last packet)
-    """
-    stream_time_range_us: tuple[int, int]
-    frequency_hz: float
-    progress: float
-    packet_count: int
-
-
-class StateManager:
-    def __init__(
-        self,
-        stream: typing.Any,
-        on_progress: typing.Callable[[typing.Any], None],
-    ):
-        self.index = 0
-        try:
-            self.time_range_us = stream.time_range_us()
-        except AttributeError:
-            self.time_range_us = None
-        try:
-            self.frequency_hz = stream.frequency_hz()
-        except AttributeError:
-            self.frequency_hz = None
-        self.on_progress = on_progress
-        if self.time_range_us is None or self.frequency_hz is None:
-            self.packet_count = None
-        else:
-            self.packet_count = 1
-            period_us = 1e6 / self.frequency_hz
-            while True:
-                end = int(round(self.time_range_us[0] + self.packet_count * period_us))
-                if end >= self.time_range_us[1]:
-                    break
-                self.packet_count += 1
-
-    def start(self):
-        if self.time_range_us is None:
-            if self.frequency_hz is None:
-                self.on_progress(EventsStreamState(packet="start"))
-            else:
-                assert self.packet_count is not None
-                self.on_progress(
-                    RegularEventsStreamState(
-                        packet="start",
-                        frequency_hz=self.frequency_hz,
-                    )
-                )
-        else:
-            if self.frequency_hz is None:
-                self.on_progress(
-                    FiniteEventsStreamState(
-                        packet="start",
-                        stream_time_range_us=self.time_range_us,
-                        progress=0.0,
-                    )
-                )
-            else:
-                assert self.packet_count is not None
-                self.on_progress(
-                    FiniteRegularEventsStreamState(
-                        packet="start",
-                        stream_time_range_us=self.time_range_us,
-                        frequency_hz=self.frequency_hz,
-                        progress=0.0,
-                        packet_count=self.packet_count,
-                    )
-                )
-
-    def commit(self, events: numpy.ndarray):
-        if len(events) == 0:
-            if self.frequency_hz is None:
-                return
-            if self.time_range_us is None:
-                pass
-            else:
-                pass
-        else:
-            if self.frequency_hz is None:
-                if self.time_range_us is None:
-                    self.on_progress(
-                        EventsStreamState(
-                            packet=PacketState(
-                                index=self.index,
-                                time_range_us=(events["t"][0], events["t"][-1] + 1),
-                            )
-                        )
-                    )
-                else:
-                    self.on_progress(
-                        FiniteEventsStreamState(
-                            packet=PacketState(
-                                index=self.index,
-                                time_range_us=(events["t"][0], events["t"][-1] + 1),
-                            ),
-                            stream_time_range_us=self.time_range_us,
-                            progress=(events["t"][-1] + 1 - self.time_range_us[0])
-                            / (self.time_range_us[1] - self.time_range_us[0]),
-                        )
-                    )
-            else:
-                if self.time_range_us is None:
-                    self.on_progress(
-                        RegularEventsStreamState(
-                            packet=PacketState(
-                                index=self.index,
-                                time_range_us=(events["t"][0], events["t"][-1] + 1),
-                            ),
-                            frequency_hz=self.frequency_hz,
-                        )
-                    )
-                else:
-                    assert self.packet_count is not None
-                    self.on_progress(
-                        FiniteRegularEventsStreamState(
-                            packet=PacketState(
-                                index=self.index,
-                                time_range_us=(events["t"][0], events["t"][-1] + 1),
-                            ),
-                            stream_time_range_us=self.time_range_us,
-                            frequency_hz=self.frequency_hz,
-                            progress=(events["t"][-1] + 1 - self.time_range_us[0])
-                            / (self.time_range_us[1] - self.time_range_us[0]),
-                            packet_count=self.packet_count,
-                        )
-                    )
-        self.index += 1
-
-    def end(self):
-        if self.time_range_us is None:
-            if self.frequency_hz is None:
-                self.on_progress(EventsStreamState(packet="end"))
-            else:
-                assert self.packet_count is not None
-                self.on_progress(
-                    RegularEventsStreamState(
-                        packet="end",
-                        frequency_hz=self.frequency_hz,
-                    )
-                )
-        else:
-            if self.frequency_hz is None:
-                self.on_progress(
-                    FiniteEventsStreamState(
-                        packet="end",
-                        stream_time_range_us=self.time_range_us,
-                        progress=1.0,
-                    )
-                )
-            else:
-                assert self.packet_count is not None
-                self.on_progress(
-                    FiniteRegularEventsStreamState(
-                        packet="end",
-                        stream_time_range_us=self.time_range_us,
-                        frequency_hz=self.frequency_hz,
-                        progress=1.0,
-                        packet_count=self.packet_count,
-                    )
-                )
