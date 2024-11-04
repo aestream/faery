@@ -2,6 +2,9 @@ import typing
 
 import numpy.typing
 
+def decode(
+    bytes: bytes,
+) -> numpy.typing.NDArray[numpy.uint8]: ...
 def encode(
     frame: numpy.typing.NDArray[numpy.uint8],
     compression_level: typing.Literal["default", "fast", "best"],
@@ -9,8 +12,25 @@ def encode(
 def annotate(
     frame: numpy.typing.NDArray[numpy.uint8],
     text: str,
-    x_offset: int,
-    y_offset: int,
-    scale: int,
+    x: int,
+    y: int,
+    size: int,
     color: tuple[int, int, int, int],
+) -> None: ...
+def resize(
+    frame: numpy.typing.NDArray[numpy.uint8],
+    new_dimensions: tuple[int, int],
+    filter: typing.Literal[
+        "nearest", "triangle", "catmull_rom", "gaussian", "lanczos3"
+    ],
+) -> numpy.typing.NDArray[numpy.uint8]: ...
+def overlay(
+    frame: numpy.typing.NDArray[numpy.uint8],
+    overlay: numpy.typing.NDArray[numpy.uint8],
+    x: int,
+    y: int,
+    new_dimensions: tuple[int, int],
+    filter: typing.Literal[
+        "nearest", "triangle", "catmull_rom", "gaussian", "lanczos3"
+    ],
 ) -> None: ...

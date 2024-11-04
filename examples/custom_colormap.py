@@ -18,7 +18,7 @@ colormap.to_file(
     faery.events_stream_from_file(
         dirname.parent / "tests" / "data" / "dvs.es",
     )
-    .regularize(period=1 / 60)
+    .regularize(frequency_hz=60.0)
     .envelope(
         decay="window",
         tau="00:00:00.020000",

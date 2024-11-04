@@ -89,8 +89,8 @@ class Envelope(frame_stream.FiniteRegularFloat64FrameStream):
         return self.parent.time_range_us()
 
     @restrict({"RegularFloat64", "FiniteRegularFloat64"})
-    def period_us(self) -> int:
-        return self.parent.period_us()
+    def frequency_hz(self) -> float:
+        return self.parent.frequency_hz()
 
     def __iter__(self) -> collections.abc.Iterator[frame_stream.Float64Frame]:
         if self.decay == "exponential":
@@ -116,41 +116,51 @@ class Envelope(frame_stream.FiniteRegularFloat64FrameStream):
         )
         offs = numpy.full((dimensions[1], dimensions[0]), True, dtype=numpy.bool)
         try:
-            period = self.parent.period_us()
+            period_us = 1e6 / self.parent.frequency_hz()
             try:
                 time_range_us = self.parent.time_range_us()
-                frame_t = time_range_us[0]
+                frame_index = 0
+                first_frame_t = time_range_us[0]
             except AttributeError:
-                frame_t = None
+                frame_index = 0
+                first_frame_t = None
         except AttributeError:
-            period = None
-            frame_t = None
-        initial_empty_frames = 0
+            period_us = None
+            frame_index = None
+            first_frame_t = None
         for events in self.parent:
             if len(events) == 0:
-                if period is None:
+                if period_us is None:
                     continue
-                if frame_t is None:
-                    initial_empty_frames += 1
+                assert frame_index is not None
+                frame_index += 1
+                if first_frame_t is None:
                     continue
-                frame_t += period
+                frame_t = int(round(first_frame_t + frame_index * period_us))
             else:
                 ts[events["y"], events["x"]] = events["t"]
                 offs[events["y"], events["x"]] = numpy.logical_not(events["on"])
-                if period is None:
-                    frame_t = events["t"][-1] + 1
-                elif frame_t is None:
-                    frame_t = events["t"][0] + period
-                    if initial_empty_frames > 0:
-                        initial_frame_t = frame_t - initial_empty_frames * period
-                        for _ in range(0, initial_empty_frames):
-                            yield frame_stream.Float64Frame(
-                                t=initial_frame_t,
-                                pixels=numpy.zeros(ts.shape, dtype=numpy.float64),
-                            )
-                            initial_frame_t += period
+                if period_us is None:
+                    frame_t = int(events["t"][-1]) + 1
                 else:
-                    frame_t += period
+                    assert frame_index is not None
+                    if first_frame_t is None:
+                        first_frame_t = int(
+                            round(int(events["t"][0]) + ((1 - frame_index) * period_us))
+                        )
+                        if frame_index > 0:
+                            for empty_frame_index in range(0, frame_index):
+                                empty_frame_t = int(
+                                    round(first_frame_t + empty_frame_index * period_us)
+                                )
+                                assert empty_frame_t >= 0
+                                yield frame_stream.Float64Frame(
+                                    t=empty_frame_t,
+                                    pixels=numpy.zeros(ts.shape, dtype=numpy.float64),
+                                )
+                    frame_index += 1
+                    frame_t = int(round(first_frame_t + frame_index * period_us))
+
             mask = ts == uint64_max
             if self.decay == "exponential":
                 pixels = (frame_t - 1 - ts).astype(numpy.float64)
@@ -184,13 +194,16 @@ class Colorize(frame_stream.FiniteRegularRgba8888FrameStream):
         self.parent = parent
         self.colormap = colormap
 
+    def dimensions(self) -> tuple[int, int]:
+        return self.parent.dimensions()
+
     @restrict({"FiniteRgba8888", "FiniteRegularRgba8888"})
     def time_range_us(self) -> tuple[int, int]:
         return self.parent.time_range_us()
 
     @restrict({"RegularRgba8888", "FiniteRegularRgba8888"})
-    def period_us(self) -> int:
-        return self.parent.period_us()
+    def frequency_hz(self) -> float:
+        return self.parent.frequency_hz()
 
     def __iter__(self) -> collections.abc.Iterator[frame_stream.Rgba8888Frame]:
         colormap_data = numpy.round(self.colormap.rgba * 255.0).astype(

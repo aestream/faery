@@ -41,7 +41,47 @@ ImageFileType = typing.Literal["png"]
 
 ImageFileCompressionLevel = typing.Literal["default", "fast", "best"]
 
+ImageResizeFilter = typing.Literal[
+    "nearest", "triangle", "catmull_rom", "gaussian", "lanczos3"
+]
+
 VideoFileType = typing.Literal["mp4"]
+
+VideoFilePreset = typing.Literal[
+    "ultrafast",
+    "superfast",
+    "veryfast",
+    "faster",
+    "fast",
+    "medium",
+    "slow",
+    "slower",
+    "veryslow",
+    "placebo",
+    "none",
+]
+
+VideoFileTune = typing.Literal[
+    "film",
+    "animation",
+    "grain",
+    "stillimage",
+    "psnr",
+    "ssim",
+    "fastdecode",
+    "zerolatency",
+    "none",
+]
+
+VideoFileProfile = typing.Literal[
+    "baseline",
+    "main",
+    "high",
+    "high10",
+    "high422",
+    "high444",
+]
+
 
 ColorblindnessType = typing.Literal["protanopia", "deuteranopia", "tritanopia"]
 
@@ -82,10 +122,34 @@ def validate_image_file_compression_level(
     return VALIDATORS["validate_image_file_compression_level"](value)
 
 
+def validate_image_resize_filter(
+    value: ImageResizeFilter,
+) -> ImageResizeFilter:
+    return VALIDATORS["validate_image_resize_filter"](value)
+
+
 def validate_video_file_type(
     value: VideoFileType,
 ) -> VideoFileType:
     return VALIDATORS["validate_video_file_type"](value)
+
+
+def validate_video_file_preset(
+    value: VideoFilePreset,
+) -> VideoFilePreset:
+    return VALIDATORS["validate_video_file_preset"](value)
+
+
+def validate_video_file_tune(
+    value: VideoFileTune,
+) -> VideoFileTune:
+    return VALIDATORS["validate_video_file_tune"](value)
+
+
+def validate_video_file_profile(
+    value: VideoFileProfile,
+) -> VideoFileProfile:
+    return VALIDATORS["validate_video_file_profile"](value)
 
 
 def validate_colorblindness_type(
@@ -146,17 +210,17 @@ def events_file_type_magic(events_file_type: EventsFileType) -> typing.Optional[
     raise Exception(f"magic is not implemented for {events_file_type}")
 
 
-def events_file_type_extensions(events_file_type: EventsFileType) -> list[str]:
+def events_file_type_extensions(events_file_type: EventsFileType) -> tuple[str, ...]:
     if events_file_type == "aedat":
-        return [".aedat", ".aedat4"]
+        return (".aedat", ".aedat4")
     if events_file_type == "csv":
-        return [".csv"]
+        return (".csv",)
     if events_file_type == "dat":
-        return [".dat"]
+        return (".dat",)
     if events_file_type == "es":
-        return [".es"]
+        return (".es",)
     if events_file_type == "evt":
-        return [".evt", ".raw"]
+        return (".evt", ".raw")
     raise Exception(f"extensions is not implemented for {events_file_type}")
 
 
@@ -184,37 +248,37 @@ def events_file_type_guess(path: pathlib.Path) -> EventsFileType:
     raise Exception(f"unsupported file {path}")
 
 
-def image_file_type_magic(image_file_type: ImageFileType) -> typing.Optional[bytes]:
+def image_file_type_extensions(image_file_type: ImageFileType) -> tuple[str, ...]:
     if image_file_type == "png":
-        return bytes([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A])
-    raise Exception(f"magic is not implemented for {events_file_type}")
-
-
-def image_file_type_extensions(image_file_type: ImageFileType) -> list[str]:
-    if image_file_type == "png":
-        return [".png"]
+        return (".png",)
     raise Exception(f"extensions is not implemented for {image_file_type}")
 
 
 def image_file_type_guess(path: pathlib.Path) -> ImageFileType:
     file_types = typing.get_args(ImageFileType)
-    longest_magic = max(
-        0 if magic is None else len(magic)
-        for magic in (image_file_type_magic(file_type) for file_type in file_types)
-    )
-    try:
-        with open(path, "rb") as file:
-            magic = file.read(longest_magic)
-        for file_type in file_types:
-            if image_file_type_magic(file_type) == magic:
-                return file_type
-    except FileNotFoundError:
-        pass
     extension = path.suffix
     for file_type in file_types:
         if any(
             extension == type_extension
             for type_extension in image_file_type_extensions(file_type)
+        ):
+            return file_type
+    raise Exception(f"unsupported file {path}")
+
+
+def video_file_type_extensions(video_file_type: VideoFileType) -> tuple[str, ...]:
+    if video_file_type == "mp4":
+        return (".mp4",)
+    raise Exception(f"extensions is not implemented for {video_file_type}")
+
+
+def video_file_type_guess(path: pathlib.Path) -> VideoFileType:
+    file_types = typing.get_args(VideoFileType)
+    extension = path.suffix
+    for file_type in file_types:
+        if any(
+            extension == type_extension
+            for type_extension in video_file_type_extensions(file_type)
         ):
             return file_type
     raise Exception(f"unsupported file {path}")

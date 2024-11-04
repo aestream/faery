@@ -64,15 +64,15 @@ class Regularize(events_stream.FiniteRegularEventsFilter):
     def __init__(
         self,
         parent: stream.FiniteRegularStream[numpy.ndarray],
-        period: timestamp.Time,
+        frequency_hz: float,
         start: typing.Optional[timestamp.Time] = None,
     ):
         self.init(parent=parent)
-        self._period_us = timestamp.parse_timestamp(period)
+        self._frequency_hz = frequency_hz
         self.start = None if start is None else timestamp.parse_timestamp(start)
 
-    def period_us(self) -> int:
-        return self._period_us
+    def frequency_hz(self) -> float:
+        return self._frequency_hz
 
     @restrict({"FiniteRegular"})
     def time_range_us(self) -> tuple[int, int]:
@@ -81,39 +81,50 @@ class Regularize(events_stream.FiniteRegularEventsFilter):
             start = parent_time_range_us[0]
         else:
             start = self.start
-        period_us = self.period_us()
-        end_index = (
-            max(start + 1, parent_time_range_us[1]) - start + period_us - 1
-        ) // period_us
-        return (start, start + end_index * period_us)
+        period_us = 1e6 / self.frequency_hz()
+        assert period_us > 0
+        target_end = max(start + 1, parent_time_range_us[1])
+        end_index = 1
+        while True:
+            end = int(round(start + end_index * period_us))
+            if end >= target_end:
+                return (start, end)
+            end_index += 1
 
     def __iter__(self) -> collections.abc.Iterator[numpy.ndarray]:
         try:
             parent_time_range_us = self.parent.time_range_us()
-            packet_start = parent_time_range_us[0] if self.start is None else self.start
-            packet_end = parent_time_range_us[1]
+            packet_index = 0
+            first_packet_start_t = (
+                parent_time_range_us[0] if self.start is None else self.start
+            )
+            end_t = parent_time_range_us[1]
         except AttributeError:
-            packet_start = self.start
-            packet_end = None
+            packet_index = 0
+            first_packet_start_t = self.start
+            end_t = None
         events_buffers: list[numpy.ndarray] = []
+        period_us = 1e6 / self._frequency_hz
         for events in self.parent:
             while len(events) > 0:
-                if packet_start is None:
-                    packet_start = events["t"][0]
-                if events["t"][-1] < packet_start:
+                if first_packet_start_t is None:
+                    first_packet_start_t = events["t"][0]
+                if events["t"][-1] < first_packet_start_t:
                     break
-                next_packet_start = packet_start + self.period_us()
-                if events["t"][0] >= next_packet_start:
+                next_packet_start_t = int(
+                    round(first_packet_start_t + (packet_index + 1) * period_us)
+                )
+                if events["t"][0] >= next_packet_start_t:
                     yield numpy.concatenate(
                         events_buffers, dtype=events_stream.EVENTS_DTYPE
                     )
                     events_buffers = []
-                    packet_start = next_packet_start
+                    packet_index += 1
                     continue
-                if events["t"][-1] < next_packet_start:
+                if events["t"][-1] < next_packet_start_t:
                     events_buffers.append(events)
                     break
-                pivot = numpy.searchsorted(events["t"], next_packet_start)
+                pivot = numpy.searchsorted(events["t"], next_packet_start_t)
                 if len(events_buffers) == 0:
                     yield events[:pivot]
                 else:
@@ -123,16 +134,16 @@ class Regularize(events_stream.FiniteRegularEventsFilter):
                     )
                     events_buffers = []
                 events = events[pivot:]
-                packet_start = next_packet_start
+                packet_index += 1
         if len(events_buffers) > 0:
-            assert packet_start is not None
-            packet_start += self.period_us()
+            assert first_packet_start_t is not None
             yield numpy.concatenate(events_buffers, dtype=events_stream.EVENTS_DTYPE)
             events_buffers = []
-        if packet_start is not None and packet_end is not None:
-            while packet_start < packet_end:
+            packet_index += 1
+        if first_packet_start_t is not None and end_t is not None:
+            while first_packet_start_t + packet_index * period_us < end_t:
                 yield numpy.array([], dtype=events_stream.EVENTS_DTYPE)
-                packet_start += self.period_us()
+                packet_index += 1
 
 
 @typed_filter({"", "Finite"})
@@ -192,7 +203,6 @@ class TimeSlice(events_stream.FiniteEventsFilter):  # type: ignore
         assert self.start < self.end, f"{start=} must be strictly smaller than {end=}"
         self.zero = zero
 
-    @restrict({"Finite"})
     def time_range_us(self) -> tuple[int, int]:
         parent_time_range_us = self.parent.time_range_us()
         if self.zero:
@@ -223,73 +233,49 @@ class TimeSlice(events_stream.FiniteEventsFilter):  # type: ignore
 
 
 @typed_filter({"FiniteRegular"})
-class TimeSlice(events_stream.FiniteRegularEventsFilter):  # type: ignore
+class PacketSlice(events_stream.FiniteRegularEventsFilter):  # type: ignore
     def __init__(
         self,
         parent: stream.FiniteRegularStream[numpy.ndarray],
-        start: timestamp.Time,
-        end: timestamp.Time,
-        zero: bool,
+        start: int,
+        end: int,
+        zero: bool = False,
     ):
         self.init(parent=parent)
-        self.start = timestamp.parse_timestamp(start)
-        self.end = timestamp.parse_timestamp(end)
-        assert self.start < self.end, f"{start=} must be strictly smaller than {end=}"
+        self.start = start
+        self.end = end
+        assert start < end, f"{start=} must be strictly smaller than {end=}"
         self.zero = zero
 
-    @restrict({"FiniteRegular"})
     def time_range_us(self) -> tuple[int, int]:
-        period_us = self.period_us()
-        assert (
-            self.end - self.start
-        ) % period_us, f"start={self.start} and={self.end} must be separated by an integer number of periods ({period_us})"
+        period_us = 1e6 / self.frequency_hz()
         parent_time_range_us = self.parent.time_range_us()
-        start_index = (
-            max(self.start, parent_time_range_us[0])
-            - parent_time_range_us[0]
-            + period_us
-            - 1
-        ) // period_us
-        end_index = (
-            max(min(self.end, parent_time_range_us[1]), parent_time_range_us[0])
-            - parent_time_range_us[0]
-        ) // period_us
         if self.zero:
             return (
-                start_index * period_us,
-                end_index * period_us,
+                0,
+                round(
+                    int(parent_time_range_us[0] + period_us * (self.end - self.start))
+                ),
             )
         else:
             return (
-                parent_time_range_us[0] + start_index * period_us,
-                parent_time_range_us[0] + end_index * period_us,
+                round(int(parent_time_range_us[0] + period_us * self.start)),
+                round(int(parent_time_range_us[0] + period_us * self.end)),
             )
 
     def __iter__(self) -> collections.abc.Iterator[numpy.ndarray]:
-        period_us = self.period_us()
-        assert (
-            self.end - self.start
-        ) % period_us, f"start={self.start} and={self.end} must be separated by an integer number of periods ({period_us})"
-        parent_time_range_us = self.parent.time_range_us()
-        start_index = (
-            max(self.start, parent_time_range_us[0])
-            - parent_time_range_us[0]
-            + period_us
-            - 1
-        ) // period_us
-        end_index = (
-            max(min(self.end, parent_time_range_us[1]), parent_time_range_us[0])
-            - parent_time_range_us[0]
-            + period_us
-            - 1
-        ) // period_us
-        offset = start_index * period_us
+        if self.zero:
+            period_us = 1e6 / self.frequency_hz()
+            parent_time_range_us = self.parent.time_range_us()
+            offset = round(int(parent_time_range_us[0] + period_us * self.start))
+        else:
+            offset = None
         for index, events in enumerate(self.parent):
-            if index < start_index:
+            if index < self.start:
                 continue
-            if index >= end_index:
+            if index >= self.end:
                 break
-            if self.zero and len(events) > 0:
+            if offset is not None:
                 events["t"] -= offset
             yield events
 

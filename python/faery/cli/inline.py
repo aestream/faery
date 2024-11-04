@@ -136,6 +136,16 @@ for stream_class in STREAM_CLASSES:
                     ),
                 )
             elif parameter.annotation == bool or parameter.annotation == "bool":
+                filter.name_to_parameter[parameter_name] = FilterParameter(
+                    type="float",
+                    parse=float,
+                    default=(
+                        None
+                        if parameter.default == inspect._empty
+                        else str(parameter.default)
+                    ),
+                )
+            elif parameter.annotation == bool or parameter.annotation == "bool":
 
                 def parse(string: str):
                     if string == "true" or string == "True" or string == "1":

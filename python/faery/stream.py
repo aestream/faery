@@ -79,17 +79,11 @@ class RegularStream(Stream[ItemType]):
     cover a variable amount of time.
     """
 
-    def period_us(self) -> int:
+    def frequency_hz(self) -> float:
         """
-        The stream's period (or frame duration), in microseconds.
+        The stream's frequency (or packet rate), in Hertz.
         """
         raise NotImplementedError()
-
-    def period(self) -> str:
-        """
-        The stream's period (or frame duration) as a timecode.
-        """
-        return timestamp.timestamp_to_timecode(self.period_us())
 
 
 class FiniteRegularStream(FiniteStream[ItemType], RegularStream[ItemType]):
@@ -159,8 +153,8 @@ class RegularFilter(RegularStream[ItemType]):
     def dimensions(self) -> tuple[int, int]:
         return self.parent.dimensions()
 
-    def period_us(self) -> int:
-        return self.parent.period_us()
+    def frequency_hz(self) -> float:
+        return self.parent.frequency_hz()
 
 
 class FiniteRegularFilter(FiniteRegularStream[ItemType]):
@@ -184,5 +178,5 @@ class FiniteRegularFilter(FiniteRegularStream[ItemType]):
     def time_range_us(self) -> tuple[int, int]:
         return self.parent.time_range_us()
 
-    def period_us(self) -> int:
-        return self.parent.period_us()
+    def frequency_hz(self) -> float:
+        return self.parent.frequency_hz()
