@@ -22,7 +22,7 @@ fn bash() -> std::process::Command {
             command.env("CC", "cl");
             command
         }
-        _ => std::process::Command::new("/bin/bash"),
+        _ => std::process::Command::new("bash"),
     }
 }
 
@@ -63,7 +63,6 @@ fn main() -> std::io::Result<()> {
             "--enable-static",
             "--disable-interlaced",
             "--bit-depth=8",
-            "--enable-lto",
             "--enable-strip",
             "--disable-avs",
             "--disable-swscale",

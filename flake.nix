@@ -12,32 +12,33 @@
         pkgs = import nixpkgs { inherit system; };
         faery =
           let
-            pypkgs = pkgs.python311Packages;
+            pypkgs = pkgs.python313Packages;
           in
           pkgs.mkShell {
             buildInputs = [
               pypkgs.python
               pypkgs.venvShellHook
-              # pypkgs.torch
               pkgs.autoPatchelfHook
-              pkgs.rustc
-              pkgs.cargo
-              pkgs.nasm
-              pkgs.libclang
+              pkgs.bash
+              pkgs.rustup
+              pkgs.rustPlatform.bindgenHook
+              pkgs.libgcc
               pkgs.libz
+              pkgs.nasm
             ];
             venvDir = "./.venv";
             propagatedBuildInputs = [
               pkgs.stdenv.cc.cc.lib
             ];
             postVenvCreation = ''
-              pip install -U pip setuptools wheel pytest black
-              pip install -e .
-              autoPatchelf ./.venv
+              pip install -U pip maturin pytest isort black pyright
             '';
             postShellHook = ''
-              unset SOURCE_DATE_EPOCH
-              export AS="nasm" # Maturin build configuration for nasm
+              rustup default stable
+              export AS="nasm" # build assembly optimizations in x264
+              export CC="gcc" # use gcc to compile x264
+              maturin develop --release
+              autoPatchelf ./.venv
             '';
           };
       in
