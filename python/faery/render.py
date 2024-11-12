@@ -209,7 +209,7 @@ class Colorize(frame_stream.FiniteRegularRgba8888FrameStream):
         colormap_data = numpy.round(self.colormap.rgba * 255.0).astype(
             dtype=numpy.uint8
         )
-        if self.colormap.type == "diverging":
+        if self.colormap.type == "diverging" or self.colormap.type == "cyclic":
             if colormap_data.shape[0] % 2 == 0:
                 upsilon_off = colormap_data.shape[0] / 2.0
                 upsilon_on = colormap_data.shape[0] / 2.0 - 1
@@ -247,5 +247,5 @@ class Colorize(frame_stream.FiniteRegularRgba8888FrameStream):
                 )
         else:
             raise Exception(
-                f'unknown colormap type "{self.colormap.type}" (expected "diverging" or "sequential")'
+                f'unknown colormap type "{self.colormap.type}" (expected "diverging", "sequential", or "cyclic")'
             )

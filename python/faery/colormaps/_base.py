@@ -224,13 +224,13 @@ def gradient(
 
 @dataclasses.dataclass
 class Colormap:
-    type: typing.Literal["sequential", "diverging"]
+    type: typing.Literal["sequential", "diverging", "cyclic"]
     rgba: numpy.typing.NDArray[numpy.float64]
 
     @classmethod
     def from_rgb_table(
         cls,
-        type: typing.Literal["sequential", "diverging"],
+        type: typing.Literal["sequential", "diverging", "cyclic"],
         rgb: list[tuple[float, float, float]],
     ):
         return cls(
@@ -241,7 +241,7 @@ class Colormap:
     @classmethod
     def from_rgba_table(
         cls,
-        type: typing.Literal["sequential", "diverging"],
+        type: typing.Literal["sequential", "diverging", "cyclic"],
         rgba: list[tuple[float, float, float, float]],
     ):
         return cls(type=type, rgba=numpy.array(rgba, dtype=numpy.float64))
@@ -293,10 +293,49 @@ class Colormap:
             ),
         )
 
+    def as_type(
+        self, new_type: typing.Literal["sequential", "diverging", "cyclic"]
+    ) -> "Colormap":
+        return Colormap(
+            type=new_type,
+            rgba=self.rgba.copy(),
+        )
+
     def flipped(self) -> "Colormap":
         return Colormap(
             type=self.type,
             rgba=numpy.flip(self.rgba, axis=0).copy(),
+        )
+
+    def rolled(self, shift: int) -> "Colormap":
+        return Colormap(
+            type=self.type,
+            rgba=numpy.roll(self.rgba, shift=shift, axis=0).copy(),
+        )
+
+    def repeated(self, count: int, flip_odd_indices: bool = False) -> "Colormap":
+        if count < 1:
+            raise AttributeError("count must be strictly larger than 0")
+        if count == 1:
+            return Colormap(
+                type=self.type,
+                rgba=self.rgba.copy(),
+            )
+        repeated_rgba = []
+        if flip_odd_indices:
+            for index in range(0, count):
+                if index == 0:
+                    repeated_rgba.append(self.rgba)
+                elif index % 2 == 0:
+                    repeated_rgba.append(self.rgba[1:])
+                else:
+                    repeated_rgba.append(numpy.flip(self.rgba, axis=0)[1:])
+        else:
+            for _ in range(0, count):
+                repeated_rgba.append(self.rgba)
+        return Colormap(
+            type=self.type,
+            rgba=numpy.concatenate(repeated_rgba),
         )
 
     def colorblindness_simulation(
