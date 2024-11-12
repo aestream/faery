@@ -304,8 +304,8 @@ class AddOverlay(frame_stream.FiniteRegularRgba8888FrameFilter):
                 x=self.x,
                 y=self.y,
                 new_dimensions=(
-                    int(round(overlay.shape[0] * self.scale_factor)),
                     int(round(overlay.shape[1] * self.scale_factor)),
+                    int(round(overlay.shape[0] * self.scale_factor)),
                 ),
                 filter=self.scale_filter,
             )

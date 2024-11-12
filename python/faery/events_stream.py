@@ -1,11 +1,12 @@
 import collections.abc
-import dataclasses
 import pathlib
 import typing
 
 import numpy
+import numpy.typing
 
 from . import enums, events_stream_state, frame_stream, stream, timestamp
+from .colormaps._base import Color, Colormap
 
 if typing.TYPE_CHECKING:
     from .types import aedat  # type: ignore
@@ -310,14 +311,50 @@ class FiniteEventsStream(
     ) -> "FiniteEventsStream":
         return filter_class(self, *args, **kwargs)  # type: ignore
 
-    def to_array(self) -> numpy.ndarray:
-        return numpy.concatenate(list(self))
+    def to_array(
+        self, on_progress: typing.Callable[[OutputState], None] = lambda _: None
+    ) -> numpy.ndarray:
+        packets = []
+        state_manager = events_stream_state.StateManager(
+            stream=self, on_progress=on_progress
+        )
+        state_manager.start()
+        for events in self:
+            packets.append(events)
+            state_manager.commit(events=events)
+        result = numpy.concatenate(events)
+        state_manager.end()
+        return result
 
     def envelope(
         self,
         decay: enums.Decay,
         tau: timestamp.Time,
     ) -> frame_stream.FiniteFloat64FrameStream: ...
+
+    def to_kinectograph(
+        self,
+        threshold_quantile: float = 0.9,
+        normalized_times_gamma: typing.Callable[
+            [numpy.typing.NDArray[numpy.float64]], numpy.typing.NDArray[numpy.float64]
+        ] = lambda normalized_times: normalized_times,
+        opacities_gamma: typing.Callable[
+            [numpy.typing.NDArray[numpy.float64]], numpy.typing.NDArray[numpy.float64]
+        ] = lambda opacities_gamma: opacities_gamma,
+        on_progress: typing.Callable[[OutputState], None] = lambda _: None,
+    ):
+
+        from . import kinectograph
+
+        return kinectograph.Kinectograph.from_events(
+            stream=self,
+            dimensions=self.dimensions(),
+            time_range_us=self.time_range_us(),
+            threshold_quantile=threshold_quantile,
+            normalized_times_gamma=normalized_times_gamma,
+            opacities_gamma=opacities_gamma,
+            on_progress=on_progress,  # type: ignore
+        )
 
 
 class RegularEventsStream(
@@ -439,14 +476,50 @@ class FiniteRegularEventsStream(
     ) -> "FiniteRegularEventsStream":
         return filter_class(self, *args, **kwargs)  # type: ignore
 
-    def to_array(self) -> numpy.ndarray:
-        return numpy.concatenate(list(self))
+    def to_array(
+        self, on_progress: typing.Callable[[OutputState], None] = lambda _: None
+    ) -> numpy.ndarray:
+        packets = []
+        state_manager = events_stream_state.StateManager(
+            stream=self, on_progress=on_progress
+        )
+        state_manager.start()
+        for events in self:
+            packets.append(events)
+            state_manager.commit(events=events)
+        result = numpy.concatenate(events)
+        state_manager.end()
+        return result
 
     def envelope(
         self,
         decay: enums.Decay,
         tau: timestamp.Time,
     ) -> frame_stream.FiniteRegularFloat64FrameStream: ...
+
+    def to_kinectograph(
+        self,
+        threshold_quantile: float = 0.9,
+        normalized_times_gamma: typing.Callable[
+            [numpy.typing.NDArray[numpy.float64]], numpy.typing.NDArray[numpy.float64]
+        ] = lambda normalized_times: normalized_times,
+        opacities_gamma: typing.Callable[
+            [numpy.typing.NDArray[numpy.float64]], numpy.typing.NDArray[numpy.float64]
+        ] = lambda opacities_gamma: opacities_gamma,
+        on_progress: typing.Callable[[OutputState], None] = lambda _: None,
+    ):
+
+        from . import kinectograph
+
+        return kinectograph.Kinectograph.from_events(
+            stream=self,
+            dimensions=self.dimensions(),
+            time_range_us=self.time_range_us(),
+            threshold_quantile=threshold_quantile,
+            normalized_times_gamma=normalized_times_gamma,
+            opacities_gamma=opacities_gamma,
+            on_progress=on_progress,  # type: ignore
+        )
 
 
 def bind(prefix: typing.Literal["", "Finite", "Regular", "FiniteRegular"]):
