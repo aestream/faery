@@ -69,5 +69,16 @@ def timestamp_to_timecode(value: int) -> str:
     return f"{hours:>02}:{minutes:>02}:{seconds:>02}.{value:>06}"
 
 
+def timestamp_to_timecode_dashes(value: int) -> str:
+    value = int(value)
+    hours = value // (1000000 * 60 * 60)
+    value -= hours * (1000000 * 60 * 60)
+    minutes = value // (1000000 * 60)
+    value -= minutes * (1000000 * 60)
+    seconds = value // 1000000
+    value -= seconds * 1000000
+    return f"{hours:>02}-{minutes:>02}-{seconds:>02}.{value:>06}"
+
+
 def timestamp_to_seconds(value: int) -> float:
     return value * 1e6

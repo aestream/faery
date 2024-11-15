@@ -1,6 +1,7 @@
 # isort: skip_file
 
 import importlib.metadata
+import inspect
 import typing
 
 __version__ = importlib.metadata.version("faery")
@@ -12,7 +13,10 @@ from .colormaps._base import (
     gradient as gradient,
     parse_color as parse_color,
 )
-from .display import progress_bar as progress_bar
+from .display import (
+    progress_bar as progress_bar,
+    progress_bar_fold as progress_bar_fold,
+)
 from .enums import (
     ColorblindnessType as ColorblindnessType,
     Decay as Decay,
@@ -72,6 +76,12 @@ from .frame_stream_state import (
     RegularFrameStreamState as RegularFrameStreamState,
 )
 from .file_decoder import CsvProperties as CsvProperties
+from .task import (
+    dirname as dirname,
+    Task as Task,
+    JobManager as JobManager,
+    task as task,
+)
 from .timestamp import (
     Time as Time,
     parse_timestamp as parse_timestamp,
@@ -80,9 +90,19 @@ from .timestamp import (
 )
 
 if typing.TYPE_CHECKING:
-    from .types import aedat, csv, dat, event_stream, evt, image, mp4  # type: ignore
+    from .types import aedat, csv, dat, event_stream, evt, image, job_metadata, mp4  # type: ignore
 else:
-    from .extension import aedat, csv, dat, event_stream, evt, image, mp4
+    from .extension import aedat, csv, dat, event_stream, evt, image, job_metadata, mp4
+
+
+def colormaps_list() -> list[Colormap]:
+    return [
+        colormap
+        for _, colormap in inspect.getmembers(
+            colormaps, lambda member: isinstance(member, Colormap)
+        )
+    ]
+
 
 __all__ = [
     "__version__",
@@ -92,6 +112,7 @@ __all__ = [
     "gradient",
     "parse_color",
     "progress_bar",
+    "progress_bar_fold",
     "ColorblindnessType",
     "Decay",
     "EventsFileCompression",
@@ -139,6 +160,10 @@ __all__ = [
     "FiniteRegularFrameStreamState",
     "RegularFrameStreamState",
     "CsvProperties",
+    "dirname",
+    "Task",
+    "JobManager",
+    "task",
     "Time",
     "parse_timestamp",
     "timestamp_to_seconds",
@@ -149,5 +174,6 @@ __all__ = [
     "event_stream",
     "evt",
     "image",
+    "job_metadata",
     "mp4",
 ]
