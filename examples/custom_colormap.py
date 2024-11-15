@@ -1,22 +1,18 @@
-import pathlib
-
 import faery
 
-dirname = pathlib.Path(__file__).resolve().parent
-
 colormap = faery.Colormap.diverging_from_triplet(
+    name="The Son of Man",
     start="#FF0000",
     middle="#000000",
     end="#00FF00",
 )
 colormap.to_file(
-    dirname.parent / "tests" / "data_generated" / "custom_colormap.png",
-    "The Son of Man",
+    faery.dirname().parent / "tests" / "data_generated" / "custom_colormap.png"
 )
 
 (
     faery.events_stream_from_file(
-        dirname.parent / "tests" / "data" / "dvs.es",
+        faery.dirname().parent / "tests" / "data" / "dvs.es",
     )
     .regularize(frequency_hz=60.0)
     .envelope(
@@ -25,7 +21,7 @@ colormap.to_file(
     )
     .colorize(colormap=colormap)
     .to_files(
-        dirname.parent
+        faery.dirname().parent
         / "tests"
         / "data_generated"
         / "dvs_frames_custom_colormap"

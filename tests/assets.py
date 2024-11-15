@@ -5,8 +5,6 @@ import typing
 
 import faery
 
-dirname = pathlib.Path(__file__).resolve().parent
-
 Format = typing.Literal[
     "aedat",
     "csv",
@@ -103,7 +101,7 @@ class File:
 
 files: list[File] = [
     File(
-        path=dirname / "data" / "atis.es",
+        path=faery.dirname() / "data" / "atis.es",
         format="es-atis",
         field_to_digest={
             "atis_t": "74d540ff3fe7dc4b88c6580059feed586418095a8c0deb799927593c",
@@ -125,7 +123,7 @@ files: list[File] = [
         t0="00:00:00.000000",
     ),
     File(
-        path=dirname / "data" / "color.es",
+        path=faery.dirname() / "data" / "color.es",
         format="es-color",
         field_to_digest={
             "t": "6f3f9af2e99d83707fd74fef3486abdd9f2f81680d3c4fcc306b1965",
@@ -144,7 +142,7 @@ files: list[File] = [
         t0="00:00:00.000000",
     ),
     File(
-        path=dirname / "data" / "davis346.aedat4",
+        path=faery.dirname() / "data" / "davis346.aedat4",
         format="aedat",
         field_to_digest={
             "t": "f1e093cad5afb6ecb971dfa2ef7646ab4ae0f467f73a48804e40bb68",
@@ -222,7 +220,7 @@ files: list[File] = [
         t0=None,
     ),
     File(
-        path=dirname / "data" / "dvs.csv",
+        path=faery.dirname() / "data" / "dvs.csv",
         format="csv",
         field_to_digest={
             "t": "6f3f9af2e99d83707fd74fef3486abdd9f2f81680d3c4fcc306b1965",
@@ -238,7 +236,7 @@ files: list[File] = [
         t0="00:00:00.000000",
     ),
     File(
-        path=dirname / "data" / "dvs.es",
+        path=faery.dirname() / "data" / "dvs.es",
         format="es-dvs",
         field_to_digest={
             "t": "6f3f9af2e99d83707fd74fef3486abdd9f2f81680d3c4fcc306b1965",
@@ -255,7 +253,7 @@ files: list[File] = [
         t0="00:00:00.000000",
     ),
     File(
-        path=dirname / "data" / "evt2.raw",
+        path=faery.dirname() / "data" / "evt2.raw",
         format="evt2",
         field_to_digest={
             "t": "9855ba39c1baea316ae623b72466e420df60a7510248391856eb4eaf",
@@ -271,7 +269,7 @@ files: list[File] = [
         t0=None,
     ),
     File(
-        path=dirname / "data" / "evt3.raw",
+        path=faery.dirname() / "data" / "evt3.raw",
         format="evt3",
         field_to_digest={
             "t": "5844f7335f33b60910c5956fac9a6b169414a54f2da8ca2c6d17012d",
@@ -287,7 +285,7 @@ files: list[File] = [
         t0=None,
     ),
     File(
-        path=dirname / "data" / "gen4.dat",
+        path=faery.dirname() / "data" / "gen4.dat",
         format="dat2",
         field_to_digest={
             "t": "78517458e03478cbd6830659dcb09393ba8e013793f2177f18840fc6",
@@ -303,7 +301,7 @@ files: list[File] = [
         t0=None,
     ),
     File(
-        path=dirname / "data" / "generic.es",
+        path=faery.dirname() / "data" / "generic.es",
         format="es-generic",
         field_to_digest={
             "t": "4be986c09dccc23887a40a261e8b95ac8c5ab8d0812efd0f78065d78"
