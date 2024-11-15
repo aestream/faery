@@ -115,9 +115,12 @@ class Regularize(events_stream.FiniteRegularEventsFilter):
                     round(first_packet_start_t + (packet_index + 1) * period_us)
                 )
                 if events["t"][0] >= next_packet_start_t:
-                    yield numpy.concatenate(
-                        events_buffers, dtype=events_stream.EVENTS_DTYPE
-                    )
+                    if len(events_buffers) == 0:
+                        yield numpy.array([], dtype=events_stream.EVENTS_DTYPE)
+                    else:
+                        yield numpy.concatenate(
+                            events_buffers, dtype=events_stream.EVENTS_DTYPE
+                        )
                     events_buffers = []
                     packet_index += 1
                     continue
@@ -459,6 +462,57 @@ class Transpose(events_stream.FiniteRegularEventsFilter):
             else:
                 raise Exception(f'unknown action "{self.action}"')
             yield events
+
+
+@typed_filter({"", "Finite"})
+class FilterArbiterSaturationLines(events_stream.FiniteRegularEventsFilter):
+    def __init__(
+        self,
+        parent: stream.FiniteRegularStream[numpy.ndarray],
+        maximum_line_fill_ratio: float,
+        filter_orientation: enums.FilterOrientation = "row",
+    ):
+        self.init(parent=parent)
+        self.maximum_line_fill_ratio = maximum_line_fill_ratio
+        self.filter_orientation = enums.validate_filter_orientation(filter_orientation)
+        assert self.maximum_line_fill_ratio >= 0.0
+        assert self.maximum_line_fill_ratio <= 1.0
+
+    def __iter__(self) -> collections.abc.Iterator[numpy.ndarray]:
+        dimensions = self.parent.dimensions()
+        if self.filter_orientation == "row":
+            maximum_line_fill = int(round(dimensions[0] * self.maximum_line_fill_ratio))
+            delta_coordinate = "y"
+        else:
+            maximum_line_fill = int(round(dimensions[1] * self.maximum_line_fill_ratio))
+            delta_coordinate = "x"
+        buffer = numpy.array([], dtype=events_stream.EVENTS_DTYPE)
+        for events in self.parent:
+            buffer = numpy.concatenate(
+                [buffer, events], dtype=events_stream.EVENTS_DTYPE
+            )
+            deltas = numpy.diff(
+                buffer[delta_coordinate].astype(numpy.int32), prepend=-1
+            )
+            jumps_indices = numpy.nonzero(deltas)[0]
+            if len(jumps_indices) > 0:
+                large_jump_indices_indices = numpy.nonzero(
+                    numpy.diff(jumps_indices) > maximum_line_fill
+                )[0]
+                if len(large_jump_indices_indices) == 0:
+                    yield buffer[: jumps_indices[-1]].copy()
+                else:
+                    mask = numpy.full(len(buffer), True, dtype=numpy.bool)
+                    mask[jumps_indices[-1] :] = False
+                    for large_jump_indices_index in large_jump_indices_indices:
+                        mask[
+                            jumps_indices[large_jump_indices_index] : jumps_indices[
+                                large_jump_indices_index + 1
+                            ]
+                        ] = False
+                    if numpy.count_nonzero(mask) > 0:
+                        yield buffer[mask].copy()
+                buffer = buffer[jumps_indices[-1] :]
 
 
 @typed_filter({"", "Finite", "Regular", "FiniteRegular"})
