@@ -1,6 +1,9 @@
+import pathlib
+
 from ._base import Colormap
 
 colormap = Colormap.from_rgb_table(
+    name=pathlib.Path(__file__).stem,
     type="cyclic",
     rgb=[
         (0.30946, 0.18635, 0.26374),

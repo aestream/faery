@@ -1,18 +1,12 @@
-import pathlib
-
 import faery
 
-dirname = pathlib.Path(__file__).resolve().parent
-
 colormap = faery.colormaps.batlow.repeated(count=10, flip_odd_indices=True)
-colormap.to_file(
-    dirname.parent / "tests" / "data_generated" / "repeated_colormap.png",
-    "Repeated batlow",
-)
+colormap.name = "batlow repeated"
+colormap.to_file(faery.dirname().parent / "tests" / "data_generated" / "repeated_colormap.png")
 
 (
     faery.events_stream_from_file(
-        dirname.parent / "tests" / "data" / "dvs.es",
+        faery.dirname().parent / "tests" / "data" / "dvs.es",
     )
     .regularize(frequency_hz=60.0)
     .envelope(
@@ -21,7 +15,7 @@ colormap.to_file(
     )
     .colorize(colormap=colormap)
     .to_files(
-        dirname.parent
+        faery.dirname().parent
         / "tests"
         / "data_generated"
         / "dvs_frames_repeated_colormap"
