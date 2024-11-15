@@ -92,8 +92,8 @@ class Kinectograph:
         legend_gap: int = 16,
         legend_padding_left: int = 20,
         legend_padding_right: int = 20,
-        legend_padding_top: int = 20,
-        legend_padding_bottom: int = 20,
+        legend_padding_top: int = 0,
+        legend_padding_bottom: int = 0,
         legend_font_size: int = 20,
     ) -> frame_stream.Rgba8888Frame:
         colormap_data = numpy.round(colormap.rgba * 255.0).astype(dtype=numpy.uint8)
