@@ -160,12 +160,13 @@ class Envelope(frame_stream.FiniteRegularFloat64FrameStream):
                                 )
                     frame_index += 1
                     frame_t = int(round(first_frame_t + frame_index * period_us))
-
             mask = ts == uint64_max
             if self.decay == "exponential":
                 pixels = (frame_t - 1 - ts).astype(numpy.float64)
                 numpy.multiply(pixels, upsilon, out=pixels)
-                numpy.exp(pixels, out=pixels)
+                numpy.exp(
+                    pixels, out=pixels
+                )  # this operation is a bottleneck when rendering (~ 2 ms)
             elif self.decay == "linear":
                 pixels = (frame_t - 1 - ts).astype(numpy.float64)
                 numpy.multiply(pixels, upsilon, out=pixels)
@@ -177,8 +178,12 @@ class Envelope(frame_stream.FiniteRegularFloat64FrameStream):
                 raise Exception(
                     f'unknown decay "{self.decay}" (expected "exponential", "linear", or "window")'
                 )
-            pixels[mask] = 0.0
-            pixels[offs] *= -1.0
+            pixels[mask] = (
+                0.0  # this operation is a bottleneck when rendering (~ 1.5 ms)
+            )
+            pixels[
+                offs
+            ] *= -1.0  # this operation is a bottleneck when rendering (~ 2.5 ms)
             yield frame_stream.Float64Frame(t=frame_t, pixels=pixels)
 
 
@@ -231,9 +236,12 @@ class Colorize(frame_stream.FiniteRegularRgba8888FrameStream):
                     numpy.add(frame.pixels, 1.0, out=frame.pixels)
                     numpy.multiply(frame.pixels, upsilon, out=frame.pixels)
                     numpy.round(frame.pixels, out=frame.pixels)
+                    pixels = colormap_data[
+                        frame.pixels.astype(numpy.uint32)
+                    ]  # this operation is a bottleneck when rendering (~ 7 ms)
                     yield frame_stream.Rgba8888Frame(
                         t=frame.t,
-                        pixels=colormap_data[frame.pixels.astype(numpy.uint32)],
+                        pixels=pixels,
                     )
         elif self.colormap.type == "sequential":
             upsilon = colormap_data.shape[0] - 1
