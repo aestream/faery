@@ -10,7 +10,7 @@ import faery
         tau="00:00:00.200000",
     )
     .colorize(colormap=faery.colormaps.managua.flipped())
-    .scale(factor=4.0)
+    .scale()
     .add_timecode()
     .to_file(
         faery.dirname().parent

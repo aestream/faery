@@ -96,8 +96,10 @@ def validate_decay(value: Decay) -> Decay:
 def validate_transpose_action(value: TransposeAction) -> TransposeAction:
     return VALIDATORS["validate_transpose_action"](value)
 
+
 def validate_filter_orientation(value: FilterOrientation) -> FilterOrientation:
     return VALIDATORS["validate_filter_orientation"](value)
+
 
 def validate_events_file_type(value: EventsFileType) -> EventsFileType:
     return VALIDATORS["validate_events_file_type"](value)

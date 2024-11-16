@@ -2,7 +2,9 @@ import faery
 
 colormap = faery.colormaps.batlow.repeated(count=10, flip_odd_indices=True)
 colormap.name = "batlow repeated"
-colormap.to_file(faery.dirname().parent / "tests" / "data_generated" / "repeated_colormap.png")
+colormap.to_file(
+    faery.dirname().parent / "tests" / "data_generated" / "repeated_colormap.png"
+)
 
 (
     faery.events_stream_from_file(

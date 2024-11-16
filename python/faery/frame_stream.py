@@ -144,7 +144,7 @@ class Rgba8888FrameStream(
 ):
     def scale(
         self,
-        factor: float,
+        factor_or_minimum_dimensions: typing.Union[float, tuple[int, int]] = (960, 720),
         filter: enums.ImageResizeFilter = "nearest",
     ) -> "Rgba8888FrameStream": ...
 
@@ -181,7 +181,7 @@ class FiniteRgba8888FrameStream(
 ):
     def scale(
         self,
-        factor: float,
+        factor_or_minimum_dimensions: typing.Union[float, tuple[int, int]] = (960, 720),
         filter: enums.ImageResizeFilter = "nearest",
     ) -> "FiniteRgba8888FrameStream": ...
 
@@ -218,7 +218,7 @@ class RegularRgba8888FrameStream(
 ):
     def scale(
         self,
-        factor: float,
+        factor_or_minimum_dimensions: typing.Union[float, tuple[int, int]] = (960, 720),
         filter: enums.ImageResizeFilter = "nearest",
     ) -> "RegularRgba8888FrameStream": ...
 
@@ -256,7 +256,7 @@ class FiniteRegularRgba8888FrameStream(
 ):
     def scale(
         self,
-        factor: float,
+        factor_or_minimum_dimensions: typing.Union[float, tuple[int, int]] = (960, 720),
         filter: enums.ImageResizeFilter = "nearest",
     ) -> "FiniteRegularRgba8888FrameStream": ...
 
@@ -314,14 +314,14 @@ def bind_rgb8888(prefix: typing.Literal["", "Finite", "Regular", "FiniteRegular"
 
     def scale(
         self,
-        factor: float,
+        factor_or_minimum_dimensions: typing.Union[float, tuple[int, int]] = (960, 720),
         filter: enums.ImageResizeFilter = "nearest",
     ):
         from .frame_filter import FILTERS
 
         return FILTERS[f"{prefix}Rgba8888Scale"](
             parent=self,
-            factor=factor,
+            factor_or_minimum_dimensions=factor_or_minimum_dimensions,
             filter=filter,
         )
 

@@ -1,7 +1,7 @@
 import sys
 from typing import List
 
-from faery.cli import commands, colormaps, init, parser, render
+from faery.cli import colormaps, commands, init, parser, render
 
 
 def print_help():

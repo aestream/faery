@@ -1,4 +1,5 @@
 import collections.abc
+import math
 import typing
 
 import numpy
@@ -65,12 +66,23 @@ class Kinectograph:
 
     def scale(
         self,
-        factor: float,
+        factor_or_minimum_dimensions: typing.Union[float, tuple[int, int]] = (960, 720),
         filter: enums.ImageResizeFilter = "nearest",
     ) -> "Kinectograph":
+        dimensions = self.dimensions()
+        if isinstance(factor_or_minimum_dimensions, (float, int)):
+            factor = factor_or_minimum_dimensions
+        else:
+            factor = max(
+                1.0,
+                math.ceil(factor_or_minimum_dimensions[0] / dimensions[0]),
+                math.ceil(factor_or_minimum_dimensions[1] / dimensions[1]),
+            )
+        if factor == 1.0:
+            return self
         new_dimensions = (
-            int(round(self.dimensions()[0] * factor)),
-            int(round(self.dimensions()[1] * factor)),
+            int(round(dimensions[0] * factor)),
+            int(round(dimensions[1] * factor)),
         )
         return Kinectograph(
             time_range_us=self._time_range_us,

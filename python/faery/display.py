@@ -161,7 +161,9 @@ def progress_bar_implementation(
 
 
 progress_bar = functools.partial(progress_bar_implementation, clear_after_last=False)
-progress_bar_fold = functools.partial(progress_bar_implementation, clear_after_last=True)
+progress_bar_fold = functools.partial(
+    progress_bar_implementation, clear_after_last=True
+)
 
 
 def format_bold(message: str) -> str:
