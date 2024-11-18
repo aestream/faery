@@ -2,7 +2,7 @@ import faery
 
 (
     faery.events_stream_from_file(
-        faery.dirname().parent / "tests" / "data" / "dvs.es",
+        faery.dirname.parent / "tests" / "data" / "dvs.es",
     )
     .crop(
         left=110,
@@ -16,6 +16,6 @@ import faery
         zero=True,
     )
     .to_file(
-        faery.dirname().parent / "tests" / "data_generated" / "dvs_crop_and_slice.csv",
+        faery.dirname.parent / "tests" / "data_generated" / "dvs_crop_and_slice.csv",
     )
 )

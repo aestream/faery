@@ -80,11 +80,11 @@ for colormap in faery.colormaps_list():
 
 
 job_manager = faery.JobManager(
-    output_directory=faery.dirname().parent / "tests" / "data_generated" / "renders"
+    output_directory=faery.dirname.parent / "tests" / "data_generated" / "renders"
 )
 
 job_manager.add(
-    faery.dirname().parent / "tests" / "data" / "dvs.es",
+    faery.dirname.parent / "tests" / "data" / "dvs.es",
     "00:00:00.000000",
     "00:00:00.999001",
     cyclic_colormaps_tasks + sequential_colormaps_tasks,

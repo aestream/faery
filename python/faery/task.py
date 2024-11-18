@@ -15,15 +15,12 @@ if typing.TYPE_CHECKING:
 else:
     from .extension import job_metadata
 
+dirname: pathlib.Path = pathlib.Path(inspect.stack()[-1].filename).parent
+"""
+Path of the main script's parent directory.
 
-@functools.cache
-def dirname() -> pathlib.Path:
-    """
-    Returns the path of the calling script's parent directory.
-
-    This is useful to define paths relative to the script rather than the current working directory.
-    """
-    return pathlib.Path(inspect.stack()[-1].filename).parent
+This is useful to define paths relative to the script rather than the current working directory.
+"""
 
 
 def hash(function: typing.Callable) -> str:
@@ -126,7 +123,7 @@ class Job:
 
 
 class JobManager:
-    def __init__(self, output_directory: pathlib.Path = dirname() / "renders"):
+    def __init__(self, output_directory: pathlib.Path = dirname / "renders"):
         self.jobs: list[Job] = []
         self.triplets: set[tuple[str, str, str]] = set()
         self.output_directory = output_directory

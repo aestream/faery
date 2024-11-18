@@ -2,7 +2,7 @@ import faery
 
 (
     faery.events_stream_from_file(
-        faery.dirname().parent / "tests" / "data" / "dvs.es",
+        faery.dirname.parent / "tests" / "data" / "dvs.es",
     )
     .regularize(frequency_hz=60.0)
     .envelope(
@@ -13,9 +13,6 @@ import faery
     .scale()
     .add_timecode()
     .to_file(
-        faery.dirname().parent
-        / "tests"
-        / "data_generated"
-        / "dvs_rescaled_annotated.mp4"
+        faery.dirname.parent / "tests" / "data_generated" / "dvs_rescaled_annotated.mp4"
     )
 )

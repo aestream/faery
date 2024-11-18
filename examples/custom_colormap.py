@@ -7,12 +7,12 @@ colormap = faery.Colormap.diverging_from_triplet(
     end="#00FF00",
 )
 colormap.to_file(
-    faery.dirname().parent / "tests" / "data_generated" / "custom_colormap.png"
+    faery.dirname.parent / "tests" / "data_generated" / "custom_colormap.png"
 )
 
 (
     faery.events_stream_from_file(
-        faery.dirname().parent / "tests" / "data" / "dvs.es",
+        faery.dirname.parent / "tests" / "data" / "dvs.es",
     )
     .regularize(frequency_hz=60.0)
     .envelope(
@@ -21,7 +21,7 @@ colormap.to_file(
     )
     .colorize(colormap=colormap)
     .to_files(
-        faery.dirname().parent
+        faery.dirname.parent
         / "tests"
         / "data_generated"
         / "dvs_frames_custom_colormap"
