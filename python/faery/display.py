@@ -173,8 +173,45 @@ def format_bold(message: str) -> str:
         message (str): A message to be displayed in a terminal.
 
     Returns:
-        str: The message surrounded with ANSI escape characters, or the original message if the environment variable ``ANSI_COLORS_DISABLED`` is set.
+        str: The message surrounded with ANSI escape characters, or the original message if the environment variable ``ANSI_COLORS_ENABLED`` is not set.
     """
     if ANSI_COLORS_ENABLED:
         return f"\033[1m{message}\033[0m"
+    return message
+
+
+def format_color(
+    message: str,
+    color: typing.Literal[
+        "black", "red", "green", "yellow", "blue", "magenta", "cyan", "white"
+    ],
+) -> str:
+    """Surrounds the message with ANSI escape characters for color formatting.
+
+    Args:
+        message (str): A message to be displayed in a terminal.
+
+    Returns:
+        str: The message surrounded with ANSI escape characters, or the original message if the environment variable ``ANSI_COLORS_ENABLED`` is not set.
+    """
+    if ANSI_COLORS_ENABLED:
+        if color == "black":
+            color_code = 0
+        elif color == "red":
+            color_code = 1
+        elif color == "green":
+            color_code = 2
+        elif color == "yellow":
+            color_code = 3
+        elif color == "blue":
+            color_code = 4
+        elif color == "magenta":
+            color_code = 5
+        elif color == "cyan":
+            color_code = 6
+        elif color == "white":
+            color_code = 7
+        else:
+            raise Exception(f'unknown color "{color}"')
+        return f"\033[3{color_code}m{message}\033[0m"
     return message

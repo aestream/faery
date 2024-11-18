@@ -42,7 +42,7 @@ ImageFileType = typing.Literal["png"]
 
 ImageFileCompressionLevel = typing.Literal["default", "fast", "best"]
 
-ImageResizeFilter = typing.Literal[
+ImageResizeSamplingFilter = typing.Literal[
     "nearest", "triangle", "catmull_rom", "gaussian", "lanczos3"
 ]
 
@@ -86,6 +86,8 @@ VideoFileProfile = typing.Literal[
 
 ColorblindnessType = typing.Literal["protanopia", "deuteranopia", "tritanopia"]
 
+UdpFormat = typing.Literal["t64_x16_y16_on8", "t32_x16_y15_on1"]
+
 VALIDATORS: dict[str, typing.Any] = {}
 
 
@@ -128,9 +130,9 @@ def validate_image_file_compression_level(
 
 
 def validate_image_resize_filter(
-    value: ImageResizeFilter,
-) -> ImageResizeFilter:
-    return VALIDATORS["validate_image_resize_filter"](value)
+    value: ImageResizeSamplingFilter,
+) -> ImageResizeSamplingFilter:
+    return VALIDATORS["validate_image_resize_sampling_filter"](value)
 
 
 def validate_video_file_type(
@@ -161,6 +163,12 @@ def validate_colorblindness_type(
     value: ColorblindnessType,
 ) -> ColorblindnessType:
     return VALIDATORS["validate_colorblindness_type"](value)
+
+
+def validate_udp_format(
+    value: UdpFormat,
+) -> UdpFormat:
+    return VALIDATORS["validate_udp_format"](value)
 
 
 def bind(name: str, type: typing.Any):

@@ -75,6 +75,8 @@ def events_stream_from_udp(
     address: typing.Union[
         tuple[str, int], tuple[str, int, typing.Optional[int], typing.Optional[str]]
     ],
-    format: typing.Literal["t64_x16_y16_on8", "t32_x16_y15_on1"] = "t64_x16_y16_on8",
+    format: enums.UdpFormat = "t64_x16_y16_on8",
 ):
-    return udp_decoder.Decoder(dimensions=dimensions, address=address, format=format)
+    return udp_decoder.Decoder(
+        dimensions=dimensions, address=address, format=enums.validate_udp_format(format)
+    )

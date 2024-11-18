@@ -1,5 +1,3 @@
-import argparse
-import dataclasses
 import inspect
 import math
 import typing
@@ -8,7 +6,7 @@ import numpy
 
 import faery
 
-from . import commands
+from . import command
 
 PADDING_TOP: int = 20
 TITLE_SIZE: int = 20
@@ -27,11 +25,24 @@ COLUMN_GAP: int = 20
 WIDTH: int = 1440
 
 
-@dataclasses.dataclass
-class ColorMapsCommand(commands.SubCommand):
-    output: str
+class Command(command.Command):
+    @typing.override
+    def usage(self) -> tuple[list[str], str]:
+        return (
+            ["faery colormaps <output>"],
+            "render available colormaps",
+        )
 
-    def run(self):
+    @typing.override
+    def first_block_keywords(self) -> set[str]:
+        return {"colormaps"}
+
+    @typing.override
+    def run(self, arguments: list[str]):
+        parser = self.parser()
+        parser.add_argument("output", help="path of the output PNG file")
+        args = parser.parse_args(args=arguments)
+
         names_and_colormaps: list[tuple[str, faery.Colormap]] = inspect.getmembers(
             faery.colormaps, lambda member: isinstance(member, faery.Colormap)
         )
@@ -201,17 +212,5 @@ class ColorMapsCommand(commands.SubCommand):
                 offset += ROW_HEIGHT + ROW_GAP
             offset += ROWS_PADDING - ROW_GAP
 
-        with open(self.output, "wb") as output:
+        with open(args.output, "wb") as output:
             output.write(faery.image.encode(frame=frame, compression_level="default"))
-
-
-def colormaps_group() -> commands.SubCommandGroup:
-    def parse_colormaps(args: argparse.Namespace) -> ColorMapsCommand:
-        return ColorMapsCommand(output=args.output)
-
-    parser = argparse.ArgumentParser(
-        "colormaps", description="Generate an image of available colormaps"
-    )
-    parser.add_argument("output", help="path of the output PNG file")
-
-    return commands.SubCommandGroup(parser, parse_colormaps)

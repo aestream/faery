@@ -1,4 +1,3 @@
-import inspect
 import pathlib
 
 import faery

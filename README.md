@@ -1,17 +1,164 @@
 ![faery logo](faery_logo.png)
 
-Faery sends event data from A to B.
-It is both a command-line tool and a Python library, wrapping an optimized core written in Rust.
+Faery converts neuromorphic event-based data between formats. It can also generate videos, spectrograms, and event rate curves.
 
-## Usage
+You can use Faery:
+
+-   [from the command line](#use-faery-from-the-command-line), like FFmpeg or ImageMagick
+-   [in a script](#use-faery-in-a-script), like Pillow
+-   [to render and analyze many recordings](#use-faery-to-render-and-analyze-many-recordings), without writing code
+
+## Use Faery from the command line
+
+### Setup
 
 1. Install pipx (https://pipx.pypa.io/stable/installation/)
 
-2. Install faery
+2. Install Faery by running `pipx install faery`
+
+3. Run `faery --help` to see a list of options, `faery list-filters` to list available filters, and `faery filter <filter> --help` for help on a specific filter
+
+> Note: you can use a virtual environment instead of pipx, see [Use Faery in a script](#use-faery-in-a-script) for instructions.
+
+### Examples
 
 ```sh
-pipx install faery
+# Convert a Prophesee raw file (input.raw) to AEDAT (output.aedat)
+faery input file input.raw output file output.aedat
+
+# Render an event file (input.es) to a real-time video (output.mp4)
+faery input file input.es filter regularize 60.0 filter envelope exponential 0.2 filter colorize starry_night output file output.mp4
+
+# Render an event file (input.es) to a video 10 x slower than real-time (output.mp4)
+# The envelope parameter (0.03) is the exponential decay constant.
+# Slow-motion videos look better with shorter decays but it does not need to be scaled like regularize,
+# which controls the playback speed.
+faery input file input.es filter regularize 600.0 filter envelope exponential 0.03 filter colorize starry_night output file output.mp4
+
+# Print ON events to the terminal
+faery input file input.aedat filter remove-off-events
+
+# Read event data from UDP and write it to a CSV file (output.csv)
+faery input udp 0.0.0.0:3000 output file output.csv
 ```
+
+## Use Faery in a script
+
+### Setup
+
+```sh
+python3 -m venv .venv
+source .venv/bin/activate # 'venv\Scripts\activate' on Windows
+pip install faery
+```
+
+### Examples
+
+See _examples_ in this repository.
+
+## Use Faery to render and analyze many recordings
+
+### Setup
+
+1. Install pipx (https://pipx.pypa.io/stable/installation/)
+
+2. Install Faery by running `pipx install faery`
+
+> Note: you can use a virtual environment instead of pipx, see [Use Faery in a script](#use-faery-in-a-script) for instructions.
+
+### Workflow
+
+1. Create a directory called _my-wonderful-project_ (or any other name), a subdirectory called _recordings_ (this must be called _recordings_), and move the files to analyze to _recordings_ (the file names do not matter). Faery supports AEDAT, RAW, DAT, ES, and CSV files.
+
+    ```txt
+    my-wonderful-project
+    └── recordings
+        ├── file_1.raw
+        ├── file_2.raw
+        ├── ...
+        └── file_n.raw
+    ```
+
+2. Generate a render and analysis script with Faery.
+
+    ```sh
+    cd path/to/my-wonderful-project
+    faery init
+    ```
+
+    Faery will read _recordings_, calculate the time range of each recording, and create the file _faery_script.py_. This can take a little while if there are many recordings or if they are large.
+
+    You can also use `faery init --generate-nicknames` to use easy-to-remember nicknames for the files instead of their original names.
+
+3. Run the script.
+
+    ```sh
+    faery run
+    ```
+
+    Faery will execute the script, which generates videos, event rate curves, and spectrograms by default.
+
+4. Edit the script.
+
+    You can modify _faery_script.py_ to analyze shorter time slices, use different colormaps, or generate slow motion videos. After editing the script, run it again with `faery run`.
+
+    Faery keeps track of completed renders, hence you do not need to delete past jobs before running the script again. For instance, if you run the default script once and find a time window of interest for which you wish to generate a slow motion video, we recommend proceeding as follows.
+
+    a. Add a slow motion video task to the script after `real_time_video`.
+
+    ```py
+    @faery.task(suffix=".mp4", icon="🎬")
+    def real_time_video(...):
+        ...
+
+    @faery.task(suffix=".mp4", icon="🎬")
+    def slow_motion_video(
+        input: pathlib.Path,
+        output: pathlib.Path,
+        start: faery.Time,
+        end: faery.Time,
+    ):
+        (
+            faery.events_stream_from_file(input)
+            .time_slice(start=start, end=end)
+            .regularize(frequency_hz=6000.0) # 100 x slower than real time
+            .envelope(
+                decay="exponential",
+                tau="00:00:00.002000", # faster decay
+            )
+            .colorize(colormap=faery.colormaps.starry_night)
+            .scale()
+            .to_file(output, on_progress=faery.progress_bar_fold)
+        )
+    ```
+
+    b. Add a new job at the end of the file, before `job_manager.run()`. You can use the same nickname as long as the time range is different.
+
+    ```py
+    tasks: list[faery.Task] = [kinectograph, kinectograph_dense, real_time_video]
+
+    # original job (stays in the script)
+    job_manager.add(
+        faery.dirname / "recordings" / "dvs.es",
+        "00:00:00.000000",
+        "00:00:00.999001",
+        tasks,
+        nickname="optimistic-tarsier"
+    )
+
+    # new job (added to the script)
+    job_manager.add(
+        faery.dirname / "recordings" / "dvs.es",
+        "00:00:00.100000",
+        "00:00:00.200000",
+        [kinectograph, kinectograph_dense, slow_motion_video],
+        nickname="optimistic-tarsier"
+    )
+
+    job_manager.run()
+    ```
+
+    Since we use `slow_motion_video` (100 x slower than real-time) on a 100 ms slice, the resulting video will be 10 seconds long.
 
 ## Local development
 

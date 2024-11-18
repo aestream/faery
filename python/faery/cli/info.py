@@ -1,6 +1,7 @@
-import subprocess
-import sys
+import json
 import typing
+
+import faery
 
 from . import command
 
@@ -8,22 +9,22 @@ from . import command
 class Command(command.Command):
     @typing.override
     def usage(self) -> tuple[list[str], str]:
-        return (["faery run"], "run a Faery script")
+        return (["faery info <input>"], "prints information about a file")
 
     @typing.override
     def first_block_keywords(self) -> set[str]:
-        return {"run"}
+        return {"info"}
 
     @typing.override
     def run(self, arguments: list[str]):
         parser = self.parser()
+        parser.add_argument("input", help="path of the input file")
         parser.add_argument(
-            "--input",
-            "-i",
-            default="faery_script.py",
-            help="input script to run",
+            "--json",
+            "-j",
+            action="store_true",
+            help="output information in JSON format",
         )
-        parser.add_argument("rest", nargs="*")
         args = parser.parse_args(args=arguments)
-        process = subprocess.run([sys.executable, args.input] + args.rest)
-        sys.exit(process.returncode)
+        # @DEV TODO
+        # faery.events_stream_from_file

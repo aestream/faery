@@ -8,6 +8,7 @@ mod evt;
 mod image;
 mod job_metadata;
 mod mp4;
+mod mustache;
 mod types;
 mod utilities;
 
@@ -73,5 +74,12 @@ fn faery(python: Python<'_>, module: &pyo3::Bound<'_, pyo3::types::PyModule>) ->
         submodule.add_class::<mp4::Encoder>()?;
         module.add_submodule(&submodule)?;
     }
+    {
+        let submodule = PyModule::new_bound(python, "mustache")?;
+        submodule.add_class::<mustache::Job>()?;
+        submodule.add_function(wrap_pyfunction!(mustache::render, &submodule)?)?;
+        module.add_submodule(&submodule)?;
+    }
+
     Ok(())
 }

@@ -99,7 +99,7 @@ class Regularize(events_stream.FiniteRegularEventsFilter):
                 parent_time_range_us[0] if self.start is None else self.start
             )
             end_t = parent_time_range_us[1]
-        except AttributeError:
+        except (AttributeError, NotImplementedError):
             packet_index = 0
             first_packet_start_t = self.start
             end_t = None

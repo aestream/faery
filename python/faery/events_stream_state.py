@@ -122,11 +122,11 @@ class StateManager:
         self.index = 0
         try:
             self.time_range_us = stream.time_range_us()
-        except AttributeError:
+        except (AttributeError, NotImplementedError):
             self.time_range_us = None
         try:
             self.frequency_hz = stream.frequency_hz()
-        except AttributeError:
+        except (AttributeError, NotImplementedError):
             self.frequency_hz = None
         self.on_progress = on_progress
         if self.time_range_us is None or self.frequency_hz is None:

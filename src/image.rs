@@ -282,7 +282,7 @@ enum ImageType {
 pub fn resize(
     frame: &pyo3::Bound<'_, numpy::PyUntypedArray>,
     new_dimensions: (u16, u16),
-    filter: &str,
+    sampling_filter: &str,
 ) -> PyResult<PyObject> {
     if !frame.is_contiguous() {
         return Err(pyo3::exceptions::PyAttributeError::new_err(format!(
@@ -317,7 +317,7 @@ pub fn resize(
                     &image,
                     new_dimensions.0 as u32,
                     new_dimensions.1 as u32,
-                    parse_filter(filter)?,
+                    parse_filter(sampling_filter)?,
                 );
                 let array = numpy::ndarray::ArrayView3::<u8>::from_shape(
                     (new_dimensions.1 as usize, new_dimensions.0 as usize, 3),
@@ -338,7 +338,7 @@ pub fn resize(
                     &image,
                     new_dimensions.0 as u32,
                     new_dimensions.1 as u32,
-                    parse_filter(filter)?,
+                    parse_filter(sampling_filter)?,
                 );
                 let array = numpy::ndarray::ArrayView3::<u8>::from_shape(
                     (new_dimensions.1 as usize, new_dimensions.0 as usize, 4),
@@ -375,7 +375,7 @@ pub fn resize(
                     &image,
                     new_dimensions.0 as u32,
                     new_dimensions.1 as u32,
-                    parse_filter(filter)?,
+                    parse_filter(sampling_filter)?,
                 );
                 let array = numpy::ndarray::ArrayView3::<f64>::from_shape(
                     (new_dimensions.1 as usize, new_dimensions.0 as usize, 2),
@@ -405,7 +405,7 @@ pub fn overlay(
     x: i32,
     y: i32,
     new_dimensions: (u16, u16),
-    filter: &str,
+    sampling_filter: &str,
 ) -> PyResult<()> {
     if !frame.is_contiguous() {
         return Err(pyo3::exceptions::PyAttributeError::new_err(format!(
@@ -421,7 +421,7 @@ pub fn overlay(
     let frame_dimensions = readwrite_frame.as_array_mut().dim();
     let readonly_overlay = overlay.readonly();
     let overlay_dimensions = readonly_overlay.as_array().dim();
-    let filter = parse_filter(filter)?;
+    let sampling_filter = parse_filter(sampling_filter)?;
     if overlay_dimensions.2 == 3 {
         let overlay_image = image::ImageBuffer::<image::Rgb<u8>, &[u8]>::from_raw(
             overlay_dimensions.1 as u32,
@@ -442,7 +442,7 @@ pub fn overlay(
             .expect("from_raw does not need to allocate");
             if overlay_image.width() == new_dimensions.0 as u32
                 && overlay_image.height() == new_dimensions.1 as u32
-                && matches!(filter, image::imageops::FilterType::Nearest)
+                && matches!(sampling_filter, image::imageops::FilterType::Nearest)
             {
                 // RGB over RGB without resizing
                 image::imageops::overlay(&mut frame_image, &overlay_image, x as i64, y as i64);
@@ -452,7 +452,7 @@ pub fn overlay(
                     &overlay_image,
                     new_dimensions.0 as u32,
                     new_dimensions.1 as u32,
-                    filter,
+                    sampling_filter,
                 );
                 image::imageops::overlay(&mut frame_image, &overlay_image, x as i64, y as i64);
             }
@@ -471,7 +471,7 @@ pub fn overlay(
                 &overlay_image,
                 new_dimensions.0 as u32,
                 new_dimensions.1 as u32,
-                filter,
+                sampling_filter,
             );
             let overlay_image = image::DynamicImage::ImageRgb8(overlay_image).to_rgba8();
             image::imageops::overlay(&mut frame_image, &overlay_image, x as i64, y as i64);
@@ -505,7 +505,7 @@ pub fn overlay(
                 &overlay_image,
                 new_dimensions.0 as u32,
                 new_dimensions.1 as u32,
-                filter,
+                sampling_filter,
             );
             let overlay_image = image::DynamicImage::ImageRgba8(overlay_image).to_rgb8();
             image::imageops::overlay(&mut frame_image, &overlay_image, x as i64, y as i64);
@@ -521,7 +521,7 @@ pub fn overlay(
             .expect("from_raw does not need to allocate");
             if overlay_image.width() == new_dimensions.0 as u32
                 && overlay_image.height() == new_dimensions.1 as u32
-                && matches!(filter, image::imageops::FilterType::Nearest)
+                && matches!(sampling_filter, image::imageops::FilterType::Nearest)
             {
                 // RGBA over RGBA without resizing
                 image::imageops::overlay(&mut frame_image, &overlay_image, x as i64, y as i64);
@@ -531,7 +531,7 @@ pub fn overlay(
                     &overlay_image,
                     new_dimensions.0 as u32,
                     new_dimensions.1 as u32,
-                    filter,
+                    sampling_filter,
                 );
                 image::imageops::overlay(&mut frame_image, &overlay_image, x as i64, y as i64);
             }

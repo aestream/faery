@@ -22,7 +22,7 @@ impl Task {
     }
 }
 
-pub type JobMetadata = std::collections::HashMap<String, Task>;
+pub type JobMetadata = std::collections::BTreeMap<String, Task>;
 
 #[pyfunction]
 pub fn read(path: &pyo3::Bound<'_, pyo3::types::PyAny>) -> PyResult<JobMetadata> {

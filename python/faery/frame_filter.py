@@ -109,12 +109,12 @@ class Scale(frame_stream.FiniteRegularRgba8888FrameFilter):
         self,
         parent: stream.FiniteRegularStream[frame_stream.Rgba8888Frame],
         factor_or_minimum_dimensions: typing.Union[float, tuple[int, int]] = (960, 720),
-        filter: enums.ImageResizeFilter = "nearest",
+        sampling_filter: enums.ImageResizeSamplingFilter = "nearest",
     ):
         self.init(parent=parent)
         self.factor_or_minimum_dimensions = factor_or_minimum_dimensions
-        self.filter: enums.ImageResizeFilter = enums.validate_image_resize_filter(
-            filter
+        self.sampling_filter: enums.ImageResizeSamplingFilter = (
+            enums.validate_image_resize_filter(sampling_filter)
         )
 
     def dimensions(self) -> tuple[int, int]:
@@ -154,7 +154,7 @@ class Scale(frame_stream.FiniteRegularRgba8888FrameFilter):
                 frame.pixels = image.resize(
                     frame=frame.pixels,
                     new_dimensions=new_dimensions,
-                    filter=self.filter,
+                    sampling_filter=self.sampling_filter,
                 )
                 yield frame
 
@@ -307,14 +307,14 @@ class AddOverlay(frame_stream.FiniteRegularRgba8888FrameFilter):
         x: int = 0,
         y: int = 0,
         scale_factor: float = 1.0,
-        scale_filter: enums.ImageResizeFilter = "nearest",
+        scale_filter: enums.ImageResizeSamplingFilter = "nearest",
     ):
         self.init(parent=parent)
         self.overlay = overlay
         self.x = x
         self.y = y
         self.scale_factor = scale_factor
-        self.scale_filter: enums.ImageResizeFilter = scale_filter
+        self.scale_sampling_filter: enums.ImageResizeSamplingFilter = scale_filter
 
     def __iter__(self) -> collections.abc.Iterator[frame_stream.Rgba8888Frame]:
         if isinstance(self.overlay, (pathlib.Path, str)):
@@ -332,6 +332,6 @@ class AddOverlay(frame_stream.FiniteRegularRgba8888FrameFilter):
                     int(round(overlay.shape[1] * self.scale_factor)),
                     int(round(overlay.shape[0] * self.scale_factor)),
                 ),
-                filter=self.scale_filter,
+                sampling_filter=self.scale_sampling_filter,
             )
             yield frame

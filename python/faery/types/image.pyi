@@ -21,7 +21,7 @@ def annotate(
 def resize(
     frame: numpy.typing.NDArray[numpy.uint8],
     new_dimensions: tuple[int, int],
-    filter: typing.Literal[
+    sampling_filter: typing.Literal[
         "nearest", "triangle", "catmull_rom", "gaussian", "lanczos3"
     ],
 ) -> numpy.typing.NDArray[numpy.uint8]: ...
@@ -29,7 +29,7 @@ def resize(
 def resize(
     frame: numpy.typing.NDArray[numpy.float64],
     new_dimensions: tuple[int, int],
-    filter: typing.Literal[
+    sampling_filter: typing.Literal[
         "nearest", "triangle", "catmull_rom", "gaussian", "lanczos3"
     ],
 ) -> numpy.typing.NDArray[numpy.float64]: ...
@@ -39,7 +39,7 @@ def overlay(
     x: int,
     y: int,
     new_dimensions: tuple[int, int],
-    filter: typing.Literal[
+    sampling_filter: typing.Literal[
         "nearest", "triangle", "catmull_rom", "gaussian", "lanczos3"
     ],
 ) -> None: ...
