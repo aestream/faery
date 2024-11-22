@@ -386,7 +386,7 @@ def output_parser(
 
         # Output frame files
         subparser = subparsers.add_parser("files")
-        subparser.add_argument("path-pattern", metavar="path_pattern")
+        subparser.add_argument("path_pattern", metavar="path-pattern")
         subparser.add_argument(
             "--compression-level",
             choices=list(typing.get_args(faery.ImageFileCompressionLevel)),

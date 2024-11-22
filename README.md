@@ -26,14 +26,17 @@ You can use Faery:
 # Convert a Prophesee raw file (input.raw) to AEDAT (output.aedat)
 faery input file input.raw output file output.aedat
 
-# Render an event file (input.es) to a real-time video (output.mp4)
+# Render an event file (input.es) as a real-time video (output.mp4)
 faery input file input.es filter regularize 60.0 filter envelope exponential 0.2 filter colorize starry_night output file output.mp4
 
-# Render an event file (input.es) to a video 10 x slower than real-time (output.mp4)
+# Render an event file (input.es) as a video 10 x slower than real-time (output.mp4)
 # The envelope parameter (0.03) is the exponential decay constant.
 # Slow-motion videos look better with shorter decays but it does not need to be scaled like regularize,
 # which controls the playback speed.
 faery input file input.es filter regularize 600.0 filter envelope exponential 0.03 filter colorize starry_night output file output.mp4
+
+# Render an event file (input.es) as frames (frames/*.png)
+faery input file input.es filter regularize 60.0 filter envelope exponential 0.2 filter colorize starry_night output files 'frames/{index:04}.png'
 
 # Print ON events to the terminal
 faery input file input.aedat filter remove-off-events
