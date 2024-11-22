@@ -62,7 +62,7 @@ impl Type {
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
-    #[error("unknown version \"{0}\" (must be \"evt2\", \"evt2.1\", or \"evt3\")")]
+    #[error("unknown version \"{0}\" (must be \"dat1\" or \"dat2\")")]
     UnknownVersion(String),
 }
 
