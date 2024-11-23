@@ -110,7 +110,9 @@ See _examples_ in this repository.
     faery run
     ```
 
-    Faery will execute the script, which generates videos, event rate curves, and spectrograms by default.
+    Faery will execute the script, which generates assets in the _renders_ directory.
+
+    > Note: if you installed Faery in a virtual environment, you can also run the script directly with `python faery_script.py`
 
 4. Edit the script.
 
