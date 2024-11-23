@@ -2,13 +2,24 @@
 
 Faery converts neuromorphic event-based data between formats. It can also generate videos, spectrograms, and event rate curves.
 
-You can use Faery:
+- [Using Faery from the command line](#using-faery-from-the-command-line)
+  - [Setup](#setup)
+  - [Examples](#examples)
+- [Using Faery in a Python script](#using-faery-in-a-python-script)
+  - [Setup](#setup-1)
+  - [Examples](#examples-1)
+- [Using Faery to render and analyze many recordings](#using-faery-to-render-and-analyze-many-recordings)
+  - [Setup](#setup-2)
+  - [Workflow](#workflow)
+- [Local development](#local-development)
+  - [Setup the environment](#setup-the-environment)
+  - [Format and lint](#format-and-lint)
+  - [Test](#test)
+  - [Upload a new version](#upload-a-new-version)
+- [Acknowledgements](#acknowledgements)
 
--   [from the command line](#use-faery-from-the-command-line), like FFmpeg or ImageMagick
--   [in a script](#use-faery-in-a-script), like Pillow
--   [to render and analyze many recordings](#use-faery-to-render-and-analyze-many-recordings), without writing code
 
-## Use Faery from the command line
+## Using Faery from the command line
 
 ### Setup
 
@@ -45,7 +56,7 @@ faery input file input.aedat filter remove-off-events
 faery input udp 0.0.0.0:3000 output file output.csv
 ```
 
-## Use Faery in a script
+## Using Faery in a Python script
 
 ### Setup
 
@@ -59,7 +70,7 @@ pip install faery
 
 See _examples_ in this repository.
 
-## Use Faery to render and analyze many recordings
+## Using Faery to render and analyze many recordings
 
 ### Setup
 
