@@ -22,7 +22,7 @@ class Command:
         First block keywords must be unique across faery subcommands.
         This is checked at runtime in cli.__init__.py.
 
-        The *first block* keywords `-h`, `--help`, `-v`, and`--version` are reserved and must not appear in this list.
+        The *first block* keywords `-h`, `--help`, `-v`, and `--version` are reserved and must not appear in this list.
         """
         raise NotImplementedError()
 
