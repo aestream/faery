@@ -39,8 +39,15 @@ class Rgba8888Frame:
         path: typing.Union[pathlib.Path, str],
         compression_level: enums.ImageFileCompressionLevel = "fast",
         file_type: typing.Optional[enums.ImageFileType] = None,
+        use_write_suffix: bool = True,
     ):
+        from . import file_encoder
+
         path = pathlib.Path(path)
+        if use_write_suffix:
+            write_path = file_encoder.with_write_suffix(path=path)
+        else:
+            write_path = None
         path.parent.mkdir(exist_ok=True, parents=True)
         compression_level = enums.validate_image_file_compression_level(
             compression_level
@@ -49,8 +56,10 @@ class Rgba8888Frame:
             file_type = enums.image_file_type_guess(path)
         else:
             file_type = enums.validate_image_file_type(file_type)
-        with open(path, "wb") as output:
+        with open(path if write_path is None else write_path, "wb") as output:
             output.write(image.encode(self.pixels, compression_level=compression_level))
+        if write_path is not None:
+            write_path.replace(path)
 
 
 Rgba8888OutputState = typing.TypeVar("Rgba8888OutputState")
@@ -77,6 +86,7 @@ class Rgba8888Output(typing.Generic[Rgba8888OutputState]):
             path_pattern=path_pattern,
             compression_level=compression_level,
             file_type=file_type,
+            use_write_suffix=True,
             on_progress=on_progress,
         )
 
@@ -84,8 +94,8 @@ class Rgba8888Output(typing.Generic[Rgba8888OutputState]):
         self,
         path: typing.Union[pathlib.Path, str],
         frame_rate: float = 60.0,
-        crf: float = 15.0,
-        preset: enums.VideoFilePreset = "ultrafast",
+        crf: float = 17.0,
+        preset: enums.VideoFilePreset = "medium",
         tune: enums.VideoFileTune = "none",
         profile: enums.VideoFileProfile = "baseline",
         file_type: typing.Optional[enums.VideoFileType] = None,
@@ -93,6 +103,11 @@ class Rgba8888Output(typing.Generic[Rgba8888OutputState]):
     ):
         from . import file_encoder
 
+        try:
+            self.time_range_us()  # type: ignore
+            use_write_suffix = True
+        except AttributeError:
+            use_write_suffix = False
         file_encoder.frames_to_file(
             stream=self,
             path=path,
@@ -103,6 +118,7 @@ class Rgba8888Output(typing.Generic[Rgba8888OutputState]):
             tune=tune,
             profile=profile,
             file_type=file_type,
+            use_write_suffix=use_write_suffix,
             on_progress=on_progress,
         )
 
@@ -128,7 +144,7 @@ class Rgba8888FrameStream(
 ):
     def scale(
         self,
-        factor: float,
+        factor_or_minimum_dimensions: typing.Union[float, tuple[int, int]] = (960, 720),
         filter: enums.ImageResizeFilter = "nearest",
     ) -> "Rgba8888FrameStream": ...
 
@@ -165,7 +181,7 @@ class FiniteRgba8888FrameStream(
 ):
     def scale(
         self,
-        factor: float,
+        factor_or_minimum_dimensions: typing.Union[float, tuple[int, int]] = (960, 720),
         filter: enums.ImageResizeFilter = "nearest",
     ) -> "FiniteRgba8888FrameStream": ...
 
@@ -202,7 +218,7 @@ class RegularRgba8888FrameStream(
 ):
     def scale(
         self,
-        factor: float,
+        factor_or_minimum_dimensions: typing.Union[float, tuple[int, int]] = (960, 720),
         filter: enums.ImageResizeFilter = "nearest",
     ) -> "RegularRgba8888FrameStream": ...
 
@@ -240,7 +256,7 @@ class FiniteRegularRgba8888FrameStream(
 ):
     def scale(
         self,
-        factor: float,
+        factor_or_minimum_dimensions: typing.Union[float, tuple[int, int]] = (960, 720),
         filter: enums.ImageResizeFilter = "nearest",
     ) -> "FiniteRegularRgba8888FrameStream": ...
 
@@ -298,14 +314,14 @@ def bind_rgb8888(prefix: typing.Literal["", "Finite", "Regular", "FiniteRegular"
 
     def scale(
         self,
-        factor: float,
+        factor_or_minimum_dimensions: typing.Union[float, tuple[int, int]] = (960, 720),
         filter: enums.ImageResizeFilter = "nearest",
     ):
         from .frame_filter import FILTERS
 
         return FILTERS[f"{prefix}Rgba8888Scale"](
             parent=self,
-            factor=factor,
+            factor_or_minimum_dimensions=factor_or_minimum_dimensions,
             filter=filter,
         )
 

@@ -6,6 +6,7 @@ mod dat;
 mod event_stream;
 mod evt;
 mod image;
+mod job_metadata;
 mod mp4;
 mod types;
 mod utilities;
@@ -58,6 +59,13 @@ fn faery(python: Python<'_>, module: &pyo3::Bound<'_, pyo3::types::PyModule>) ->
         submodule.add_function(wrap_pyfunction!(image::annotate, &submodule)?)?;
         submodule.add_function(wrap_pyfunction!(image::resize, &submodule)?)?;
         submodule.add_function(wrap_pyfunction!(image::overlay, &submodule)?)?;
+        module.add_submodule(&submodule)?;
+    }
+    {
+        let submodule = PyModule::new_bound(python, "job_metadata")?;
+        submodule.add_class::<job_metadata::Task>()?;
+        submodule.add_function(wrap_pyfunction!(job_metadata::read, &submodule)?)?;
+        submodule.add_function(wrap_pyfunction!(job_metadata::write, &submodule)?)?;
         module.add_submodule(&submodule)?;
     }
     {

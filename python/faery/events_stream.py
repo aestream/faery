@@ -1,11 +1,12 @@
 import collections.abc
-import dataclasses
 import pathlib
 import typing
 
 import numpy
+import numpy.typing
 
 from . import enums, events_stream_state, frame_stream, stream, timestamp
+from .colormaps._base import Color, Colormap
 
 if typing.TYPE_CHECKING:
     from .types import aedat  # type: ignore
@@ -130,6 +131,11 @@ class Output(typing.Generic[OutputState]):
         """
         from . import file_encoder
 
+        try:
+            self.time_range_us()  # type: ignore
+            use_write_suffix = True
+        except AttributeError:
+            use_write_suffix = False
         return file_encoder.events_to_file(
             stream=self,
             path=path,
@@ -138,6 +144,7 @@ class Output(typing.Generic[OutputState]):
             zero_t0=zero_t0,
             compression=compression,
             file_type=file_type,
+            use_write_suffix=use_write_suffix,
             on_progress=on_progress,  # type: ignore
         )
 
@@ -235,6 +242,12 @@ class EventsStream(
 
     def transpose(self, action: enums.TransposeAction) -> "EventsStream": ...
 
+    def filter_arbiter_saturation_lines(
+        self,
+        maximum_line_fill_ratio: float,
+        filter_orientation: enums.FilterOrientation = "row",
+    ) -> "EventsStream": ...
+
     def map(
         self,
         function: collections.abc.Callable[[numpy.ndarray], numpy.ndarray],
@@ -300,6 +313,12 @@ class FiniteEventsStream(
 
     def transpose(self, action: enums.TransposeAction) -> "FiniteEventsStream": ...
 
+    def filter_arbiter_saturation_lines(
+        self,
+        maximum_line_fill_ratio: float,
+        filter_orientation: enums.FilterOrientation = "row",
+    ) -> "FiniteEventsStream": ...
+
     def map(
         self,
         function: collections.abc.Callable[[numpy.ndarray], numpy.ndarray],
@@ -310,14 +329,53 @@ class FiniteEventsStream(
     ) -> "FiniteEventsStream":
         return filter_class(self, *args, **kwargs)  # type: ignore
 
-    def to_array(self) -> numpy.ndarray:
-        return numpy.concatenate(list(self))
+    def to_array(
+        self, on_progress: typing.Callable[[OutputState], None] = lambda _: None
+    ) -> numpy.ndarray:
+        events_buffers = []
+        state_manager = events_stream_state.StateManager(
+            stream=self, on_progress=on_progress
+        )
+        state_manager.start()
+        for events in self:
+            events_buffers.append(events)
+            state_manager.commit(events=events)
+        if len(events_buffers) == 0:
+            result = numpy.array([], dtype=EVENTS_DTYPE)
+        else:
+            result = numpy.concatenate(events_buffers, dtype=EVENTS_DTYPE)
+        state_manager.end()
+        return result
 
     def envelope(
         self,
         decay: enums.Decay,
         tau: timestamp.Time,
     ) -> frame_stream.FiniteFloat64FrameStream: ...
+
+    def to_kinectograph(
+        self,
+        threshold_quantile: float = 0.9,
+        normalized_times_gamma: typing.Callable[
+            [numpy.typing.NDArray[numpy.float64]], numpy.typing.NDArray[numpy.float64]
+        ] = lambda normalized_times: normalized_times,
+        opacities_gamma: typing.Callable[
+            [numpy.typing.NDArray[numpy.float64]], numpy.typing.NDArray[numpy.float64]
+        ] = lambda opacities_gamma: opacities_gamma,
+        on_progress: typing.Callable[[OutputState], None] = lambda _: None,
+    ):
+
+        from . import kinectograph
+
+        return kinectograph.Kinectograph.from_events(
+            stream=self,
+            dimensions=self.dimensions(),
+            time_range_us=self.time_range_us(),
+            threshold_quantile=threshold_quantile,
+            normalized_times_gamma=normalized_times_gamma,
+            opacities_gamma=opacities_gamma,
+            on_progress=on_progress,  # type: ignore
+        )
 
 
 class RegularEventsStream(
@@ -367,6 +425,12 @@ class RegularEventsStream(
     def mask(self, array: numpy.ndarray) -> "RegularEventsStream": ...
 
     def transpose(self, action: enums.TransposeAction) -> "RegularEventsStream": ...
+
+    def filter_arbiter_saturation_lines(
+        self,
+        maximum_line_fill_ratio: float,
+        filter_orientation: enums.FilterOrientation = "row",
+    ) -> "EventsStream": ...
 
     def map(
         self,
@@ -429,6 +493,12 @@ class FiniteRegularEventsStream(
         self, action: enums.TransposeAction
     ) -> "FiniteRegularEventsStream": ...
 
+    def filter_arbiter_saturation_lines(
+        self,
+        maximum_line_fill_ratio: float,
+        filter_orientation: enums.FilterOrientation = "row",
+    ) -> "FiniteEventsStream": ...
+
     def map(
         self,
         function: collections.abc.Callable[[numpy.ndarray], numpy.ndarray],
@@ -439,8 +509,23 @@ class FiniteRegularEventsStream(
     ) -> "FiniteRegularEventsStream":
         return filter_class(self, *args, **kwargs)  # type: ignore
 
-    def to_array(self) -> numpy.ndarray:
-        return numpy.concatenate(list(self))
+    def to_array(
+        self, on_progress: typing.Callable[[OutputState], None] = lambda _: None
+    ) -> numpy.ndarray:
+        events_buffers = []
+        state_manager = events_stream_state.StateManager(
+            stream=self, on_progress=on_progress
+        )
+        state_manager.start()
+        for events in self:
+            events_buffers.append(events)
+            state_manager.commit(events=events)
+        if len(events_buffers) == 0:
+            result = numpy.array([], dtype=EVENTS_DTYPE)
+        else:
+            result = numpy.concatenate(events_buffers, dtype=EVENTS_DTYPE)
+        state_manager.end()
+        return result
 
     def envelope(
         self,
@@ -448,13 +533,37 @@ class FiniteRegularEventsStream(
         tau: timestamp.Time,
     ) -> frame_stream.FiniteRegularFloat64FrameStream: ...
 
+    def to_kinectograph(
+        self,
+        threshold_quantile: float = 0.9,
+        normalized_times_gamma: typing.Callable[
+            [numpy.typing.NDArray[numpy.float64]], numpy.typing.NDArray[numpy.float64]
+        ] = lambda normalized_times: normalized_times,
+        opacities_gamma: typing.Callable[
+            [numpy.typing.NDArray[numpy.float64]], numpy.typing.NDArray[numpy.float64]
+        ] = lambda opacities_gamma: opacities_gamma,
+        on_progress: typing.Callable[[OutputState], None] = lambda _: None,
+    ):
+
+        from . import kinectograph
+
+        return kinectograph.Kinectograph.from_events(
+            stream=self,
+            dimensions=self.dimensions(),
+            time_range_us=self.time_range_us(),
+            threshold_quantile=threshold_quantile,
+            normalized_times_gamma=normalized_times_gamma,
+            opacities_gamma=opacities_gamma,
+            on_progress=on_progress,  # type: ignore
+        )
+
 
 def bind(prefix: typing.Literal["", "Finite", "Regular", "FiniteRegular"]):
     regularize_prefix = (
         "Regular" if prefix == "" or prefix == "Regular" else "FiniteRegular"
     )
-    chunks_prefix = "" if prefix == "" or prefix == "Regular" else "Finite"
-    event_slice_prefix = (
+    unregularize_prefix = "" if prefix == "" or prefix == "Regular" else "Finite"
+    finitize_prefix = (
         "Finite" if prefix == "" or prefix == "Finite" else "FiniteRegular"
     )
 
@@ -477,7 +586,9 @@ def bind(prefix: typing.Literal["", "Finite", "Regular", "FiniteRegular"]):
     ):
         from .events_filter import FILTERS
 
-        return FILTERS[f"{chunks_prefix}Chunks"](parent=self, chunk_length=chunk_length)
+        return FILTERS[f"{unregularize_prefix}Chunks"](
+            parent=self, chunk_length=chunk_length
+        )
 
     if prefix == "" or prefix == "Finite":
 
@@ -523,7 +634,7 @@ def bind(prefix: typing.Literal["", "Finite", "Regular", "FiniteRegular"]):
     ):
         from .events_filter import FILTERS
 
-        return FILTERS[f"{event_slice_prefix}EventSlice"](
+        return FILTERS[f"{finitize_prefix}EventSlice"](
             parent=self,
             start=start,
             end=end,
@@ -570,6 +681,19 @@ def bind(prefix: typing.Literal["", "Finite", "Regular", "FiniteRegular"]):
             action=action,
         )
 
+    def filter_arbiter_saturation_lines(
+        self,
+        maximum_line_fill_ratio: float,
+        filter_orientation: enums.FilterOrientation = "row",
+    ):
+        from .events_filter import FILTERS
+
+        return FILTERS[f"{unregularize_prefix}FilterArbiterSaturationLines"](
+            parent=self,
+            maximum_line_fill_ratio=maximum_line_fill_ratio,
+            filter_orientation=filter_orientation,
+        )
+
     def map(
         self,
         function: collections.abc.Callable[[numpy.ndarray], numpy.ndarray],
@@ -591,13 +715,16 @@ def bind(prefix: typing.Literal["", "Finite", "Regular", "FiniteRegular"]):
         return FILTERS[f"{prefix}Float64Envelope"](parent=self, decay=decay, tau=tau)
 
     regularize.filter_return_annotation = f"{regularize_prefix}EventsStream"
-    chunks.filter_return_annotation = f"{chunks_prefix}EventsStream"
-    event_slice.filter_return_annotation = f"{event_slice_prefix}EventsStream"
+    chunks.filter_return_annotation = f"{unregularize_prefix}EventsStream"
+    event_slice.filter_return_annotation = f"{finitize_prefix}EventsStream"
     remove_on_events.filter_return_annotation = f"{prefix}EventsStream"
     remove_off_events.filter_return_annotation = f"{prefix}EventsStream"
     crop.filter_return_annotation = f"{prefix}EventsStream"
     mask.filter_return_annotation = f"{prefix}EventsStream"
     transpose.filter_return_annotation = f"{prefix}EventsStream"
+    filter_arbiter_saturation_lines.filter_return_annotation = (
+        f"{unregularize_prefix}EventsStream"
+    )
     map.filter_return_annotation = f"{prefix}EventsStream"
     envelope.filter_return_annotation = f"{prefix}FrameStream"
 
@@ -609,6 +736,9 @@ def bind(prefix: typing.Literal["", "Finite", "Regular", "FiniteRegular"]):
     globals()[f"{prefix}EventsStream"].crop = crop
     globals()[f"{prefix}EventsStream"].mask = mask
     globals()[f"{prefix}EventsStream"].transpose = transpose
+    globals()[
+        f"{prefix}EventsStream"
+    ].filter_arbiter_saturation_lines = filter_arbiter_saturation_lines
     globals()[f"{prefix}EventsStream"].map = map
     globals()[f"{prefix}EventsStream"].envelope = envelope
 
@@ -620,7 +750,7 @@ for prefix in ("", "Finite", "Regular", "FiniteRegular"):
 class Array(FiniteEventsStream):
     def __init__(self, events: numpy.ndarray, dimensions: tuple[int, int]):
         super().__init__()
-        assert self.events.dtype == EVENTS_DTYPE
+        assert events.dtype == EVENTS_DTYPE
         self.events = events
         self.inner_dimensions = dimensions
 

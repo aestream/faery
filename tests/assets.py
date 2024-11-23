@@ -5,7 +5,9 @@ import typing
 
 import faery
 
-dirname = pathlib.Path(__file__).resolve().parent
+dirname = (
+    pathlib.Path(__file__).resolve().parent
+)  # faery.dirname does not work with pytest
 
 Format = typing.Literal[
     "aedat",

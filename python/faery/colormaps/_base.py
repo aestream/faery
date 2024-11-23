@@ -224,16 +224,19 @@ def gradient(
 
 @dataclasses.dataclass
 class Colormap:
-    type: typing.Literal["sequential", "diverging"]
+    name: str
+    type: typing.Literal["sequential", "diverging", "cyclic"]
     rgba: numpy.typing.NDArray[numpy.float64]
 
     @classmethod
     def from_rgb_table(
         cls,
-        type: typing.Literal["sequential", "diverging"],
+        name: str,
+        type: typing.Literal["sequential", "diverging", "cyclic"],
         rgb: list[tuple[float, float, float]],
     ):
         return cls(
+            name=name,
             type=type,
             rgba=numpy.c_[numpy.array(rgb, dtype=numpy.float64), numpy.ones(len(rgb))],
         )
@@ -241,14 +244,20 @@ class Colormap:
     @classmethod
     def from_rgba_table(
         cls,
-        type: typing.Literal["sequential", "diverging"],
+        name: str,
+        type: typing.Literal["sequential", "diverging", "cyclic"],
         rgba: list[tuple[float, float, float, float]],
     ):
-        return cls(type=type, rgba=numpy.array(rgba, dtype=numpy.float64))
+        return cls(
+            name=name,
+            type=type,
+            rgba=numpy.array(rgba, dtype=numpy.float64),
+        )
 
     @classmethod
     def sequential_from_pair(
         cls,
+        name: str,
         start: Color,
         end: Color,
         samples: int = 256,
@@ -256,6 +265,7 @@ class Colormap:
         start = parse_color(color=start)
         end = parse_color(color=end)
         return cls(
+            name=name,
             type="sequential",
             rgba=gradient(
                 start=start,
@@ -267,6 +277,7 @@ class Colormap:
     @classmethod
     def diverging_from_triplet(
         cls,
+        name: str,
         start: Color,
         middle: Color,
         end: Color,
@@ -276,6 +287,7 @@ class Colormap:
         middle = parse_color(color=middle)
         end = parse_color(color=end)
         return cls(
+            name=name,
             type="diverging",
             rgba=numpy.vstack(
                 (
@@ -293,10 +305,54 @@ class Colormap:
             ),
         )
 
+    def as_type(
+        self, new_type: typing.Literal["sequential", "diverging", "cyclic"]
+    ) -> "Colormap":
+        return Colormap(
+            name=self.name,
+            type=new_type,
+            rgba=self.rgba.copy(),
+        )
+
     def flipped(self) -> "Colormap":
         return Colormap(
+            name=self.name,
             type=self.type,
             rgba=numpy.flip(self.rgba, axis=0).copy(),
+        )
+
+    def rolled(self, shift: int) -> "Colormap":
+        return Colormap(
+            name=self.name,
+            type=self.type,
+            rgba=numpy.roll(self.rgba, shift=shift, axis=0).copy(),
+        )
+
+    def repeated(self, count: int, flip_odd_indices: bool = False) -> "Colormap":
+        if count < 1:
+            raise AttributeError("count must be strictly larger than 0")
+        if count == 1:
+            return Colormap(
+                name=self.name,
+                type=self.type,
+                rgba=self.rgba.copy(),
+            )
+        repeated_rgba = []
+        if flip_odd_indices:
+            for index in range(0, count):
+                if index == 0:
+                    repeated_rgba.append(self.rgba)
+                elif index % 2 == 0:
+                    repeated_rgba.append(self.rgba[1:])
+                else:
+                    repeated_rgba.append(numpy.flip(self.rgba, axis=0)[1:])
+        else:
+            for _ in range(0, count):
+                repeated_rgba.append(self.rgba)
+        return Colormap(
+            name=self.name,
+            type=self.type,
+            rgba=numpy.concatenate(repeated_rgba),
         )
 
     def colorblindness_simulation(
@@ -326,6 +382,7 @@ class Colormap:
         lrgb[numpy.logical_not(mask)] = above[numpy.logical_not(mask)]
         rgb = lrgb_to_rgb(lrgb)
         return Colormap(
+            name=self.name,
             type=self.type,
             rgba=numpy.c_[numpy.array(rgb, dtype=numpy.float64), self.rgba[:, 3]],
         )
@@ -333,7 +390,6 @@ class Colormap:
     def to_file(
         self,
         path: typing.Union[pathlib.Path, str],
-        name: str,
     ):
         frame = numpy.full(
             (
@@ -362,7 +418,7 @@ class Colormap:
         offset = PADDING_TOP
         image.annotate(
             frame=frame,
-            text=name,
+            text=self.name,
             x=PADDING_LEFT,
             y=offset,
             size=TITLE_SIZE,

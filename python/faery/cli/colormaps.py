@@ -93,7 +93,15 @@ class ColorMapsCommand(commands.SubCommand):
                 color=(0xFF, 0xFF, 0xFF, 0xFF),
             )
 
-        for type in sorted(type_to_names_and_colormaps.keys()):
+        for type in sorted(
+            type_to_names_and_colormaps.keys(),
+            key=lambda colormap_type: (
+                # show cyclic maps last
+                "\U0010FFFD"
+                if colormap_type == "cyclic"
+                else colormap_type
+            ),
+        ):
             faery.image.annotate(
                 frame=frame,
                 text=type.capitalize(),

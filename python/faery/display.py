@@ -1,8 +1,11 @@
+import functools
 import os
 import sys
 import typing
 
 from . import events_stream_state, frame_stream_state, timestamp
+
+ANSI_COLORS_ENABLED = os.getenv("ANSI_COLORS_DISABLED") is None
 
 
 def generate_progress_bar(width: int, progress: typing.Optional[float]) -> str:
@@ -27,7 +30,7 @@ def generate_progress_bar(width: int, progress: typing.Optional[float]) -> str:
     )
 
 
-def progress_bar(
+def progress_bar_implementation(
     state: typing.Union[
         events_stream_state.EventsStreamState,
         events_stream_state.FiniteEventsStreamState,
@@ -37,7 +40,8 @@ def progress_bar(
         frame_stream_state.FiniteFrameStreamState,
         frame_stream_state.RegularFrameStreamState,
         frame_stream_state.FiniteRegularFrameStreamState,
-    ]
+    ],
+    clear_after_last: bool,
 ):
     if isinstance(
         state,
@@ -83,7 +87,10 @@ def progress_bar(
         else:
             sys.stdout.write(f"\r{' ' * columns}\r{suffix}")
         if last:
-            sys.stdout.write("\n")
+            if clear_after_last:
+                sys.stdout.write(f"\r{' ' * columns}\r")
+            else:
+                sys.stdout.write("\n")
         sys.stdout.flush()
     elif isinstance(
         state,
@@ -144,7 +151,30 @@ def progress_bar(
         else:
             sys.stdout.write(f"\r{' ' * columns}\r{prefix} {suffix}")
         if last:
-            sys.stdout.write("\n")
+            if clear_after_last:
+                sys.stdout.write(f"\r{' ' * columns}\r")
+            else:
+                sys.stdout.write("\n")
         sys.stdout.flush()
     else:
         raise Exception(f"unsupported state type {state}")
+
+
+progress_bar = functools.partial(progress_bar_implementation, clear_after_last=False)
+progress_bar_fold = functools.partial(
+    progress_bar_implementation, clear_after_last=True
+)
+
+
+def format_bold(message: str) -> str:
+    """Surrounds the message with ANSI escape characters for bold formatting.
+
+    Args:
+        message (str): A message to be displayed in a terminal.
+
+    Returns:
+        str: The message surrounded with ANSI escape characters, or the original message if the environment variable ``ANSI_COLORS_DISABLED`` is set.
+    """
+    if ANSI_COLORS_ENABLED:
+        return f"\033[1m{message}\033[0m"
+    return message

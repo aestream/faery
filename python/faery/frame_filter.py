@@ -1,4 +1,5 @@
 import collections.abc
+import math
 import pathlib
 import types
 import typing
@@ -107,31 +108,55 @@ class Scale(frame_stream.FiniteRegularRgba8888FrameFilter):
     def __init__(
         self,
         parent: stream.FiniteRegularStream[frame_stream.Rgba8888Frame],
-        factor: float,
+        factor_or_minimum_dimensions: typing.Union[float, tuple[int, int]] = (960, 720),
         filter: enums.ImageResizeFilter = "nearest",
     ):
         self.init(parent=parent)
-        self.factor = factor
+        self.factor_or_minimum_dimensions = factor_or_minimum_dimensions
         self.filter: enums.ImageResizeFilter = enums.validate_image_resize_filter(
             filter
         )
 
     def dimensions(self) -> tuple[int, int]:
         parent_dimensions = self.parent.dimensions()
+        if isinstance(self.factor_or_minimum_dimensions, (float, int)):
+            factor = self.factor_or_minimum_dimensions
+        else:
+            factor = max(
+                1.0,
+                math.ceil(self.factor_or_minimum_dimensions[0] / parent_dimensions[0]),
+                math.ceil(self.factor_or_minimum_dimensions[1] / parent_dimensions[1]),
+            )
         return (
-            int(round(parent_dimensions[0] * self.factor)),
-            int(round(parent_dimensions[1] * self.factor)),
+            int(round(parent_dimensions[0] * factor)),
+            int(round(parent_dimensions[1] * factor)),
         )
 
     def __iter__(self) -> collections.abc.Iterator[frame_stream.Rgba8888Frame]:
-        new_dimensions = self.dimensions()
-        for frame in self.parent:
-            frame.pixels = image.resize(
-                frame=frame.pixels,
-                new_dimensions=new_dimensions,
-                filter=self.filter,
+        parent_dimensions = self.parent.dimensions()
+        if isinstance(self.factor_or_minimum_dimensions, (float, int)):
+            factor = self.factor_or_minimum_dimensions
+        else:
+            factor = max(
+                1.0,
+                math.ceil(960 / parent_dimensions[0]),
+                math.ceil(720 / parent_dimensions[1]),
             )
-            yield frame
+        if factor == 1.0:
+            for frame in self.parent:
+                yield frame
+        else:
+            new_dimensions = (
+                int(round(parent_dimensions[0] * factor)),
+                int(round(parent_dimensions[1] * factor)),
+            )
+            for frame in self.parent:
+                frame.pixels = image.resize(
+                    frame=frame.pixels,
+                    new_dimensions=new_dimensions,
+                    filter=self.filter,
+                )
+                yield frame
 
 
 @typed_filter(
@@ -304,8 +329,8 @@ class AddOverlay(frame_stream.FiniteRegularRgba8888FrameFilter):
                 x=self.x,
                 y=self.y,
                 new_dimensions=(
-                    int(round(overlay.shape[0] * self.scale_factor)),
                     int(round(overlay.shape[1] * self.scale_factor)),
+                    int(round(overlay.shape[0] * self.scale_factor)),
                 ),
                 filter=self.scale_filter,
             )

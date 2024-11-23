@@ -1,13 +1,9 @@
 import faery
 
-colormap = faery.Colormap.diverging_from_triplet(
-    name="The Son of Man",
-    start="#FF0000",
-    middle="#000000",
-    end="#00FF00",
-)
+colormap = faery.colormaps.batlow.repeated(count=10, flip_odd_indices=True)
+colormap.name = "batlow repeated"
 colormap.to_file(
-    faery.dirname.parent / "tests" / "data_generated" / "custom_colormap.png"
+    faery.dirname.parent / "tests" / "data_generated" / "repeated_colormap.png"
 )
 
 (
@@ -16,15 +12,15 @@ colormap.to_file(
     )
     .regularize(frequency_hz=60.0)
     .envelope(
-        decay="window",
-        tau="00:00:00.020000",
+        decay="linear",
+        tau="00:00:00.100000",
     )
     .colorize(colormap=colormap)
     .to_files(
         faery.dirname.parent
         / "tests"
         / "data_generated"
-        / "dvs_frames_custom_colormap"
+        / "dvs_frames_repeated_colormap"
         / "{index:04}.png"
     )
 )

@@ -1,4 +1,5 @@
 use image::ImageEncoder;
+use numpy::PyArrayDescrMethods;
 use numpy::PyArrayMethods;
 use numpy::PyUntypedArrayMethods;
 use numpy::ToPyArray;
@@ -272,9 +273,14 @@ fn parse_filter(string: &str) -> PyResult<image::imageops::FilterType> {
     }
 }
 
+enum ImageType {
+    U8,
+    F64,
+}
+
 #[pyfunction]
 pub fn resize(
-    frame: &pyo3::Bound<'_, numpy::PyArray3<u8>>,
+    frame: &pyo3::Bound<'_, numpy::PyUntypedArray>,
     new_dimensions: (u16, u16),
     filter: &str,
 ) -> PyResult<PyObject> {
@@ -283,55 +289,112 @@ pub fn resize(
             "the frame's memory must be contiguous"
         )));
     }
-    let readonly_frame = frame.readonly();
-    let dimensions = readonly_frame.as_array().dim();
-    if dimensions.2 == 3 {
-        let image = image::ImageBuffer::<image::Rgb<u8>, &[u8]>::from_raw(
-            dimensions.1 as u32,
-            dimensions.0 as u32,
-            readonly_frame.as_slice().expect("the frame is contiguous"),
-        )
-        .expect("from_raw does not need to allocate");
-        let resized_image = image::imageops::resize(
-            &image,
-            new_dimensions.0 as u32,
-            new_dimensions.1 as u32,
-            parse_filter(filter)?,
-        );
-        let array = numpy::ndarray::ArrayView3::<u8>::from_shape(
-            (new_dimensions.1 as usize, new_dimensions.0 as usize, 3),
-            &resized_image,
-        )
-        .map_err(|error| pyo3::exceptions::PyException::new_err(format!("{error}")))?;
-        Ok(Python::with_gil(|python| {
-            array.to_pyarray_bound(python).into()
-        }))
-    } else if dimensions.2 == 4 {
-        let image = image::ImageBuffer::<image::Rgba<u8>, &[u8]>::from_raw(
-            dimensions.1 as u32,
-            dimensions.0 as u32,
-            readonly_frame.as_slice().expect("the frame is contiguous"),
-        )
-        .expect("from_raw does not need to allocate");
-        let resized_image = image::imageops::resize(
-            &image,
-            new_dimensions.0 as u32,
-            new_dimensions.1 as u32,
-            parse_filter(filter)?,
-        );
-        let array = numpy::ndarray::ArrayView3::<u8>::from_shape(
-            (new_dimensions.1 as usize, new_dimensions.0 as usize, 4),
-            &resized_image,
-        )
-        .map_err(|error| pyo3::exceptions::PyException::new_err(format!("{error}")))?;
-        Ok(Python::with_gil(|python| {
-            array.to_pyarray_bound(python).into()
-        }))
-    } else {
-        Err(pyo3::exceptions::PyAttributeError::new_err(format!(
-            "expected an array whose last dimension is 3 (RGB) or 4 (RGBA) (got a {} x {} x {} array)",
-            dimensions.0, dimensions.1, dimensions.2,
-        )))
+    let image_type = Python::with_gil(|python| {
+        if frame.dtype().is_equiv_to(&numpy::dtype_bound::<u8>(python)) {
+            Some(ImageType::U8)
+        } else if frame
+            .dtype()
+            .is_equiv_to(&numpy::dtype_bound::<f64>(python))
+        {
+            Some(ImageType::F64)
+        } else {
+            None
+        }
+    });
+    match image_type {
+        Some(ImageType::U8) => {
+            let frame: &pyo3::Bound<'_, numpy::PyArray3<u8>> = frame.downcast()?;
+            let readonly_frame = frame.readonly();
+            let array_dimensions = readonly_frame.as_array().dim();
+            if array_dimensions.2 == 3 {
+                let image = image::ImageBuffer::<image::Rgb<u8>, &[u8]>::from_raw(
+                    array_dimensions.1 as u32,
+                    array_dimensions.0 as u32,
+                    readonly_frame.as_slice().expect("the frame is contiguous"),
+                )
+                .expect("from_raw does not need to allocate");
+                let resized_image = image::imageops::resize(
+                    &image,
+                    new_dimensions.0 as u32,
+                    new_dimensions.1 as u32,
+                    parse_filter(filter)?,
+                );
+                let array = numpy::ndarray::ArrayView3::<u8>::from_shape(
+                    (new_dimensions.1 as usize, new_dimensions.0 as usize, 3),
+                    &resized_image,
+                )
+                .map_err(|error| pyo3::exceptions::PyException::new_err(format!("{error}")))?;
+                Ok(Python::with_gil(|python| {
+                    array.to_pyarray_bound(python).into()
+                }))
+            } else if array_dimensions.2 == 4 {
+                let image = image::ImageBuffer::<image::Rgba<u8>, &[u8]>::from_raw(
+                    array_dimensions.1 as u32,
+                    array_dimensions.0 as u32,
+                    readonly_frame.as_slice().expect("the frame is contiguous"),
+                )
+                .expect("from_raw does not need to allocate");
+                let resized_image = image::imageops::resize(
+                    &image,
+                    new_dimensions.0 as u32,
+                    new_dimensions.1 as u32,
+                    parse_filter(filter)?,
+                );
+                let array = numpy::ndarray::ArrayView3::<u8>::from_shape(
+                    (new_dimensions.1 as usize, new_dimensions.0 as usize, 4),
+                    &resized_image,
+                )
+                .map_err(|error| pyo3::exceptions::PyException::new_err(format!("{error}")))?;
+                Ok(Python::with_gil(|python| {
+                    array.to_pyarray_bound(python).into()
+                }))
+            } else {
+                Err(pyo3::exceptions::PyAttributeError::new_err(format!(
+                    "expected an array whose last dimension is 3 (RGB) or 4 (RGBA) (got a {} x {} x {} array)",
+                    array_dimensions.0, array_dimensions.1, array_dimensions.2,
+                )))
+            }
+        }
+        Some(ImageType::F64) => {
+            let frame: &pyo3::Bound<'_, numpy::PyArray3<f64>> = frame.downcast()?;
+            if !frame.is_contiguous() {
+                return Err(pyo3::exceptions::PyAttributeError::new_err(format!(
+                    "the frame's memory must be contiguous"
+                )));
+            }
+            let readonly_frame = frame.readonly();
+            let array_dimensions = readonly_frame.as_array().dim();
+            if array_dimensions.2 == 2 {
+                let image = image::ImageBuffer::<image::LumaA<f64>, &[f64]>::from_raw(
+                    array_dimensions.1 as u32,
+                    array_dimensions.0 as u32,
+                    readonly_frame.as_slice().expect("the frame is contiguous"),
+                )
+                .expect("from_raw does not need to allocate");
+                let resized_image = image::imageops::resize(
+                    &image,
+                    new_dimensions.0 as u32,
+                    new_dimensions.1 as u32,
+                    parse_filter(filter)?,
+                );
+                let array = numpy::ndarray::ArrayView3::<f64>::from_shape(
+                    (new_dimensions.1 as usize, new_dimensions.0 as usize, 2),
+                    &resized_image,
+                )
+                .map_err(|error| pyo3::exceptions::PyException::new_err(format!("{error}")))?;
+                Ok(Python::with_gil(|python| {
+                    array.to_pyarray_bound(python).into()
+                }))
+            } else {
+                Err(pyo3::exceptions::PyAttributeError::new_err(format!(
+                    "expected an array whose last dimension is 2 (got a {} x {} x {} array)",
+                    array_dimensions.0, array_dimensions.1, array_dimensions.2,
+                )))
+            }
+        }
+        None => Err(pyo3::exceptions::PyAttributeError::new_err(format!(
+            "unsupported image type (the dtype must be numpy.uint8 or numpy.float64)"
+        ))),
     }
 }
 
@@ -377,8 +440,8 @@ pub fn overlay(
                     .expect("the frame is contiguous"),
             )
             .expect("from_raw does not need to allocate");
-            if overlay_image.width() == new_dimensions.1 as u32
-                && overlay_image.height() == new_dimensions.0 as u32
+            if overlay_image.width() == new_dimensions.0 as u32
+                && overlay_image.height() == new_dimensions.1 as u32
                 && matches!(filter, image::imageops::FilterType::Nearest)
             {
                 // RGB over RGB without resizing
@@ -387,8 +450,8 @@ pub fn overlay(
                 // RGB over RGB with resizing
                 let overlay_image = image::imageops::resize(
                     &overlay_image,
-                    new_dimensions.1 as u32,
                     new_dimensions.0 as u32,
+                    new_dimensions.1 as u32,
                     filter,
                 );
                 image::imageops::overlay(&mut frame_image, &overlay_image, x as i64, y as i64);
@@ -406,8 +469,8 @@ pub fn overlay(
             .expect("from_raw does not need to allocate");
             let overlay_image = image::imageops::resize(
                 &overlay_image,
-                new_dimensions.1 as u32,
                 new_dimensions.0 as u32,
+                new_dimensions.1 as u32,
                 filter,
             );
             let overlay_image = image::DynamicImage::ImageRgb8(overlay_image).to_rgba8();
@@ -440,8 +503,8 @@ pub fn overlay(
             .expect("from_raw does not need to allocate");
             let overlay_image = image::imageops::resize(
                 &overlay_image,
-                new_dimensions.1 as u32,
                 new_dimensions.0 as u32,
+                new_dimensions.1 as u32,
                 filter,
             );
             let overlay_image = image::DynamicImage::ImageRgba8(overlay_image).to_rgb8();
@@ -456,8 +519,8 @@ pub fn overlay(
                     .expect("the frame is contiguous"),
             )
             .expect("from_raw does not need to allocate");
-            if overlay_image.width() == new_dimensions.1 as u32
-                && overlay_image.height() == new_dimensions.0 as u32
+            if overlay_image.width() == new_dimensions.0 as u32
+                && overlay_image.height() == new_dimensions.1 as u32
                 && matches!(filter, image::imageops::FilterType::Nearest)
             {
                 // RGBA over RGBA without resizing
@@ -466,8 +529,8 @@ pub fn overlay(
                 // RGBA over RGBA with resizing
                 let overlay_image = image::imageops::resize(
                     &overlay_image,
-                    new_dimensions.1 as u32,
                     new_dimensions.0 as u32,
+                    new_dimensions.1 as u32,
                     filter,
                 );
                 image::imageops::overlay(&mut frame_image, &overlay_image, x as i64, y as i64);
