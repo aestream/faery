@@ -62,17 +62,21 @@ class Command(command.Command):
             ):
                 sys.stderr.write(f"--export-template cannot appear with other flags\n")
                 sys.exit(1)
-            with importlib.resources.open_text(
-                faery, "cli/faery_script.mustache"
-            ) as template_file:
+            with (
+                importlib.resources.files(faery)
+                .joinpath("cli/faery_script.mustache")
+                .open("r") as template_file
+            ):
                 template = template_file.read()
             with open(args.export_template, "w") as output:
                 output.write(template)
             sys.exit(0)
         if args.template is None:
-            with importlib.resources.open_text(
-                faery, "cli/faery_script.mustache"
-            ) as template_file:
+            with (
+                importlib.resources.files(faery)
+                .joinpath("cli/faery_script.mustache")
+                .open("r") as template_file
+            ):
                 template = template_file.read()
         else:
             with open(args.template, "r") as template_file:

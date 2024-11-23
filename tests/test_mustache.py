@@ -6,9 +6,11 @@ import faery
 
 
 def test_mustache_template():
-    with importlib.resources.open_text(
-        faery, "cli/faery_script.mustache"
-    ) as template_file:
+    with (
+        importlib.resources.files(faery)
+        .joinpath("cli/faery_script.mustache")
+        .open("r") as template_file
+    ):
         template = template_file.read()
 
     jobs: list[faery.mustache.Job] = []
