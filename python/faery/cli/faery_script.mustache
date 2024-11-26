@@ -51,13 +51,14 @@ def real_time_video(
     (
         faery.events_stream_from_file(input)
         .time_slice(start=start, end=end)
-        .regularize(frequency_hz=60.0)
+        .regularize(frequency_hz=60.0, start=start)
         .envelope(
             decay="exponential",
             tau="00:00:00.020000",
         )
         .colorize(colormap=faery.colormaps.starry_night)
         .scale()
+        .add_timecode()
         .to_file(output, on_progress=faery.progress_bar_fold)
     )
 
