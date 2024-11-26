@@ -87,7 +87,7 @@ def task(suffix: str, icon: str = "", name: typing.Optional[str] = None):
 
             @typing.override
             def name(self) -> str:
-                return function.__name__ if name is None else name
+                return function.__name__.replace("_", "-") if name is None else name
 
             @typing.override
             def code(self) -> str:
@@ -135,10 +135,9 @@ class JobManager:
         start: timestamp.Time,
         end: timestamp.Time,
         tasks: list[Task],
-        name: typing.Optional[str] = None,
+        nickname: typing.Optional[str] = None,
     ):
-        if name is None:
-            name = input.stem
+        name = input.stem if nickname is None else nickname
         triplet = (
             name,
             timestamp.timestamp_to_timecode(timestamp.parse_timestamp(start)),
@@ -171,7 +170,9 @@ class JobManager:
         for index, job in enumerate(self.jobs):
             if index > 0:
                 sys.stdout.write("\n")
-            sys.stdout.write(f"▶ {display.format_bold(job.name)} ({job.input})\n")
+            sys.stdout.write(
+                f"({index + 1}/{len(self.jobs)}) {display.format_bold(job.name)} ({job.input})\n"
+            )
             output_name = "_".join(
                 (
                     job.name,

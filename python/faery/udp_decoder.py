@@ -7,7 +7,7 @@ import typing
 
 import numpy
 
-from . import events_stream
+from . import enums, events_stream
 
 
 class Receiver:
@@ -73,9 +73,7 @@ class Decoder(events_stream.EventsStream):
         address: typing.Union[
             tuple[str, int], tuple[str, int, typing.Optional[int], typing.Optional[str]]
         ],
-        format: typing.Literal[
-            "t64_x16_y16_on8", "t32_x16_y15_on1"
-        ] = "t64_x16_y16_on8",
+        format: enums.UdpFormat = "t64_x16_y16_on8",
     ):
         super().__init__()
         self.inner_dimensions = dimensions

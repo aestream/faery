@@ -1,0 +1,80 @@
+import math
+import pathlib
+
+import faery
+
+
+@faery.task(suffix=".png", icon="🎨")
+def kinectograph(
+    input: pathlib.Path,
+    output: pathlib.Path,
+    start: faery.Time,
+    end: faery.Time,
+):
+    (
+        faery.events_stream_from_file(input)
+        .time_slice(start=start, end=end)
+        .to_kinectograph(on_progress=faery.progress_bar_fold)
+        .scale()
+        .colorize(colormap=faery.colormaps.managua.flipped())
+        .to_file(output)
+    )
+
+@faery.task(suffix=".png", icon="🎨")
+def kinectograph_dense(
+    input: pathlib.Path,
+    output: pathlib.Path,
+    start: faery.Time,
+    end: faery.Time,
+):
+    (
+        faery.events_stream_from_file(input)
+        .time_slice(start=start, end=end)
+        .to_kinectograph(on_progress=faery.progress_bar_fold)
+        .scale()
+        .colorize(
+            colormap=faery.colormaps.roma_o.repeated(
+                count=4,
+                flip_odd_indices=True,
+            )
+        )
+        .to_file(output)
+    )
+
+@faery.task(suffix=".mp4", icon="🎬")
+def real_time_video(
+    input: pathlib.Path,
+    output: pathlib.Path,
+    start: faery.Time,
+    end: faery.Time,
+):
+    (
+        faery.events_stream_from_file(input)
+        .time_slice(start=start, end=end)
+        .regularize(frequency_hz=60.0)
+        .envelope(
+            decay="exponential",
+            tau="00:00:00.020000",
+        )
+        .colorize(colormap=faery.colormaps.starry_night)
+        .scale()
+        .to_file(output, on_progress=faery.progress_bar_fold)
+    )
+
+tasks: list[faery.Task] = [kinectograph, kinectograph_dense, real_time_video]
+
+job_manager = faery.JobManager()
+
+{{#jobs}}
+job_manager.add(
+    {{&input}},
+    "{{&start}}",
+    "{{&end}}",
+    tasks,
+    {{#nickname}}
+    nickname="{{&nickname}}"
+    {{/nickname}}
+)
+
+{{/jobs}}
+job_manager.run()

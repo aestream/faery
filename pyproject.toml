@@ -28,6 +28,7 @@ requires = ["maturin==1.7.4"]
 build-backend = "maturin"
 
 [tool.maturin]
+include = ["python/faery/cli/faery_script.mustache"]
 python-source = "python"
 module-name = "faery.extension"
 features = ["pyo3/extension-module"]

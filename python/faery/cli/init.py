@@ -1,95 +1,159 @@
-import argparse
-import dataclasses
+import importlib.resources
 import os
 import pathlib
-from typing import List
+import sys
+import typing
 
-from . import commands
+import faery
 
-
-@dataclasses.dataclass
-class InitCommand(commands.SubCommand):
-    configuration: str
-    scan: str
-    input_format: str
-    track_id: int
-    input_version: str
-    width: int
-    height: int
-    t0: int
-
-    def run(self):
-        pass
+from . import command, coolname
 
 
-def init_group() -> commands.SubCommandGroup:
-    def parse_init(args: argparse.Namespace) -> InitCommand:
-        return InitCommand(
-            configuration=args.configuration,
-            scan=args.scan,
-            input_format=args.input_format,
-            track_id=args.track_id,
-            input_version=args.input_version,
-            width=args.width,
-            height=args.height,
-            t0=args.t0,
+class Command(command.Command):
+    @typing.override
+    def usage(self) -> tuple[list[str], str]:
+        return (["faery init"], "initialize a Faery script")
+
+    @typing.override
+    def first_block_keywords(self) -> set[str]:
+        return {"init"}
+
+    @typing.override
+    def run(self, arguments: list[str]):
+        parser = self.parser()
+        parser.add_argument(
+            "--input",
+            "-i",
+            nargs="*",
+            default=["recordings/*", "ignore:recordings/.*"],
+            help="select input files that match the given glob pattern (default: --input 'recordings/*' --input 'ignore:recordings/.*'), if the name starts with \"ignore:\" (for instance \"ignore:recordings/*.png\"), matching files are removed from the selection",
         )
-
-    parser: argparse.ArgumentParser = argparse.ArgumentParser(
-        "init", description="initialize a script to render multiple files"
-    )
-    parser.add_argument(
-        "-c",
-        "--configuration",
-        default=str(pathlib.Path(os.getcwd()) / "faery_configuration.py"),
-        help="path of the configuration file",
-    )
-    parser.add_argument(
-        "-s",
-        "--scan",
-        default=str(pathlib.Path(os.getcwd()) / "recordings"),
-        help="**/*.",
-    )
-    parser.add_argument(
-        "-f",
-        "--input-format",
-        choices=[
-            "aedat",
-            "csv",
-            "dat",
-            "es",
-            "evt",
-        ],
-        help="input format, required if the input is standard input",
-    )
-    parser.add_argument(
-        "-i",
-        "--track-id",
-        type=int,
-        help="set the track id for edat files (defaults to the first event stream)",
-    )
-    parser.add_argument(
-        "-j",
-        "--input-version",
-        choices=["dat1", "dat2", "evt2", "evt2.1", "evt3"],
-        help="set the version for evt (.raw) or dat files",
-    )
-    parser.add_argument(
-        "-x",
-        "--width",
-        type=int,
-        help="input width, required if the input format is csv",
-    )
-    parser.add_argument(
-        "-y",
-        "--height",
-        type=int,
-        help="input height, required if the input format is csv",
-    )
-    parser.add_argument(
-        "-t",
-        "--t0",
-        default=0,
-        help="set t0 for Event Stream files (defaults to 0)",
-    )
-    return commands.SubCommandGroup(parser, parse_init)
+        parser.add_argument(
+            "--output",
+            "-o",
+            default="faery_script.py",
+            help="path of the output script (default: faery_script.py)",
+        )
+        parser.add_argument(
+            "--generate-nicknames",
+            "-g",
+            action="store_true",
+            help="generate cool nicknames for the recordings",
+        )
+        parser.add_argument(
+            "--force",
+            "-f",
+            action="store_true",
+            help="replace the script file if it already exists",
+        )
+        parser.add_argument("--template", "-t", help="path of the script template")
+        parser.add_argument(
+            "--export-template",
+            "-e",
+            help="path where to *write* the default template",
+        )
+        args = parser.parse_args(args=arguments)
+        if args.export_template is not None:
+            if (
+                len(args.input) != 1
+                or args.input[0] != "recordings/*"
+                or args.output != "faery_script.py"
+                or args.template is not None
+            ):
+                sys.stderr.write(f"--export-template cannot appear with other flags\n")
+                sys.exit(1)
+            with (
+                importlib.resources.files(faery)
+                .joinpath("cli/faery_script.mustache")
+                .open("r") as template_file
+            ):
+                template = template_file.read()
+            with open(args.export_template, "w") as output:
+                output.write(template)
+            sys.exit(0)
+        if args.template is None:
+            with (
+                importlib.resources.files(faery)
+                .joinpath("cli/faery_script.mustache")
+                .open("r") as template_file
+            ):
+                template = template_file.read()
+        else:
+            with open(args.template, "r") as template_file:
+                template = template_file.read()
+        output = pathlib.Path(args.output).resolve()
+        if not args.force and output.is_file():
+            sys.stderr.write(f'"{output}" already exists\n')
+            sys.exit(1)
+        resolved_to_original: dict[pathlib.Path, pathlib.Path] = {}
+        pattern_and_count: list[tuple[str, int]] = []
+        for pattern in args.input:
+            count = 0
+            if pattern.startswith("ignore:"):
+                for path in pathlib.Path().glob(pattern[len("ignore:") :]):
+                    resolved = path.resolve()
+                    if resolved in resolved_to_original:
+                        del resolved_to_original[resolved]
+                        count += 1
+                pattern_and_count.append((pattern, count))
+            else:
+                for path in pathlib.Path().glob(pattern):
+                    resolved_to_original[path.resolve()] = path
+                    count += 1
+                pattern_and_count.append((pattern, count))
+        jobs = []
+        contents = faery.mustache.render(template=template, jobs=jobs)
+        with open(args.output, "w") as output_file:
+            output_file.write(contents)
+        if len(resolved_to_original) > 0:
+            print("Read the time range of input files")
+        if args.generate_nicknames:
+            generated_nicknames = coolname.generate_distinct(len(resolved_to_original))
+        else:
+            generated_nicknames = None
+        for index, (resolved_path, path) in enumerate(resolved_to_original.items()):
+            if args.generate_nicknames:
+                assert generated_nicknames is not None
+                nickname = generated_nicknames[index]
+                display_name = nickname
+            else:
+                nickname = None
+                display_name = path.stem
+            print(
+                f"({index + 1}/{len(resolved_to_original)}) {faery.format_bold(display_name)} ({resolved_path})"
+            )
+            time_range = faery.events_stream_from_file(path=path).time_range()
+            if path.is_absolute():
+                input = f"{path}"
+            else:
+                parts_representation = " / ".join(f'"{part}"' for part in path.parts)
+                input = f"faery.dirname / {parts_representation}"
+            jobs.append(
+                faery.mustache.Job(
+                    input=input,
+                    start=time_range[0],
+                    end=time_range[1],
+                    nickname=nickname,
+                )
+            )
+            contents = faery.mustache.render(template=template, jobs=jobs)
+            with open(args.output, "w") as output_file:
+                output_file.write(contents)
+        if len(jobs) == 0 and len(pattern_and_count) > 0:
+            if len(pattern_and_count) == 1:
+                sys.stderr.write(
+                    f"No files matched the input pattern ({pattern_and_count[0]})\n"
+                )
+            else:
+                sys.stderr.write(f"No files matched the input patterns:\n")
+                for pattern, count in pattern_and_count:
+                    if count == 0:
+                        quantifier = "no files"
+                    elif count == 1:
+                        quantifier = "1 file"
+                    else:
+                        quantifier = f"{count} files"
+                    if pattern.startswith("ignore:"):
+                        sys.stderr.write(f'    - "{pattern}" removed {quantifier}\n')
+                    else:
+                        sys.stderr.write(f'    + "{pattern}" added {quantifier}\n')

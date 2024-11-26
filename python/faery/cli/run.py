@@ -1,21 +1,29 @@
-import argparse
-import os
-import pathlib
 import subprocess
 import sys
+import typing
+
+from . import command
 
 
-def add_to_subparsers(subparsers: argparse._SubParsersAction):
-    parser: argparse.ArgumentParser = subparsers.add_parser(
-        "run", help='execute a script generated with "faery init"'
-    )
-    parser.add_argument(
-        "-c",
-        "--configuration",
-        default=str(pathlib.Path(os.getcwd()) / "faery_configuration.py"),
-        help="path of the configuration file",
-    )
+class Command(command.Command):
+    @typing.override
+    def usage(self) -> tuple[list[str], str]:
+        return (["faery run"], "run a Faery script")
 
+    @typing.override
+    def first_block_keywords(self) -> set[str]:
+        return {"run"}
 
-def run(args: argparse.Namespace):
-    subprocess.run([sys.executable, args.configuration])
+    @typing.override
+    def run(self, arguments: list[str]):
+        parser = self.parser()
+        parser.add_argument(
+            "--input",
+            "-i",
+            default="faery_script.py",
+            help="input script to run",
+        )
+        parser.add_argument("rest", nargs="*")
+        args = parser.parse_args(args=arguments)
+        process = subprocess.run([sys.executable, args.input] + args.rest)
+        sys.exit(process.returncode)

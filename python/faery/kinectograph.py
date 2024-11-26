@@ -67,7 +67,7 @@ class Kinectograph:
     def scale(
         self,
         factor_or_minimum_dimensions: typing.Union[float, tuple[int, int]] = (960, 720),
-        filter: enums.ImageResizeFilter = "nearest",
+        sampling_filter: enums.ImageResizeSamplingFilter = "nearest",
     ) -> "Kinectograph":
         dimensions = self.dimensions()
         if isinstance(factor_or_minimum_dimensions, (float, int)):
@@ -89,7 +89,7 @@ class Kinectograph:
             normalized_times_and_opacities=image.resize(
                 frame=self.normalized_times_and_opacities,
                 new_dimensions=new_dimensions,
-                filter=filter,
+                sampling_filter=sampling_filter,
             ),
             legend=self.legend,
         )
@@ -230,7 +230,7 @@ class Kinectograph:
             x=0,
             y=0,
             new_dimensions=(overlay.shape[1], overlay.shape[0]),
-            filter="nearest",
+            sampling_filter="nearest",
         )
         return frame_stream.Rgba8888Frame(t=self._time_range_us[1], pixels=frame)
 

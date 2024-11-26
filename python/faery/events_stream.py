@@ -101,6 +101,8 @@ class Output(typing.Generic[OutputState]):
         compression: typing.Optional[
             typing.Tuple[enums.EventsFileCompression, int]
         ] = aedat.LZ4_DEFAULT,
+        csv_separator: bytes = b",",
+        csv_header: bool = True,
         file_type: typing.Optional[enums.EventsFileType] = None,
         on_progress: typing.Callable[[OutputState], None] = lambda _: None,
     ) -> str:
@@ -114,6 +116,8 @@ class Output(typing.Generic[OutputState]):
 
         compression is only used if the file type is AEDAT.
 
+        csv_separator and csv_header are only used if the file type is CSV.
+
         Args:
             stream: An iterable of event arrays (structured arrays with dtype faery.EVENTS_DTYPE).
             path: Path of the output event file.
@@ -121,6 +125,8 @@ class Output(typing.Generic[OutputState]):
             version: Version for EVT (.raw) and DAT files. Defaults to "dat2" for DAT and "evt3" for EVT.
             zero_t0: Whether to normalize timestamps and write the offset in the header for EVT (.raw) and DAT files. Defaults to True.
             compression: Compression for aedat files. Defaults to ("lz4", 1).
+            csv_separator: Separator between CSV fields. Defaults to b",".
+            csv_header: Whether to generate a CSV header. Defaults to True.
             file_type: Override the type determination algorithm. Defaults to None.
 
         Returns:
@@ -134,7 +140,7 @@ class Output(typing.Generic[OutputState]):
         try:
             self.time_range_us()  # type: ignore
             use_write_suffix = True
-        except AttributeError:
+        except (AttributeError, NotImplementedError):
             use_write_suffix = False
         return file_encoder.events_to_file(
             stream=self,
@@ -143,6 +149,8 @@ class Output(typing.Generic[OutputState]):
             version=version,
             zero_t0=zero_t0,
             compression=compression,
+            csv_separator=csv_separator,
+            csv_header=csv_header,
             file_type=file_type,
             use_write_suffix=use_write_suffix,
             on_progress=on_progress,  # type: ignore
@@ -150,6 +158,8 @@ class Output(typing.Generic[OutputState]):
 
     def to_stdout(
         self,
+        csv_separator: bytes = b",",
+        csv_header: bool = True,
         on_progress: typing.Callable[[OutputState], None] = lambda _: None,
     ) -> str:
         from . import file_encoder
@@ -158,6 +168,8 @@ class Output(typing.Generic[OutputState]):
             stream=self,
             path=None,
             dimensions=self.dimensions(),
+            csv_separator=csv_separator,
+            csv_header=csv_header,
             file_type="csv",
             on_progress=on_progress,  # type: ignore
         )
@@ -168,9 +180,7 @@ class Output(typing.Generic[OutputState]):
             tuple[str, int], tuple[str, int, typing.Optional[int], typing.Optional[str]]
         ],
         payload_length: typing.Optional[int] = None,
-        format: typing.Literal[
-            "t64_x16_y16_on8", "t32_x16_y15_on1"
-        ] = "t64_x16_y16_on8",
+        format: enums.UdpFormat = "t64_x16_y16_on8",
         on_progress: typing.Callable[[OutputState], None] = lambda _: None,
     ) -> None:
         """
@@ -200,6 +210,7 @@ class Output(typing.Generic[OutputState]):
             address=address,
             payload_length=payload_length,
             format=format,
+            on_progress=on_progress,  # type: ignore
         )
 
 
@@ -726,7 +737,7 @@ def bind(prefix: typing.Literal["", "Finite", "Regular", "FiniteRegular"]):
         f"{unregularize_prefix}EventsStream"
     )
     map.filter_return_annotation = f"{prefix}EventsStream"
-    envelope.filter_return_annotation = f"{prefix}FrameStream"
+    envelope.filter_return_annotation = f"{prefix}Float64FrameStream"
 
     globals()[f"{prefix}EventsStream"].regularize = regularize
     globals()[f"{prefix}EventsStream"].chunks = chunks

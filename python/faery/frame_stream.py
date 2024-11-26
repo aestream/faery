@@ -106,7 +106,7 @@ class Rgba8888Output(typing.Generic[Rgba8888OutputState]):
         try:
             self.time_range_us()  # type: ignore
             use_write_suffix = True
-        except AttributeError:
+        except (AttributeError, NotImplementedError):
             use_write_suffix = False
         file_encoder.frames_to_file(
             stream=self,
@@ -145,7 +145,7 @@ class Rgba8888FrameStream(
     def scale(
         self,
         factor_or_minimum_dimensions: typing.Union[float, tuple[int, int]] = (960, 720),
-        filter: enums.ImageResizeFilter = "nearest",
+        sampling_filter: enums.ImageResizeSamplingFilter = "nearest",
     ) -> "Rgba8888FrameStream": ...
 
     def annotate(
@@ -171,7 +171,7 @@ class Rgba8888FrameStream(
         x: int = 0,
         y: int = 0,
         scale_factor: float = 1.0,
-        scale_filter: enums.ImageResizeFilter = "nearest",
+        scale_filter: enums.ImageResizeSamplingFilter = "nearest",
     ) -> "Rgba8888FrameStream": ...
 
 
@@ -182,7 +182,7 @@ class FiniteRgba8888FrameStream(
     def scale(
         self,
         factor_or_minimum_dimensions: typing.Union[float, tuple[int, int]] = (960, 720),
-        filter: enums.ImageResizeFilter = "nearest",
+        sampling_filter: enums.ImageResizeSamplingFilter = "nearest",
     ) -> "FiniteRgba8888FrameStream": ...
 
     def annotate(
@@ -208,7 +208,7 @@ class FiniteRgba8888FrameStream(
         x: int = 0,
         y: int = 0,
         scale_factor: float = 1.0,
-        scale_filter: enums.ImageResizeFilter = "nearest",
+        scale_filter: enums.ImageResizeSamplingFilter = "nearest",
     ) -> "FiniteRgba8888FrameStream": ...
 
 
@@ -219,7 +219,7 @@ class RegularRgba8888FrameStream(
     def scale(
         self,
         factor_or_minimum_dimensions: typing.Union[float, tuple[int, int]] = (960, 720),
-        filter: enums.ImageResizeFilter = "nearest",
+        sampling_filter: enums.ImageResizeSamplingFilter = "nearest",
     ) -> "RegularRgba8888FrameStream": ...
 
     def annotate(
@@ -246,7 +246,7 @@ class RegularRgba8888FrameStream(
         x: int = 0,
         y: int = 0,
         scale_factor: float = 1.0,
-        scale_filter: enums.ImageResizeFilter = "nearest",
+        scale_filter: enums.ImageResizeSamplingFilter = "nearest",
     ) -> "RegularRgba8888FrameStream": ...
 
 
@@ -257,7 +257,7 @@ class FiniteRegularRgba8888FrameStream(
     def scale(
         self,
         factor_or_minimum_dimensions: typing.Union[float, tuple[int, int]] = (960, 720),
-        filter: enums.ImageResizeFilter = "nearest",
+        sampling_filter: enums.ImageResizeSamplingFilter = "nearest",
     ) -> "FiniteRegularRgba8888FrameStream": ...
 
     def annotate(
@@ -284,7 +284,7 @@ class FiniteRegularRgba8888FrameStream(
         x: int = 0,
         y: int = 0,
         scale_factor: float = 1.0,
-        scale_filter: enums.ImageResizeFilter = "nearest",
+        scale_filter: enums.ImageResizeSamplingFilter = "nearest",
     ) -> "FiniteRegularRgba8888FrameStream": ...
 
 
@@ -315,14 +315,14 @@ def bind_rgb8888(prefix: typing.Literal["", "Finite", "Regular", "FiniteRegular"
     def scale(
         self,
         factor_or_minimum_dimensions: typing.Union[float, tuple[int, int]] = (960, 720),
-        filter: enums.ImageResizeFilter = "nearest",
+        sampling_filter: enums.ImageResizeSamplingFilter = "nearest",
     ):
         from .frame_filter import FILTERS
 
         return FILTERS[f"{prefix}Rgba8888Scale"](
             parent=self,
             factor_or_minimum_dimensions=factor_or_minimum_dimensions,
-            filter=filter,
+            sampling_filter=sampling_filter,
         )
 
     def annotate(
@@ -399,7 +399,7 @@ def bind_rgb8888(prefix: typing.Literal["", "Finite", "Regular", "FiniteRegular"
         x: int = 0,
         y: int = 0,
         scale_factor: float = 1.0,
-        scale_filter: enums.ImageResizeFilter = "nearest",
+        scale_filter: enums.ImageResizeSamplingFilter = "nearest",
     ):
         from .frame_filter import FILTERS
 

@@ -4,7 +4,7 @@ import typing
 
 import numpy
 
-from . import events_stream_state
+from . import enums, events_stream_state
 
 
 def encode(
@@ -13,7 +13,7 @@ def encode(
         tuple[str, int], tuple[str, int, typing.Optional[int], typing.Optional[str]]
     ],
     payload_length: typing.Optional[int] = None,
-    format: typing.Literal["t64_x16_y16_on8", "t32_x16_y15_on1"] = "t64_x16_y16_on8",
+    format: enums.UdpFormat = "t64_x16_y16_on8",
     on_progress: typing.Callable[
         [events_stream_state.EventsStreamState], None
     ] = lambda _: None,

@@ -121,10 +121,10 @@ class Envelope(frame_stream.FiniteRegularFloat64FrameStream):
                 time_range_us = self.parent.time_range_us()
                 frame_index = 0
                 first_frame_t = time_range_us[0]
-            except AttributeError:
+            except (AttributeError, NotImplementedError):
                 frame_index = 0
                 first_frame_t = None
-        except AttributeError:
+        except (AttributeError, NotImplementedError):
             period_us = None
             frame_index = None
             first_frame_t = None

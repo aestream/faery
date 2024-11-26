@@ -16,6 +16,8 @@ from .colormaps._base import (
 from .display import (
     progress_bar as progress_bar,
     progress_bar_fold as progress_bar_fold,
+    format_bold as format_bold,
+    format_color as format_color,
 )
 from .enums import (
     ColorblindnessType as ColorblindnessType,
@@ -23,9 +25,15 @@ from .enums import (
     EventsFileCompression as EventsFileCompression,
     EventsFileType as EventsFileType,
     EventsFileVersion as EventsFileVersion,
+    FilterOrientation as FilterOrientation,
+    UdpFormat as UdpFormat,
     ImageFileCompressionLevel as ImageFileCompressionLevel,
     ImageFileType as ImageFileType,
+    ImageResizeSamplingFilter as ImageResizeSamplingFilter,
     TransposeAction as TransposeAction,
+    VideoFilePreset as VideoFilePreset,
+    VideoFileProfile as VideoFileProfile,
+    VideoFileTune as VideoFileTune,
     VideoFileType as VideoFileType,
 )
 from .events_input import (
@@ -90,9 +98,29 @@ from .timestamp import (
 )
 
 if typing.TYPE_CHECKING:
-    from .types import aedat, csv, dat, event_stream, evt, image, job_metadata, mp4  # type: ignore
+    from .types import (
+        aedat,  # type: ignore
+        csv,  # type: ignore
+        dat,  # type: ignore
+        event_stream,  # type: ignore
+        evt,  # type: ignore
+        image,  # type: ignore
+        job_metadata,  # type: ignore
+        mp4,  # type: ignore
+        mustache,  # type: ignore
+    )
 else:
-    from .extension import aedat, csv, dat, event_stream, evt, image, job_metadata, mp4
+    from .extension import (
+        aedat,
+        csv,
+        dat,
+        event_stream,
+        evt,
+        image,
+        job_metadata,
+        mp4,
+        mustache,
+    )
 
 
 def colormaps_list() -> list[Colormap]:
@@ -104,6 +132,15 @@ def colormaps_list() -> list[Colormap]:
     ]
 
 
+def name_to_colormaps() -> dict[str, Colormap]:
+    return {
+        colormap.name: colormap
+        for _, colormap in inspect.getmembers(
+            colormaps, lambda member: isinstance(member, Colormap)
+        )
+    }
+
+
 __all__ = [
     "__version__",
     "colormaps",
@@ -113,14 +150,22 @@ __all__ = [
     "parse_color",
     "progress_bar",
     "progress_bar_fold",
+    "format_bold",
+    "format_color",
     "ColorblindnessType",
     "Decay",
     "EventsFileCompression",
     "EventsFileType",
     "EventsFileVersion",
+    "FilterOrientation",
+    "UdpFormat",
     "ImageFileCompressionLevel",
     "ImageFileType",
+    "ImageResizeSamplingFilter",
     "TransposeAction",
+    "VideoFilePreset",
+    "VideoFileProfile",
+    "VideoFileTune",
     "VideoFileType",
     "events_stream_from_array",
     "events_stream_from_file",
@@ -162,6 +207,7 @@ __all__ = [
     "CsvProperties",
     "dirname",
     "Task",
+    "UdpFormat",
     "JobManager",
     "task",
     "Time",
@@ -176,4 +222,6 @@ __all__ = [
     "image",
     "job_metadata",
     "mp4",
+    "colormaps_list",
+    "name_to_colormaps",
 ]
