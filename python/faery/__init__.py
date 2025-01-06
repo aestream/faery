@@ -140,6 +140,11 @@ def name_to_colormaps() -> dict[str, Colormap]:
         )
     }
 
+import .event_camera_input as event_camera_input
+event_camera_entities = []
+if event_camera_input.has_inivation_camera_drivers():
+    event_camera_entities.append("InivationCamera")
+
 
 __all__ = [
     "__version__",

@@ -388,9 +388,14 @@ class FiniteEventsStream(
             on_progress=on_progress,  # type: ignore
         )
 
+class InfiniteEventsStream(
+    stream.RegularStream[numpy.ndarray],
+    Output[None],
+):
+    
 
 class RegularEventsStream(
-    stream.RegularStream[numpy.ndarray],
+    stream.Stream[numpy.ndarray],
     Output[events_stream_state.RegularEventsStreamState],
 ):
     def regularize(
