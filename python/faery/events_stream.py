@@ -407,7 +407,7 @@ class FiniteEventsStream(
 
 
 class RegularEventsStream(
-    stream.RegularStream[numpy.ndarray],
+    stream.Stream[numpy.ndarray],
     Output[events_stream_state.RegularEventsStreamState],
 ):
     def regularize(
