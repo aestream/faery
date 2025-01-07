@@ -5,11 +5,11 @@ import faery
         faery.dirname.parent / "tests" / "data" / "dvs.es",
     )
     .regularize(frequency_hz=600.0)
-    .envelope(
+    .render(
         decay="exponential",
-        tau="00:00:00.200000",
+        tau="00:00:00.050000",
+        colormap=faery.colormaps.managua.flipped(),
     )
-    .colorize(colormap=faery.colormaps.managua.flipped())
     .scale()
     .add_timecode()
     .add_overlay(

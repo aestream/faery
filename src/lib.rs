@@ -5,10 +5,14 @@ mod csv;
 mod dat;
 mod event_stream;
 mod evt;
+mod font;
+mod gif;
 mod image;
 mod job_metadata;
 mod mp4;
 mod mustache;
+mod raster;
+mod render;
 mod types;
 mod utilities;
 
@@ -54,6 +58,11 @@ fn faery(python: Python<'_>, module: &pyo3::Bound<'_, pyo3::types::PyModule>) ->
         module.add_submodule(&submodule)?;
     }
     {
+        let submodule = PyModule::new_bound(python, "gif")?;
+        submodule.add_class::<gif::Encoder>()?;
+        module.add_submodule(&submodule)?;
+    }
+    {
         let submodule = PyModule::new_bound(python, "image")?;
         submodule.add_function(wrap_pyfunction!(image::decode, &submodule)?)?;
         submodule.add_function(wrap_pyfunction!(image::encode, &submodule)?)?;
@@ -80,6 +89,15 @@ fn faery(python: Python<'_>, module: &pyo3::Bound<'_, pyo3::types::PyModule>) ->
         submodule.add_function(wrap_pyfunction!(mustache::render, &submodule)?)?;
         module.add_submodule(&submodule)?;
     }
-
+    {
+        let submodule = PyModule::new_bound(python, "raster")?;
+        submodule.add_function(wrap_pyfunction!(raster::render, &submodule)?)?;
+        module.add_submodule(&submodule)?;
+    }
+    {
+        let submodule = PyModule::new_bound(python, "render")?;
+        submodule.add_class::<render::Renderer>()?;
+        module.add_submodule(&submodule)?;
+    }
     Ok(())
 }

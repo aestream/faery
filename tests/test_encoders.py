@@ -41,7 +41,7 @@ def test_low_level_decoder_encoder(file: assets.File):
             y_index=2,
             on_index=3,
             t_scale=0.0,
-            t0=faery.parse_timestamp(file.t0),
+            t0=faery.parse_time(file.t0).to_microseconds(),
             on_value=b"1",
             off_value=b"0",
             skip_errors=False,

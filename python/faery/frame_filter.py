@@ -7,8 +7,7 @@ import typing
 import numpy
 import numpy.typing
 
-from . import enums, frame_stream, stream, timestamp
-from .colormaps._base import Color, parse_color
+from . import color as color_module, enums, frame_stream, stream, timestamp
 
 if typing.TYPE_CHECKING:
     from .types import image  # type: ignore
@@ -35,20 +34,7 @@ def number_to_string(number: typing.Union[int, float], precision: float) -> str:
     return str(number)
 
 
-def restrict(
-    prefixes: set[
-        typing.Literal[
-            "Float64",
-            "FiniteFloat64",
-            "RegularFloat64",
-            "FiniteRegularFloat64",
-            "Rgba8888",
-            "FiniteRgba8888",
-            "RegularRgba8888",
-            "FiniteRegularRgba8888",
-        ]
-    ]
-):
+def restrict(prefixes: set[typing.Literal["", "Finite", "Regular", "FiniteRegular"]]):
     def decorator(method):
         method._prefixes = prefixes
         return method
@@ -60,18 +46,7 @@ FILTERS: dict[str, typing.Any] = {}
 
 
 def typed_filter(
-    prefixes: set[
-        typing.Literal[
-            "Float64",
-            "FiniteFloat64",
-            "RegularFloat64",
-            "FiniteRegularFloat64",
-            "Rgba8888",
-            "FiniteRgba8888",
-            "RegularRgba8888",
-            "FiniteRegularRgba8888",
-        ]
-    ]
+    prefixes: set[typing.Literal["", "Finite", "Regular", "FiniteRegular"]]
 ):
     def decorator(filter_class):
         attributes = [
@@ -96,25 +71,18 @@ def typed_filter(
     return decorator
 
 
-@typed_filter(
-    {
-        "Rgba8888",
-        "FiniteRgba8888",
-        "RegularRgba8888",
-        "FiniteRegularRgba8888",
-    }
-)
-class Scale(frame_stream.FiniteRegularRgba8888FrameFilter):
+@typed_filter({"", "Finite", "Regular", "FiniteRegular"})
+class Scale(frame_stream.FiniteRegularFrameFilter):
     def __init__(
         self,
-        parent: stream.FiniteRegularStream[frame_stream.Rgba8888Frame],
+        parent: stream.FiniteRegularStream[frame_stream.Frame],
         factor_or_minimum_dimensions: typing.Union[float, tuple[int, int]] = (960, 720),
         sampling_filter: enums.ImageResizeSamplingFilter = "nearest",
     ):
         self.init(parent=parent)
         self.factor_or_minimum_dimensions = factor_or_minimum_dimensions
         self.sampling_filter: enums.ImageResizeSamplingFilter = (
-            enums.validate_image_resize_filter(sampling_filter)
+            enums.validate_image_resize_samplin_filter(sampling_filter)
         )
 
     def dimensions(self) -> tuple[int, int]:
@@ -132,7 +100,7 @@ class Scale(frame_stream.FiniteRegularRgba8888FrameFilter):
             int(round(parent_dimensions[1] * factor)),
         )
 
-    def __iter__(self) -> collections.abc.Iterator[frame_stream.Rgba8888Frame]:
+    def __iter__(self) -> collections.abc.Iterator[frame_stream.Frame]:
         parent_dimensions = self.parent.dimensions()
         if isinstance(self.factor_or_minimum_dimensions, (float, int)):
             factor = self.factor_or_minimum_dimensions
@@ -159,33 +127,25 @@ class Scale(frame_stream.FiniteRegularRgba8888FrameFilter):
                 yield frame
 
 
-@typed_filter(
-    {"Rgba8888", "FiniteRgba8888", "RegularRgba8888", "FiniteRegularRgba8888"}
-)
-class Annotate(frame_stream.FiniteRegularRgba8888FrameFilter):
+@typed_filter({"", "Finite", "Regular", "FiniteRegular"})
+class Annotate(frame_stream.FiniteRegularFrameFilter):
     def __init__(
         self,
-        parent: stream.FiniteRegularStream[frame_stream.Rgba8888Frame],
+        parent: stream.FiniteRegularStream[frame_stream.Frame],
         text: str,
         x: int,
         y: int,
         size: int,
-        color: Color,
+        color: color_module.Color,
     ):
         self.init(parent=parent)
         self.text = text
         self.x = x
         self.y = y
         self.size = size
-        color = parse_color(color)
-        self.color = (
-            int(round(color[0] * 255.0)),
-            int(round(color[1] * 255.0)),
-            int(round(color[2] * 255.0)),
-            int(round(color[3] * 255.0)),
-        )
+        self.color = color_module.color_to_ints(color)
 
-    def __iter__(self) -> collections.abc.Iterator[frame_stream.Rgba8888Frame]:
+    def __iter__(self) -> collections.abc.Iterator[frame_stream.Frame]:
         for frame in self.parent:
             image.annotate(
                 frame=frame.pixels,
@@ -198,33 +158,27 @@ class Annotate(frame_stream.FiniteRegularRgba8888FrameFilter):
             yield frame
 
 
-@typed_filter({"Rgba8888", "FiniteRgba8888"})
-class AddTimecode(frame_stream.RegularRgba8888FrameFilter):
+@typed_filter({"", "Finite"})
+class AddTimecode(frame_stream.RegularFrameFilter):
     def __init__(
         self,
-        parent: stream.RegularStream[frame_stream.Rgba8888Frame],
+        parent: stream.RegularStream[frame_stream.Frame],
         x: int = 20,
         y: int = 20,
         size: int = 30,
-        color: Color = "#FFFFFF",
+        color: color_module.Color = "#FFFFFF",
     ):
         self.init(parent=parent)
         self.x = x
         self.y = y
         self.size = size
-        color = parse_color(color)
-        self.color = (
-            int(round(color[0] * 255.0)),
-            int(round(color[1] * 255.0)),
-            int(round(color[2] * 255.0)),
-            int(round(color[3] * 255.0)),
-        )
+        self.color = color_module.color_to_ints(color)
 
-    def __iter__(self) -> collections.abc.Iterator[frame_stream.Rgba8888Frame]:
+    def __iter__(self) -> collections.abc.Iterator[frame_stream.Frame]:
         for frame in self.parent:
             image.annotate(
                 frame=frame.pixels,
-                text=timestamp.timestamp_to_timecode(frame.t),
+                text=frame.t.to_timecode(),
                 x=self.x,
                 y=self.y,
                 size=self.size,
@@ -233,31 +187,25 @@ class AddTimecode(frame_stream.RegularRgba8888FrameFilter):
             yield frame
 
 
-@typed_filter({"RegularRgba8888", "FiniteRegularRgba8888"})
-class AddTimecodeAndSpeedup(frame_stream.FiniteRegularRgba8888FrameFilter):
+@typed_filter({"Regular", "FiniteRegular"})
+class AddTimecodeAndSpeedup(frame_stream.FiniteRegularFrameFilter):
     def __init__(
         self,
-        parent: stream.FiniteRegularStream[frame_stream.Rgba8888Frame],
+        parent: stream.FiniteRegularStream[frame_stream.Frame],
         x: int = 21,
         y: int = 15,
         size: int = 30,
-        color: Color = "#FFFFFF",
+        color: color_module.Color = "#FFFFFF",
         output_frame_rate: typing.Optional[float] = 60.0,
     ):
         self.init(parent=parent)
         self.x = x
         self.y = y
         self.size = size
-        color = parse_color(color)
-        self.color = (
-            int(round(color[0] * 255.0)),
-            int(round(color[1] * 255.0)),
-            int(round(color[2] * 255.0)),
-            int(round(color[3] * 255.0)),
-        )
+        self.color = color_module.color_to_ints(color)
         self.output_frame_rate = output_frame_rate
 
-    def __iter__(self) -> collections.abc.Iterator[frame_stream.Rgba8888Frame]:
+    def __iter__(self) -> collections.abc.Iterator[frame_stream.Frame]:
         if self.output_frame_rate is not None:
             frequency_hz = self.frequency_hz()
             speed_up = self.output_frame_rate / frequency_hz
@@ -278,7 +226,7 @@ class AddTimecodeAndSpeedup(frame_stream.FiniteRegularRgba8888FrameFilter):
         for frame in self.parent:
             image.annotate(
                 frame=frame.pixels,
-                text=timestamp.timestamp_to_timecode(frame.t),
+                text=frame.t.to_timecode(),
                 x=self.x,
                 y=self.y,
                 size=self.size,
@@ -296,13 +244,11 @@ class AddTimecodeAndSpeedup(frame_stream.FiniteRegularRgba8888FrameFilter):
             yield frame
 
 
-@typed_filter(
-    {"Rgba8888", "FiniteRgba8888", "RegularRgba8888", "FiniteRegularRgba8888"}
-)
-class AddOverlay(frame_stream.FiniteRegularRgba8888FrameFilter):
+@typed_filter({"", "Finite", "Regular", "FiniteRegular"})
+class AddOverlay(frame_stream.FiniteRegularFrameFilter):
     def __init__(
         self,
-        parent: stream.FiniteRegularStream[frame_stream.Rgba8888Frame],
+        parent: stream.FiniteRegularStream[frame_stream.Frame],
         overlay: typing.Union[pathlib.Path, str, numpy.typing.NDArray[numpy.uint8]],
         x: int = 0,
         y: int = 0,
@@ -316,7 +262,7 @@ class AddOverlay(frame_stream.FiniteRegularRgba8888FrameFilter):
         self.scale_factor = scale_factor
         self.scale_sampling_filter: enums.ImageResizeSamplingFilter = scale_filter
 
-    def __iter__(self) -> collections.abc.Iterator[frame_stream.Rgba8888Frame]:
+    def __iter__(self) -> collections.abc.Iterator[frame_stream.Frame]:
         if isinstance(self.overlay, (pathlib.Path, str)):
             with open(self.overlay, "rb") as overlay_file:
                 overlay = image.decode(overlay_file.read())

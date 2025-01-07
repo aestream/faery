@@ -18,7 +18,6 @@ Faery converts neuromorphic event-based data between formats. It can also genera
   - [Upload a new version](#upload-a-new-version)
 - [Acknowledgements](#acknowledgements)
 
-
 ## Using Faery from the command line
 
 ### Setup
@@ -29,7 +28,7 @@ Faery converts neuromorphic event-based data between formats. It can also genera
 
 3. Run `faery --help` to see a list of options, `faery list-filters` to list available filters, and `faery filter <filter> --help` for help on a specific filter
 
-> Note: you can use a virtual environment instead of pipx, see [Use Faery in a script](#use-faery-in-a-script) for instructions.
+> Note: you can use a virtual environment instead of pipx, see [Using Faery in a Python script](#using-faery-in-a-python-script) for instructions.
 
 ### Examples
 
@@ -38,16 +37,16 @@ Faery converts neuromorphic event-based data between formats. It can also genera
 faery input file input.raw output file output.aedat
 
 # Render an event file (input.es) as a real-time video (output.mp4)
-faery input file input.es filter regularize 60.0 filter envelope exponential 0.2 filter colorize starry_night output file output.mp4
+faery input file input.es filter regularize 60.0 filter render exponential 0.2 starry_night output file output.mp4
 
 # Render an event file (input.es) as a video 10 x slower than real-time (output.mp4)
-# The envelope parameter (0.03) is the exponential decay constant.
+# The second render parameter (0.03) is the exponential decay constant.
 # Slow-motion videos look better with shorter decays but it does not need to be scaled like regularize,
 # which controls the playback speed.
-faery input file input.es filter regularize 600.0 filter envelope exponential 0.03 filter colorize starry_night output file output.mp4
+faery input file input.es filter regularize 600.0 filter render exponential 0.03 starry_night output file output.mp4
 
 # Render an event file (input.es) as frames (frames/*.png)
-faery input file input.es filter regularize 60.0 filter envelope exponential 0.2 filter colorize starry_night output files 'frames/{index:04}.png'
+faery input file input.es filter regularize 60.0 filter render exponential 0.2 starry_night output files 'frames/{index:04}.png'
 
 # Print ON events to the terminal
 faery input file input.aedat filter remove-off-events
@@ -78,7 +77,7 @@ See _examples_ in this repository.
 
 2. Install Faery by running `pipx install faery`
 
-> Note: you can use a virtual environment instead of pipx, see [Use Faery in a script](#use-faery-in-a-script) for instructions.
+> Note: you can use a virtual environment instead of pipx, see [Using Faery in a Python script](#using-faery-in-a-python-script) for instructions.
 
 ### Workflow
 
@@ -103,6 +102,8 @@ See _examples_ in this repository.
     Faery will read _recordings_, calculate the time range of each recording, and create the file _faery_script.py_. This can take a little while if there are many recordings or if they are large.
 
     You can also use `faery init --generate-nicknames` to use easy-to-remember nicknames for the files instead of their original names.
+
+    If you use Visual Studio Code and pipx, consider using `faery init --vscode`. This will create a VS code settings file in _my-wonderful-project_ and enable type completion in _faery_script.py_.
 
 3. Run the script.
 
@@ -138,11 +139,11 @@ See _examples_ in this repository.
             faery.events_stream_from_file(input)
             .time_slice(start=start, end=end)
             .regularize(frequency_hz=6000.0) # 100 x slower than real time
-            .envelope(
+            .render(
                 decay="exponential",
                 tau="00:00:00.002000", # faster decay
+                colormap=faery.colormaps.starry_night,
             )
-            .colorize(colormap=faery.colormaps.starry_night)
             .scale()
             .to_file(output, on_progress=faery.progress_bar_fold)
         )

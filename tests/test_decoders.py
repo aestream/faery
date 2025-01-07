@@ -1,3 +1,5 @@
+import typing
+
 import numpy
 import pytest
 
@@ -69,7 +71,7 @@ def test_low_level_decoder(file: assets.File):
             y_index=2,
             on_index=3,
             t_scale=0.0,
-            t0=faery.parse_timestamp(file.t0),
+            t0=faery.parse_time(file.t0).to_microseconds(),
             on_value=b"1",
             off_value=b"0",
             skip_errors=False,
@@ -110,7 +112,7 @@ def test_low_level_decoder(file: assets.File):
         assert file.t0 is not None
         with faery.event_stream.Decoder(
             path=file.path,
-            t0=faery.parse_timestamp(file.t0),
+            t0=faery.parse_time(file.t0).to_microseconds(),
         ) as decoder:
             assert decoder.version == "2.0.0"
             assert decoder.event_type == "atis"
@@ -144,7 +146,7 @@ def test_low_level_decoder(file: assets.File):
         assert file.t0 is not None
         with faery.event_stream.Decoder(
             path=file.path,
-            t0=faery.parse_timestamp(file.t0),
+            t0=faery.parse_time(file.t0).to_microseconds(),
         ) as decoder:
             assert decoder.version == "2.0.0"
             assert decoder.event_type == "color"
@@ -170,7 +172,7 @@ def test_low_level_decoder(file: assets.File):
         assert file.t0 is not None
         with faery.event_stream.Decoder(
             path=file.path,
-            t0=faery.parse_timestamp(file.t0),
+            t0=faery.parse_time(file.t0).to_microseconds(),
         ) as decoder:
             assert decoder.version == "2.0.0"
             assert decoder.event_type == "dvs"
@@ -195,7 +197,7 @@ def test_low_level_decoder(file: assets.File):
         assert file.t0 is not None
         with faery.event_stream.Decoder(
             path=file.path,
-            t0=faery.parse_timestamp(file.t0),
+            t0=faery.parse_time(file.t0).to_microseconds(),
         ) as decoder:
             assert decoder.version == "2.0.0"
             assert decoder.event_type == "generic"
@@ -203,8 +205,8 @@ def test_low_level_decoder(file: assets.File):
             assert file.content_lines is not None
             field_to_hasher = file.field_to_hasher()
             index = 0
-            first_t = None
-            last_t = None
+            first_t: typing.Optional[int] = None
+            last_t: typing.Optional[int] = None
             for packet in decoder:
                 field_to_hasher["t"].update(packet["t"].tobytes())
                 for t, bytes in packet:
@@ -216,8 +218,8 @@ def test_low_level_decoder(file: assets.File):
             assert first_t is not None
             assert last_t is not None
             time_range = (
-                faery.timestamp_to_timecode(first_t),
-                faery.timestamp_to_timecode(last_t + 1),
+                (first_t * faery.us).to_timecode(),
+                ((last_t + 1) * faery.us).to_timecode(),
             )
             assert time_range == file.time_range, f"{time_range=}, {file.time_range=}"
             assert (
@@ -286,9 +288,11 @@ def test_high_level_decoder(file: assets.File):
             dimensions_fallback=file.dimensions,
             t0=file.t0,
         )
+    time_range = stream.time_range()
     assert (
-        stream.time_range() == file.time_range
-    ), f"{stream.time_range()=}, {file.time_range=}"
+        time_range[0].to_timecode(),
+        time_range[1].to_timecode(),
+    ) == file.time_range, f"{stream.time_range()=}, {file.time_range=}"
     assert (
         stream.dimensions() == file.dimensions
     ), f"{stream.dimensions()=}, {file.dimensions=}"

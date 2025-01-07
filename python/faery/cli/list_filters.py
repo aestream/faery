@@ -15,14 +15,10 @@ STREAM_CLASSES: list[typing.Any] = [
     faery.FiniteEventsStream,
     faery.RegularEventsStream,
     faery.FiniteRegularEventsStream,
-    faery.Float64FrameStream,
-    faery.FiniteFloat64FrameStream,
-    faery.RegularFloat64FrameStream,
-    faery.FiniteRegularFloat64FrameStream,
-    faery.Rgba8888FrameStream,
-    faery.FiniteRgba8888FrameStream,
-    faery.RegularRgba8888FrameStream,
-    faery.FiniteRegularRgba8888FrameStream,
+    faery.FrameStream,
+    faery.FiniteFrameStream,
+    faery.RegularFrameStream,
+    faery.FiniteRegularFrameStream,
 ]
 
 NONE_KEYWORDS: set[str] = {"None", "none", "Null", "null", "Nil", "nil"}
@@ -64,10 +60,10 @@ def parse_bool(string: str) -> bool:
 
 def parse_time(string: str) -> faery.Time:
     if all(character.isdigit() for character in string):
-        return int(string)
+        return int(string) * faery.s
     if any(character == ":" for character in string):
-        return string
-    return float(string)
+        return faery.parse_time(string)
+    return float(string) * faery.s
 
 
 def parse_optional_time(string: str) -> typing.Optional[faery.Time]:

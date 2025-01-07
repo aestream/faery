@@ -7,8 +7,8 @@ from .bam import colormap as bam
 from .bam_o import colormap as bam_o
 from .bamako import colormap as bamako
 from .batlow import colormap as batlow
-from .batlow_black import colormap as batlow_black
-from .batlow_white import colormap as batlow_white
+from .batlow_k import colormap as batlow_k
+from .batlow_w import colormap as batlow_w
 from .berlin import colormap as berlin
 from .bilbao import colormap as bilbao
 from .broc import colormap as broc
@@ -49,8 +49,8 @@ __all__ = [
     "bam_o",
     "bamako",
     "batlow",
-    "batlow_black",
-    "batlow_white",
+    "batlow_k",
+    "batlow_w",
     "berlin",
     "bilbao",
     "broc",

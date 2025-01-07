@@ -317,21 +317,12 @@ def output_parser(
         else:
             subparser.add_argument("--progress", action="store_true")
     elif stream_parent_class in {
-        faery.Float64FrameStream,
-        faery.FiniteFloat64FrameStream,
-        faery.RegularFloat64FrameStream,
-        faery.FiniteRegularFloat64FrameStream,
+        faery.FrameStream,
+        faery.FiniteFrameStream,
+        faery.RegularFrameStream,
+        faery.FiniteRegularFrameStream,
     }:
-        raise Exception(
-            'output is not supported by Float64FrameStream, consider adding "filter colorize <colormap>" to the pipeline'
-        )
-    elif stream_parent_class in {
-        faery.Rgba8888FrameStream,
-        faery.FiniteRgba8888FrameStream,
-        faery.RegularRgba8888FrameStream,
-        faery.FiniteRegularRgba8888FrameStream,
-    }:
-        # Output frame file
+        # Output frame file (video)
         subparser = subparsers.add_parser("file")
         subparser.add_argument("path")
         subparser.add_argument(
@@ -365,14 +356,30 @@ def output_parser(
             help="(default: %(default)s)",
         )
         subparser.add_argument(
+            "--quality-factor",
+            type=list_filters.parse_optional_float,
+            default="none",
+            help="(default: %(default)s)",
+        )
+        subparser.add_argument(
+            "--rewind",
+            action="store_true",
+        )
+        subparser.add_argument(
+            "--skip",
+            type=int,
+            default=0,
+            help="(default: %(default)s)",
+        )
+        subparser.add_argument(
             "--file-type",
-            choices=list(typing.get_args(faery.ImageFileType)) + ["none"],
+            choices=list(typing.get_args(faery.VideoFileType)) + ["none"],
             default="none",
             help="(default: %(default)s)",
         )
         if stream_parent_class in {
-            faery.FiniteRgba8888FrameStream,
-            faery.FiniteRegularRgba8888FrameStream,
+            faery.FiniteFrameStream,
+            faery.FiniteRegularFrameStream,
         }:
             subparser.add_argument(
                 "--no-progress",
@@ -384,7 +391,7 @@ def output_parser(
         else:
             subparser.add_argument("--progress", action="store_true")
 
-        # Output frame files
+        # Output frame files (frame collection)
         subparser = subparsers.add_parser("files")
         subparser.add_argument("path_pattern", metavar="path-pattern")
         subparser.add_argument(
@@ -394,14 +401,20 @@ def output_parser(
             help="(default: %(default)s)",
         )
         subparser.add_argument(
+            "--quality-factor",
+            type=list_filters.parse_optional_float,
+            default="none",
+            help="(default: %(default)s)",
+        )
+        subparser.add_argument(
             "--file-type",
             choices=list(typing.get_args(faery.ImageFileType)) + ["none"],
             default="none",
             help="(default: %(default)s)",
         )
         if stream_parent_class in {
-            faery.FiniteRgba8888FrameStream,
-            faery.FiniteRegularRgba8888FrameStream,
+            faery.FiniteFrameStream,
+            faery.FiniteRegularFrameStream,
         }:
             subparser.add_argument(
                 "--no-progress",
@@ -533,19 +546,10 @@ class StreamWrapper:
             else:
                 raise Exception(f'unknown output type "{output}"')
         elif parent_class in {
-            faery.Float64FrameStream,
-            faery.FiniteFloat64FrameStream,
-            faery.RegularFloat64FrameStream,
-            faery.FiniteRegularFloat64FrameStream,
-        }:
-            raise Exception(
-                'output is not supported by Float64FrameStream, consider adding "filter colorize <colormap>" to the pipeline'
-            )
-        elif parent_class in {
-            faery.Rgba8888FrameStream,
-            faery.FiniteRgba8888FrameStream,
-            faery.RegularRgba8888FrameStream,
-            faery.FiniteRegularRgba8888FrameStream,
+            faery.FrameStream,
+            faery.FiniteFrameStream,
+            faery.RegularFrameStream,
+            faery.FiniteRegularFrameStream,
         }:
             if output == "file":
                 args["file_type"] = (
@@ -573,22 +577,13 @@ class StreamWrapper:
         }:
             self.stream.to_stdout()
         elif parent_class in {
-            faery.Float64FrameStream,
-            faery.FiniteFloat64FrameStream,
-            faery.RegularFloat64FrameStream,
-            faery.FiniteRegularFloat64FrameStream,
+            faery.FrameStream,
+            faery.FiniteFrameStream,
+            faery.RegularFrameStream,
+            faery.FiniteRegularFrameStream,
         }:
             raise Exception(
-                'output is not supported by Float64FrameStream, consider adding "filter colorize <colormap>" to the pipeline'
-            )
-        elif parent_class in {
-            faery.Rgba8888FrameStream,
-            faery.FiniteRgba8888FrameStream,
-            faery.RegularRgba8888FrameStream,
-            faery.FiniteRegularRgba8888FrameStream,
-        }:
-            raise Exception(
-                'default output is not supported by Rgba8888FrameStream, consider adding "output file <path>" to the pipeline'
+                'default output is not supported by FrameStream, consider adding "output file <path>" to the pipeline'
             )
         else:
             raise Exception(f'unexpected parent class "{parent_class}"')

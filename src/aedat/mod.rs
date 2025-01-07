@@ -141,8 +141,8 @@ pub struct Decoder {
 #[pymethods]
 impl Decoder {
     #[new]
-    fn new(path: &pyo3::Bound<'_, pyo3::types::PyAny>) -> Result<Self, PyErr> {
-        Python::with_gil(|python| -> Result<Self, PyErr> {
+    fn new(path: &pyo3::Bound<'_, pyo3::types::PyAny>) -> PyResult<Self> {
+        Python::with_gil(|python| -> PyResult<Self> {
             Ok(Decoder {
                 inner: Some(decoder::Decoder::new(types::python_path_to_string(
                     python, path,
@@ -476,8 +476,8 @@ impl Encoder {
         path: &pyo3::Bound<'_, pyo3::types::PyAny>,
         description_or_tracks: DescriptionOrTracks,
         compression: Option<(String, u8)>,
-    ) -> Result<Self, PyErr> {
-        Python::with_gil(|python| -> Result<Self, PyErr> {
+    ) -> PyResult<Self> {
+        Python::with_gil(|python| -> PyResult<Self> {
             Ok(Encoder {
                 inner: Some(encoder::Encoder::new(
                     types::python_path_to_string(python, path)?,

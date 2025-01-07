@@ -45,29 +45,32 @@ class CsvProperties:
 
 class TimeRangeCache:
     def __init__(self):
-        self.path_to_hash_and_time_range_us: dict[
-            pathlib.Path, tuple[int, tuple[int, int]]
+        self.path_to_hash_and_time_range: dict[
+            pathlib.Path, tuple[int, tuple[timestamp.Time, timestamp.Time]]
         ] = {}
 
     def path_hash(self, path: pathlib.Path) -> int:
         stat = path.stat()
         return hash((stat.st_mtime_ns, stat.st_size))
 
-    def get_time_range_us(
+    def get_time_range(
         self, path: pathlib.Path, path_hash: int
-    ) -> typing.Optional[tuple[int, int]]:
-        if not path in self.path_to_hash_and_time_range_us:
+    ) -> typing.Optional[tuple[timestamp.Time, timestamp.Time]]:
+        if not path in self.path_to_hash_and_time_range:
             return None
-        stored_path_hash, time_range_us = self.path_to_hash_and_time_range_us[path]
+        stored_path_hash, time_range = self.path_to_hash_and_time_range[path]
         if path_hash == stored_path_hash:
-            return time_range_us
-        del self.path_to_hash_and_time_range_us[path]
+            return time_range
+        del self.path_to_hash_and_time_range[path]
         return None
 
-    def set_time_range_us(
-        self, path: pathlib.Path, path_hash: int, time_range_us: tuple[int, int]
+    def set_time_range(
+        self,
+        path: pathlib.Path,
+        path_hash: int,
+        time_range: tuple[timestamp.Time, timestamp.Time],
     ):
-        self.path_to_hash_and_time_range_us[path] = (path_hash, time_range_us)
+        self.path_to_hash_and_time_range[path] = (path_hash, time_range)
 
 
 TIME_RANGE_CACHE: TimeRangeCache = TimeRangeCache()
@@ -103,7 +106,7 @@ class Decoder(events_stream.FiniteEventsStream):
         track_id: typing.Optional[int] = None,
         dimensions_fallback: tuple[int, int] = (1280, 720),
         version_fallback: typing.Optional[enums.EventsFileVersion] = None,
-        t0: timestamp.Time = 0,
+        t0: timestamp.TimeOrTimecode = timestamp.Time(microseconds=0),
         csv_properties: CsvProperties = CsvProperties.default(),
         file_type: typing.Optional[enums.EventsFileType] = None,
         time_range_cache: typing.Optional[TimeRangeCache] = TIME_RANGE_CACHE,
@@ -116,7 +119,7 @@ class Decoder(events_stream.FiniteEventsStream):
             self.version_fallback = None
         else:
             self.version_fallback = enums.validate_events_file_version(version_fallback)
-        self.t0 = timestamp.parse_timestamp(t0)
+        self.t0 = timestamp.parse_time(t0)
         self.csv_properties = csv_properties
         if self.path is None:
             if file_type != "csv":
@@ -185,7 +188,7 @@ class Decoder(events_stream.FiniteEventsStream):
             assert self.path is not None
             with event_stream.Decoder(
                 path=self.path,
-                t0=self.t0,
+                t0=self.t0.to_microseconds(),
             ) as decoder:
                 self.event_type = decoder.event_type
                 if self.event_type != "dvs" and self.event_type != "atis":
@@ -210,16 +213,16 @@ class Decoder(events_stream.FiniteEventsStream):
     def dimensions(self) -> tuple[int, int]:
         return self.inner_dimensions
 
-    def time_range_us(self) -> tuple[int, int]:
+    def time_range(self) -> tuple[timestamp.Time, timestamp.Time]:
         if self.path is None:
             raise NotImplementedError()
         if self.time_range_cache is not None:
             path_hash = self.time_range_cache.path_hash(path=self.path)
-            time_range_us = self.time_range_cache.get_time_range_us(
+            time_range = self.time_range_cache.get_time_range(
                 path=self.path, path_hash=path_hash
             )
-            if time_range_us is not None:
-                return time_range_us
+            if time_range is not None:
+                return time_range
         else:
             path_hash = None
         begin: typing.Optional[int] = None
@@ -230,15 +233,23 @@ class Decoder(events_stream.FiniteEventsStream):
                     begin = events["t"][0]
                 end = events["t"][-1]
         if begin is None or end is None:
-            time_range_us = (0, 1)
+            time_range = (
+                timestamp.Time(microseconds=0),
+                timestamp.Time(microseconds=1),
+            )
         else:
-            time_range_us = (int(begin), int(end) + 1)
+            time_range = (
+                timestamp.Time(microseconds=int(begin)),
+                timestamp.Time(microseconds=(int(end) + 1)),
+            )
         if path_hash is not None:
             assert self.time_range_cache is not None
-            self.time_range_cache.set_time_range_us(
-                path=self.path, path_hash=path_hash, time_range_us=time_range_us
+            self.time_range_cache.set_time_range(
+                path=self.path,
+                path_hash=path_hash,
+                time_range=time_range,
             )
-        return time_range_us
+        return time_range
 
     def __iter__(self) -> collections.abc.Iterator[numpy.ndarray]:
         if self.file_type == "aedat":
@@ -262,7 +273,7 @@ class Decoder(events_stream.FiniteEventsStream):
                 y_index=self.csv_properties.y_index,
                 on_index=self.csv_properties.on_index,
                 t_scale=self.csv_properties.t_scale,
-                t0=self.t0,
+                t0=self.t0.to_microseconds(),
                 on_value=self.csv_properties.on_value,
                 off_value=self.csv_properties.off_value,
                 skip_errors=self.csv_properties.skip_errors,
@@ -285,7 +296,9 @@ class Decoder(events_stream.FiniteEventsStream):
                     )
         elif self.file_type == "es":
             assert self.path is not None
-            with event_stream.Decoder(path=self.path, t0=self.t0) as decoder:
+            with event_stream.Decoder(
+                path=self.path, t0=self.t0.to_microseconds()
+            ) as decoder:
                 if self.event_type == "atis":
                     for atis_events in decoder:
                         mask = numpy.logical_not(atis_events["exposure"])

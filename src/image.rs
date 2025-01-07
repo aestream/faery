@@ -5,6 +5,8 @@ use numpy::PyUntypedArrayMethods;
 use numpy::ToPyArray;
 use pyo3::prelude::*;
 
+use crate::font;
+
 #[pyfunction]
 pub fn decode(bytes: &[u8]) -> PyResult<PyObject> {
     let decoder = image::codecs::png::PngDecoder::new(std::io::Cursor::new(bytes))
@@ -246,7 +248,7 @@ pub fn annotate(
             }
         }
         let font = fontdue::Font::from_bytes(
-            include_bytes!("RobotoMono-Regular.ttf") as &[u8],
+            font::ROBOTO_MONO_REGULAR as &[u8],
             fontdue::FontSettings {
                 collection_index: 0,
                 scale: size as f32,

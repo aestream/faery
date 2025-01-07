@@ -35,7 +35,7 @@ WIDTH: int = 720
 Color = typing.Union[tuple[float, float, float], tuple[float, float, float, float], str]
 
 
-def parse_color(color: Color) -> tuple[float, float, float, float]:
+def color_to_floats(color: Color) -> tuple[float, float, float, float]:
     if isinstance(color, str):
         match = COLOR_PATTERN.match(color)
         if match is None:
@@ -56,6 +56,14 @@ def parse_color(color: Color) -> tuple[float, float, float, float]:
     assert len(color) == 4
     assert color[3] >= 0.0 and color[3] <= 1.0
     return color
+
+
+def color_to_ints(color: Color) -> tuple[int, int, int, int]:
+    return tuple(int(component * 255.0) for component in color_to_floats(color))  # type: ignore
+
+
+def color_to_hex_string(color: Color) -> str:
+    return "#{:02X}{:02X}{:02X}{:02X}".format(*color_to_ints(color))
 
 
 def rgb_to_lab(
@@ -225,19 +233,19 @@ def gradient(
 @dataclasses.dataclass
 class Colormap:
     name: str
-    type: typing.Literal["sequential", "diverging", "cyclic"]
+    type: enums.ColormapType
     rgba: numpy.typing.NDArray[numpy.float64]
 
     @classmethod
     def from_rgb_table(
         cls,
         name: str,
-        type: typing.Literal["sequential", "diverging", "cyclic"],
+        type: enums.ColormapType,
         rgb: list[tuple[float, float, float]],
     ):
         return cls(
             name=name,
-            type=type,
+            type=enums.validate_colormap_type(type),
             rgba=numpy.c_[numpy.array(rgb, dtype=numpy.float64), numpy.ones(len(rgb))],
         )
 
@@ -245,12 +253,12 @@ class Colormap:
     def from_rgba_table(
         cls,
         name: str,
-        type: typing.Literal["sequential", "diverging", "cyclic"],
+        type: enums.ColormapType,
         rgba: list[tuple[float, float, float, float]],
     ):
         return cls(
             name=name,
-            type=type,
+            type=enums.validate_colormap_type(type),
             rgba=numpy.array(rgba, dtype=numpy.float64),
         )
 
@@ -262,8 +270,8 @@ class Colormap:
         end: Color,
         samples: int = 256,
     ):
-        start = parse_color(color=start)
-        end = parse_color(color=end)
+        start = color_to_floats(color=start)
+        end = color_to_floats(color=end)
         return cls(
             name=name,
             type="sequential",
@@ -283,9 +291,9 @@ class Colormap:
         end: Color,
         half_samples: int = 128,
     ):
-        start = parse_color(color=start)
-        middle = parse_color(color=middle)
-        end = parse_color(color=end)
+        start = color_to_floats(color=start)
+        middle = color_to_floats(color=middle)
+        end = color_to_floats(color=end)
         return cls(
             name=name,
             type="diverging",
@@ -306,7 +314,8 @@ class Colormap:
         )
 
     def as_type(
-        self, new_type: typing.Literal["sequential", "diverging", "cyclic"]
+        self,
+        new_type: enums.ColormapType,
     ) -> "Colormap":
         return Colormap(
             name=self.name,
@@ -469,3 +478,34 @@ class Colormap:
             offset += ROW_HEIGHT + ROW_GAP
         with open(path, "wb") as output:
             output.write(image.encode(frame, compression_level="default"))
+
+
+@dataclasses.dataclass
+class ColorTheme:
+    background: Color
+    labels: Color
+    axes: Color
+    grid: Color
+    subgrid: Color
+    lines: list[Color]
+    colormap: Colormap
+
+    def replace(
+        self,
+        background: typing.Optional[Color] = None,
+        labels: typing.Optional[Color] = None,
+        axes: typing.Optional[Color] = None,
+        grid: typing.Optional[Color] = None,
+        subgrid: typing.Optional[Color] = None,
+        lines: typing.Optional[list[Color]] = None,
+        colormap: typing.Optional[Colormap] = None,
+    ) -> "ColorTheme":
+        return ColorTheme(
+            background=self.background if background is None else background,
+            labels=self.labels if labels is None else labels,
+            axes=self.axes if axes is None else axes,
+            grid=self.grid if grid is None else grid,
+            subgrid=self.subgrid if subgrid is None else subgrid,
+            lines=self.lines if lines is None else lines,
+            colormap=self.colormap if colormap is None else colormap,
+        )

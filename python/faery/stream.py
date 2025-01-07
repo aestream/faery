@@ -34,38 +34,18 @@ class FiniteStream(Stream[ItemType]):
     A file is a finite stream but a camera is not.
     """
 
-    def time_range_us(self) -> tuple[int, int]:
+    def time_range(self) -> tuple[timestamp.Time, timestamp.Time]:
         """
-        Timestamp of the stream's start and end, in microseconds.
-
-        Start is always smaller than or equal to the first event's timestamp.
-
-        End is always strictly larger than the last event's timestamp.
-
-        For instance, if the stream contains 3 events with timestamps `[2, 71, 828]`, the time range may be `(2, 829)`.
-        It may also be wider, for instance `(0, 1000)`.
-
-        Returns:
-            tuple[int, int]: First and one-past-last timestamps in µs.
-        """
-        raise NotImplementedError()
-
-    def time_range(self) -> tuple[str, str]:
-        """
-        Timecodes of the stream's start and end.
+        Time of the stream's start and end.
 
         For instance, if the stream contains 3 events with timestamps `[2, 71, 828]`,
-        the time range may be `("00:00:00.000002", "00:00:00.000829")`.
-        It may also be wider, for instance `("00:00:00.000000", "00:00:00.001000")`.
+        the time range may be `(2 * faery.us, 829 * faery.us)`.
+        It may also be wider, for instance `(0 * faery.us, 1000 * faery.us)`.
 
         Returns:
             tuple[int, int]: First and one-past-last timecodes.
         """
-        start, end = self.time_range_us()
-        return (
-            timestamp.timestamp_to_timecode(start),
-            timestamp.timestamp_to_timecode(end),
-        )
+        raise NotImplementedError()
 
 
 class RegularStream(Stream[ItemType]):
@@ -131,8 +111,8 @@ class FiniteFilter(FiniteStream[ItemType]):
     def dimensions(self) -> tuple[int, int]:
         return self.parent.dimensions()
 
-    def time_range_us(self) -> tuple[int, int]:
-        return self.parent.time_range_us()
+    def time_range(self) -> tuple[timestamp.Time, timestamp.Time]:
+        return self.parent.time_range()
 
 
 class RegularFilter(RegularStream[ItemType]):
@@ -175,8 +155,8 @@ class FiniteRegularFilter(FiniteRegularStream[ItemType]):
     def dimensions(self) -> tuple[int, int]:
         return self.parent.dimensions()
 
-    def time_range_us(self) -> tuple[int, int]:
-        return self.parent.time_range_us()
+    def time_range(self) -> tuple[timestamp.Time, timestamp.Time]:
+        return self.parent.time_range()
 
     def frequency_hz(self) -> float:
         return self.parent.frequency_hz()

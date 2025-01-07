@@ -6,8 +6,7 @@ import typing
 import numpy
 import numpy.typing
 
-from . import enums, frame_stream_state, stream
-from .colormaps._base import Color, Colormap
+from . import color as color_module, enums, frame_stream_state, stream, timestamp
 
 if typing.TYPE_CHECKING:
     from .types import image  # type: ignore
@@ -16,22 +15,12 @@ else:
 
 
 @dataclasses.dataclass
-class Float64Frame:
-    """
-    A frame with one channel per pixel, with values in the range [-1.0, 1.0]
-    """
-
-    t: int
-    pixels: numpy.typing.NDArray[numpy.float64]
-
-
-@dataclasses.dataclass
-class Rgba8888Frame:
+class Frame:
     """
     A frame with 4 channels per pixels (red, green, blue, alpha), with values in the range [0, 255]
     """
 
-    t: int
+    t: timestamp.Time
     pixels: numpy.typing.NDArray[numpy.uint8]
 
     def to_file(
@@ -57,16 +46,18 @@ class Rgba8888Frame:
         else:
             file_type = enums.validate_image_file_type(file_type)
         with open(path if write_path is None else write_path, "wb") as output:
-            output.write(image.encode(self.pixels, compression_level=compression_level))
+            output.write(
+                image.encode(frame=self.pixels, compression_level=compression_level)
+            )
         if write_path is not None:
             write_path.replace(path)
 
 
-Rgba8888OutputState = typing.TypeVar("Rgba8888OutputState")
+OutputState = typing.TypeVar("OutputState")
 
 
-class Rgba8888Output(typing.Generic[Rgba8888OutputState]):
-    def __iter__(self) -> collections.abc.Iterator[Rgba8888Frame]:
+class FrameOutput(typing.Generic[OutputState]):
+    def __iter__(self) -> collections.abc.Iterator[Frame]:
         raise NotImplementedError()
 
     def dimensions(self) -> tuple[int, int]:
@@ -77,7 +68,7 @@ class Rgba8888Output(typing.Generic[Rgba8888OutputState]):
         path_pattern: typing.Union[pathlib.Path, str],
         compression_level: enums.ImageFileCompressionLevel = "fast",
         file_type: typing.Optional[enums.ImageFileType] = None,
-        on_progress: typing.Callable[[Rgba8888OutputState], None] = lambda _: None,
+        on_progress: typing.Callable[[OutputState], None] = lambda _: None,
     ):
         from . import file_encoder
 
@@ -98,13 +89,20 @@ class Rgba8888Output(typing.Generic[Rgba8888OutputState]):
         preset: enums.VideoFilePreset = "medium",
         tune: enums.VideoFileTune = "none",
         profile: enums.VideoFileProfile = "baseline",
+        quality: int = 100,
+        rewind: bool = False,
+        skip: int = 0,
         file_type: typing.Optional[enums.VideoFileType] = None,
-        on_progress: typing.Callable[[Rgba8888OutputState], None] = lambda _: None,
+        on_progress: typing.Callable[[OutputState], None] = lambda _: None,
     ):
+        """
+        See .file_encoder.frames_to_file
+        """
+
         from . import file_encoder
 
         try:
-            self.time_range_us()  # type: ignore
+            self.time_range()  # type: ignore
             use_write_suffix = True
         except (AttributeError, NotImplementedError):
             use_write_suffix = False
@@ -117,36 +115,23 @@ class Rgba8888Output(typing.Generic[Rgba8888OutputState]):
             preset=preset,
             tune=tune,
             profile=profile,
+            quality=quality,
+            rewind=rewind,
+            skip=skip,
             file_type=file_type,
             use_write_suffix=use_write_suffix,
             on_progress=on_progress,
         )
 
 
-class Float64FrameStream(stream.Stream[Float64Frame]):
-    def colorize(self, colormap: Colormap) -> "Rgba8888FrameStream": ...
-
-
-class FiniteFloat64FrameStream(stream.FiniteStream[Float64Frame]):
-    def colorize(self, colormap: Colormap) -> "FiniteRgba8888FrameStream": ...
-
-
-class RegularFloat64FrameStream(stream.RegularStream[Float64Frame]):
-    def colorize(self, colormap: Colormap) -> "RegularRgba8888FrameStream": ...
-
-
-class FiniteRegularFloat64FrameStream(stream.FiniteRegularStream[Float64Frame]):
-    def colorize(self, colormap: Colormap) -> "FiniteRegularRgba8888FrameStream": ...
-
-
-class Rgba8888FrameStream(
-    stream.Stream[Rgba8888Frame], Rgba8888Output[frame_stream_state.FrameStreamState]
+class FrameStream(
+    stream.Stream[Frame], FrameOutput[frame_stream_state.FrameStreamState]
 ):
     def scale(
         self,
         factor_or_minimum_dimensions: typing.Union[float, tuple[int, int]] = (960, 720),
         sampling_filter: enums.ImageResizeSamplingFilter = "nearest",
-    ) -> "Rgba8888FrameStream": ...
+    ) -> "FrameStream": ...
 
     def annotate(
         self,
@@ -154,16 +139,16 @@ class Rgba8888FrameStream(
         x: int,
         y: int,
         size: int,
-        color: Color,
-    ) -> "Rgba8888FrameStream": ...
+        color: color_module.Color,
+    ) -> "FrameStream": ...
 
     def add_timecode(
         self,
         x: int = 21,
         y: int = 15,
         size: int = 30,
-        color: Color = "#FFFFFF",
-    ) -> "Rgba8888FrameStream": ...
+        color: color_module.Color = "#FFFFFF",
+    ) -> "FrameStream": ...
 
     def add_overlay(
         self,
@@ -172,18 +157,18 @@ class Rgba8888FrameStream(
         y: int = 0,
         scale_factor: float = 1.0,
         scale_filter: enums.ImageResizeSamplingFilter = "nearest",
-    ) -> "Rgba8888FrameStream": ...
+    ) -> "FrameStream": ...
 
 
-class FiniteRgba8888FrameStream(
-    stream.FiniteStream[Rgba8888Frame],
-    Rgba8888Output[frame_stream_state.FiniteFrameStreamState],
+class FiniteFrameStream(
+    stream.FiniteStream[Frame],
+    FrameOutput[frame_stream_state.FiniteFrameStreamState],
 ):
     def scale(
         self,
         factor_or_minimum_dimensions: typing.Union[float, tuple[int, int]] = (960, 720),
         sampling_filter: enums.ImageResizeSamplingFilter = "nearest",
-    ) -> "FiniteRgba8888FrameStream": ...
+    ) -> "FiniteFrameStream": ...
 
     def annotate(
         self,
@@ -191,16 +176,16 @@ class FiniteRgba8888FrameStream(
         x: int,
         y: int,
         size: int,
-        color: Color,
-    ) -> "FiniteRgba8888FrameStream": ...
+        color: color_module.Color,
+    ) -> "FiniteFrameStream": ...
 
     def add_timecode(
         self,
         x: int = 21,
         y: int = 15,
         size: int = 30,
-        color: Color = "#FFFFFF",
-    ) -> "FiniteRgba8888FrameStream": ...
+        color: color_module.Color = "#FFFFFF",
+    ) -> "FiniteFrameStream": ...
 
     def add_overlay(
         self,
@@ -209,18 +194,18 @@ class FiniteRgba8888FrameStream(
         y: int = 0,
         scale_factor: float = 1.0,
         scale_filter: enums.ImageResizeSamplingFilter = "nearest",
-    ) -> "FiniteRgba8888FrameStream": ...
+    ) -> "FiniteFrameStream": ...
 
 
-class RegularRgba8888FrameStream(
-    stream.RegularStream[Rgba8888Frame],
-    Rgba8888Output[frame_stream_state.RegularFrameStreamState],
+class RegularFrameStream(
+    stream.RegularStream[Frame],
+    FrameOutput[frame_stream_state.RegularFrameStreamState],
 ):
     def scale(
         self,
         factor_or_minimum_dimensions: typing.Union[float, tuple[int, int]] = (960, 720),
         sampling_filter: enums.ImageResizeSamplingFilter = "nearest",
-    ) -> "RegularRgba8888FrameStream": ...
+    ) -> "RegularFrameStream": ...
 
     def annotate(
         self,
@@ -228,17 +213,17 @@ class RegularRgba8888FrameStream(
         x: int,
         y: int,
         size: int,
-        color: Color,
-    ) -> "RegularRgba8888FrameStream": ...
+        color: color_module.Color,
+    ) -> "RegularFrameStream": ...
 
     def add_timecode(
         self,
         x: int = 21,
         y: int = 15,
         size: int = 30,
-        color: Color = "#FFFFFF",
+        color: color_module.Color = "#FFFFFF",
         output_frame_rate: typing.Optional[float] = 60.0,
-    ) -> "RegularRgba8888FrameStream": ...
+    ) -> "RegularFrameStream": ...
 
     def add_overlay(
         self,
@@ -247,18 +232,18 @@ class RegularRgba8888FrameStream(
         y: int = 0,
         scale_factor: float = 1.0,
         scale_filter: enums.ImageResizeSamplingFilter = "nearest",
-    ) -> "RegularRgba8888FrameStream": ...
+    ) -> "RegularFrameStream": ...
 
 
-class FiniteRegularRgba8888FrameStream(
-    stream.FiniteRegularStream[Rgba8888Frame],
-    Rgba8888Output[frame_stream_state.FiniteRegularFrameStreamState],
+class FiniteRegularFrameStream(
+    stream.FiniteRegularStream[Frame],
+    FrameOutput[frame_stream_state.FiniteRegularFrameStreamState],
 ):
     def scale(
         self,
         factor_or_minimum_dimensions: typing.Union[float, tuple[int, int]] = (960, 720),
         sampling_filter: enums.ImageResizeSamplingFilter = "nearest",
-    ) -> "FiniteRegularRgba8888FrameStream": ...
+    ) -> "FiniteRegularFrameStream": ...
 
     def annotate(
         self,
@@ -266,17 +251,17 @@ class FiniteRegularRgba8888FrameStream(
         x: int,
         y: int,
         size: int,
-        color: Color,
-    ) -> "FiniteRegularRgba8888FrameStream": ...
+        color: color_module.Color,
+    ) -> "FiniteRegularFrameStream": ...
 
     def add_timecode(
         self,
         x: int = 21,
         y: int = 15,
         size: int = 30,
-        color: Color = "#FFFFFF",
+        color: color_module.Color = "#FFFFFF",
         output_frame_rate: typing.Optional[float] = 60.0,
-    ) -> "FiniteRegularRgba8888FrameStream": ...
+    ) -> "FiniteRegularFrameStream": ...
 
     def add_overlay(
         self,
@@ -285,32 +270,10 @@ class FiniteRegularRgba8888FrameStream(
         y: int = 0,
         scale_factor: float = 1.0,
         scale_filter: enums.ImageResizeSamplingFilter = "nearest",
-    ) -> "FiniteRegularRgba8888FrameStream": ...
+    ) -> "FiniteRegularFrameStream": ...
 
 
-def bind_float64(prefix: typing.Literal["", "Finite", "Regular", "FiniteRegular"]):
-
-    def colorize(
-        self,
-        colormap: Colormap,
-    ):
-        from .render import FILTERS
-
-        return FILTERS[f"{prefix}Rgba8888Colorize"](
-            parent=self,
-            colormap=colormap,
-        )
-
-    colorize.filter_return_annotation = f"{prefix}Rgba8888FrameStream"
-
-    globals()[f"{prefix}Float64FrameStream"].colorize = colorize
-
-
-for prefix in ("", "Finite", "Regular", "FiniteRegular"):
-    bind_float64(prefix=prefix)
-
-
-def bind_rgb8888(prefix: typing.Literal["", "Finite", "Regular", "FiniteRegular"]):
+def bind(prefix: typing.Literal["", "Finite", "Regular", "FiniteRegular"]):
 
     def scale(
         self,
@@ -319,7 +282,7 @@ def bind_rgb8888(prefix: typing.Literal["", "Finite", "Regular", "FiniteRegular"
     ):
         from .frame_filter import FILTERS
 
-        return FILTERS[f"{prefix}Rgba8888Scale"](
+        return FILTERS[f"{prefix}Scale"](
             parent=self,
             factor_or_minimum_dimensions=factor_or_minimum_dimensions,
             sampling_filter=sampling_filter,
@@ -331,11 +294,11 @@ def bind_rgb8888(prefix: typing.Literal["", "Finite", "Regular", "FiniteRegular"
         x: int,
         y: int,
         size: int,
-        color: Color,
+        color: color_module.Color,
     ):
         from .frame_filter import FILTERS
 
-        return FILTERS[f"{prefix}Rgba8888Annotate"](
+        return FILTERS[f"{prefix}Annotate"](
             parent=self,
             text=text,
             x=x,
@@ -351,11 +314,11 @@ def bind_rgb8888(prefix: typing.Literal["", "Finite", "Regular", "FiniteRegular"
             x: int = 21,
             y: int = 15,
             size: int = 30,
-            color: Color = "#FFFFFF",
+            color: color_module.Color = "#FFFFFF",
         ):
             from .frame_filter import FILTERS
 
-            return FILTERS[f"{prefix}Rgba8888AddTimecode"](
+            return FILTERS[f"{prefix}AddTimecode"](
                 parent=self,
                 x=x,
                 y=y,
@@ -363,8 +326,8 @@ def bind_rgb8888(prefix: typing.Literal["", "Finite", "Regular", "FiniteRegular"
                 color=color,
             )
 
-        add_timecode.filter_return_annotation = f"{prefix}Rgba8888FrameStream"
-        globals()[f"{prefix}Rgba8888FrameStream"].add_timecode = add_timecode
+        add_timecode.filter_return_annotation = f"{prefix}FrameStream"
+        globals()[f"{prefix}FrameStream"].add_timecode = add_timecode
     else:
 
         def add_timecode_and_speedup(
@@ -372,12 +335,12 @@ def bind_rgb8888(prefix: typing.Literal["", "Finite", "Regular", "FiniteRegular"
             x: int = 21,
             y: int = 15,
             size: int = 30,
-            color: Color = "#FFFFFF",
+            color: color_module.Color = "#FFFFFF",
             output_frame_rate: typing.Optional[float] = 60.0,
         ):
             from .frame_filter import FILTERS
 
-            return FILTERS[f"{prefix}Rgba8888AddTimecodeAndSpeedup"](
+            return FILTERS[f"{prefix}AddTimecodeAndSpeedup"](
                 parent=self,
                 x=x,
                 y=y,
@@ -386,12 +349,8 @@ def bind_rgb8888(prefix: typing.Literal["", "Finite", "Regular", "FiniteRegular"
                 output_frame_rate=output_frame_rate,
             )
 
-        add_timecode_and_speedup.filter_return_annotation = (
-            f"{prefix}Rgba8888FrameStream"
-        )
-        globals()[
-            f"{prefix}Rgba8888FrameStream"
-        ].add_timecode = add_timecode_and_speedup
+        add_timecode_and_speedup.filter_return_annotation = f"{prefix}FrameStream"
+        globals()[f"{prefix}FrameStream"].add_timecode = add_timecode_and_speedup
 
     def add_overlay(
         self,
@@ -403,7 +362,7 @@ def bind_rgb8888(prefix: typing.Literal["", "Finite", "Regular", "FiniteRegular"
     ):
         from .frame_filter import FILTERS
 
-        return FILTERS[f"{prefix}Rgba8888AddOverlay"](
+        return FILTERS[f"{prefix}AddOverlay"](
             parent=self,
             overlay=overlay,
             x=x,
@@ -412,69 +371,41 @@ def bind_rgb8888(prefix: typing.Literal["", "Finite", "Regular", "FiniteRegular"
             scale_filter=scale_filter,
         )
 
-    scale.filter_return_annotation = f"{prefix}Rgba8888FrameStream"
-    annotate.filter_return_annotation = f"{prefix}Rgba8888FrameStream"
+    scale.filter_return_annotation = f"{prefix}FrameStream"
+    annotate.filter_return_annotation = f"{prefix}FrameStream"
 
-    globals()[f"{prefix}Rgba8888FrameStream"].scale = scale
-    globals()[f"{prefix}Rgba8888FrameStream"].annotate = annotate
-    globals()[f"{prefix}Rgba8888FrameStream"].add_overlay = add_overlay
+    globals()[f"{prefix}FrameStream"].scale = scale
+    globals()[f"{prefix}FrameStream"].annotate = annotate
+    globals()[f"{prefix}FrameStream"].add_overlay = add_overlay
 
 
 for prefix in ("", "Finite", "Regular", "FiniteRegular"):
-    bind_rgb8888(prefix=prefix)
+    bind(prefix=prefix)
 
 
-class Float64FrameFilter(
-    Float64FrameStream,
-    stream.Filter[Float64Frame],
+class FrameFilter(
+    FrameStream,
+    stream.Filter[Frame],
 ):
     pass
 
 
-class FiniteFloat64FrameFilter(
-    FiniteFloat64FrameStream,
-    stream.FiniteFilter[Float64Frame],
+class FiniteFrameFilter(
+    FiniteFrameStream,
+    stream.FiniteFilter[Frame],
 ):
     pass
 
 
-class RegularFloat64FrameFilter(
-    RegularFloat64FrameStream,
-    stream.RegularFilter[Float64Frame],
+class RegularFrameFilter(
+    RegularFrameStream,
+    stream.RegularFilter[Frame],
 ):
     pass
 
 
-class FiniteRegularFloat64FrameFilter(
-    FiniteRegularFloat64FrameStream,
-    stream.FiniteRegularFilter[Float64Frame],
-):
-    pass
-
-
-class Rgba8888FrameFilter(
-    Rgba8888FrameStream,
-    stream.Filter[Rgba8888Frame],
-):
-    pass
-
-
-class FiniteRgba8888FrameFilter(
-    FiniteRgba8888FrameStream,
-    stream.FiniteFilter[Rgba8888Frame],
-):
-    pass
-
-
-class RegularRgba8888FrameFilter(
-    RegularRgba8888FrameStream,
-    stream.RegularFilter[Rgba8888Frame],
-):
-    pass
-
-
-class FiniteRegularRgba8888FrameFilter(
-    FiniteRegularRgba8888FrameStream,
-    stream.FiniteRegularFilter[Rgba8888Frame],
+class FiniteRegularFrameFilter(
+    FiniteRegularFrameStream,
+    stream.FiniteRegularFilter[Frame],
 ):
     pass

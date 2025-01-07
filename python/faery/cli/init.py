@@ -1,5 +1,5 @@
 import importlib.resources
-import os
+import json
 import pathlib
 import sys
 import typing
@@ -45,6 +45,12 @@ class Command(command.Command):
             "-f",
             action="store_true",
             help="replace the script file if it already exists",
+        )
+        parser.add_argument(
+            "--vscode",
+            "-c",
+            action="store_true",
+            help="create .vscode/settings and define python.defaultInterpreterPath",
         )
         parser.add_argument("--template", "-t", help="path of the script template")
         parser.add_argument(
@@ -105,6 +111,25 @@ class Command(command.Command):
         contents = faery.mustache.render(template=template, jobs=jobs)
         with open(args.output, "w") as output_file:
             output_file.write(contents)
+
+        if args.vscode:
+            vscode_directory = pathlib.Path(args.output).resolve().parent / ".vscode"
+            vscode_directory.mkdir(exist_ok=True)
+            if (vscode_directory / "settings.json").is_file():
+                with open("settings.json") as settings_file:
+                    settings = json.load(settings_file)
+                if not "python.defaultInterpreterPath" in settings:
+                    settings["python.defaultInterpreterPath"] = sys.executable
+                    with open("settings.json", "w") as settings_file:
+                        json.dump(settings, settings_file, indent=4)
+            else:
+                with open("settings.json", "w") as settings_file:
+                    json.dump(
+                        {"python.defaultInterpreterPath": sys.executable},
+                        settings_file,
+                        indent=4,
+                    )
+
         if len(resolved_to_original) > 0:
             print("Read the time range of input files")
         if args.generate_nicknames:
@@ -131,8 +156,8 @@ class Command(command.Command):
             jobs.append(
                 faery.mustache.Job(
                     input=input,
-                    start=time_range[0],
-                    end=time_range[1],
+                    start=time_range[0].to_timecode(),
+                    end=time_range[1].to_timecode(),
                     nickname=nickname,
                 )
             )

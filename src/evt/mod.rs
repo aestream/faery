@@ -37,8 +37,8 @@ impl Decoder {
         path: &pyo3::Bound<'_, pyo3::types::PyAny>,
         dimensions_fallback: Option<(u16, u16)>,
         version_fallback: Option<String>,
-    ) -> Result<Self, PyErr> {
-        Python::with_gil(|python| -> Result<Self, PyErr> {
+    ) -> PyResult<Self> {
+        Python::with_gil(|python| -> PyResult<Self> {
             Ok(Decoder {
                 inner: Some(decoder::Decoder::new(
                     types::python_path_to_string(python, path)?,
@@ -166,8 +166,8 @@ impl Encoder {
         version: &str,
         zero_t0: bool,
         dimensions: (u16, u16),
-    ) -> Result<Self, PyErr> {
-        Python::with_gil(|python| -> Result<Self, PyErr> {
+    ) -> PyResult<Self> {
+        Python::with_gil(|python| -> PyResult<Self> {
             Ok(Encoder {
                 inner: Some(encoder::Encoder::new(
                     types::python_path_to_string(python, path)?,

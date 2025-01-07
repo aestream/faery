@@ -18,7 +18,7 @@ def events_stream_from_file(
     track_id: typing.Optional[int] = None,
     dimensions_fallback: tuple[int, int] = (1280, 720),
     version_fallback: typing.Optional[enums.EventsFileVersion] = None,
-    t0: timestamp.Time = 0,
+    t0: timestamp.TimeOrTimecode = timestamp.Time(microseconds=0),
     file_type: typing.Optional[enums.EventsFileType] = None,
     csv_properties: file_decoder.CsvProperties = file_decoder.CsvProperties.default(),
 ) -> events_stream.FiniteEventsStream:
@@ -56,7 +56,7 @@ def events_stream_from_file(
 
 def events_stream_from_stdin(
     dimensions: tuple[int, int],
-    t0: timestamp.Time = 0,
+    t0: timestamp.TimeOrTimecode = timestamp.Time(0),
     csv_properties: file_decoder.CsvProperties = file_decoder.CsvProperties.default(),
 ):
     return file_decoder.Decoder(

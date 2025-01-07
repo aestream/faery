@@ -1,15 +1,16 @@
 [package]
-name = "python"
 edition = "2021"
+name = "python"
 resolver = "2"
 
 [lib]
-name = "faery"
 crate-type = ["cdylib"]
+name = "faery"
 
 [dependencies]
 flatbuffers = "24.3.25"
 fontdue = "0.9.2"
+gifski = {version = "1.32.0", default-features = false}
 image = {version = "0.25.1", default-features = false, features = ["png"]}
 lz4 = "1.28.0"
 mp4 = "0.14.0"
@@ -17,16 +18,17 @@ mustache = "0.9.0"
 neuromorphic-types = "0.4.0"
 numpy = {version = "0.22.0"}
 pyo3 = {version = "0.22.0", features = ["extension-module"]}
+resvg = "0.44.0"
 roxmltree = "0.20.0"
 serde = {version = "1.0", features = ["derive"]}
 serde_json = "1.0"
-toml = "0.8.19"
 thiserror = "1.0"
+toml = "0.8.19"
 zstd = "0.13.2"
 
 [build-dependencies]
 bindgen = "0.70.1"
 
 [profile.release]
-lto = true
 codegen-units = 1
+lto = true

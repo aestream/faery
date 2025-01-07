@@ -35,8 +35,8 @@ impl Encoder {
         preset: &str,
         tune: &str,
         profile: &str,
-    ) -> Result<Self, PyErr> {
-        Python::with_gil(|python| -> Result<Self, PyErr> {
+    ) -> PyResult<Self> {
+        Python::with_gil(|python| -> PyResult<Self> {
             Ok(Encoder {
                 inner: Some(mp4::Encoder::from_parameters_and_path(
                     x264::Parameters {

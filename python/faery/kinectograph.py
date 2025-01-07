@@ -5,8 +5,7 @@ import typing
 import numpy
 import numpy.typing
 
-from . import enums, events_stream_state, frame_stream, timestamp
-from .colormaps._base import Color, Colormap, parse_color
+from . import color as color_module, enums, events_stream_state, frame_stream, timestamp
 
 if typing.TYPE_CHECKING:
     from .types import image  # type: ignore
@@ -22,35 +21,22 @@ class Kinectograph:
 
     def __init__(
         self,
-        time_range_us: tuple[int, int],
+        time_range: tuple[timestamp.Time, timestamp.Time],
         normalized_times_and_opacities: numpy.typing.NDArray[numpy.float64],
         legend: numpy.typing.NDArray[numpy.float64],
     ):
-        self._time_range_us = time_range_us
+        self._time_range = time_range
         self.normalized_times_and_opacities = normalized_times_and_opacities
         self.legend = legend
 
-    def time_range_us(self) -> tuple[int, int]:
+    def time_range(self) -> tuple[timestamp.Time, timestamp.Time]:
         """
-        Timestamp of the kinectograph's start and end, in microseconds.
+        Times of the kinectograph's start and end, in microseconds.
 
         Returns:
             tuple[int, int]: First and one-past-last timestamps in µs.
         """
-        return self._time_range_us
-
-    def time_range(self) -> tuple[str, str]:
-        """
-        Timecodes of the kinectograph's start and end.
-
-        Returns:
-            tuple[int, int]: First and one-past-last timecodes.
-        """
-        start, end = self.time_range_us()
-        return (
-            timestamp.timestamp_to_timecode(start),
-            timestamp.timestamp_to_timecode(end),
-        )
+        return self._time_range
 
     def dimensions(self) -> tuple[int, int]:
         """
@@ -85,7 +71,7 @@ class Kinectograph:
             int(round(dimensions[1] * factor)),
         )
         return Kinectograph(
-            time_range_us=self._time_range_us,
+            time_range=self._time_range,
             normalized_times_and_opacities=image.resize(
                 frame=self.normalized_times_and_opacities,
                 new_dimensions=new_dimensions,
@@ -94,12 +80,10 @@ class Kinectograph:
             legend=self.legend,
         )
 
-    def colorize(
+    def render(
         self,
-        colormap: Colormap,
-        background_color: Color = "#191919",
+        color_theme: color_module.ColorTheme = color_module.DARK_COLOR_THEME,
         legend: bool = True,
-        font_color: Color = "#FFFFFF",
         legend_bar_width: int = 30,
         legend_gap: int = 16,
         legend_padding_left: int = 20,
@@ -107,12 +91,14 @@ class Kinectograph:
         legend_padding_top: int = 0,
         legend_padding_bottom: int = 0,
         legend_font_size: int = 20,
-    ) -> frame_stream.Rgba8888Frame:
-        colormap_data = numpy.round(colormap.rgba * 255.0).astype(dtype=numpy.uint8)
+    ) -> frame_stream.Frame:
+        colormap_data = numpy.round(color_theme.colormap.rgba * 255.0).astype(
+            dtype=numpy.uint8
+        )
         width = self.normalized_times_and_opacities.shape[1]
         if legend:
-            start_timecode = timestamp.timestamp_to_timecode(self._time_range_us[0])
-            end_timecode = timestamp.timestamp_to_timecode(self._time_range_us[1])
+            start_timecode = self._time_range[0].to_timecode()
+            end_timecode = self._time_range[1].to_timecode()
             width += int(
                 round(
                     (
@@ -134,9 +120,7 @@ class Kinectograph:
             ),
             dtype=numpy.uint8,
         )
-        frame[:, :] = numpy.round(
-            numpy.array(parse_color(background_color), dtype=numpy.float64) * 255.0
-        ).astype(dtype=numpy.uint8)
+        frame[:, :] = color_module.color_to_ints(color_theme.background)
         if legend:
             colorbar_height = (
                 self.normalized_times_and_opacities.shape[0]
@@ -151,25 +135,33 @@ class Kinectograph:
                     0, colorbar_height, dtype=numpy.float64
                 ) / (colorbar_height - 1)
                 colormap_points = numpy.arange(
-                    0, colormap.rgba.shape[0], dtype=numpy.float64
-                ) / (colormap.rgba.shape[0] - 1)
+                    0, color_theme.colormap.rgba.shape[0], dtype=numpy.float64
+                ) / (color_theme.colormap.rgba.shape[0] - 1)
                 colorbar = numpy.tile(
                     numpy.column_stack(
                         (
                             numpy.interp(
-                                colorbar_points, colormap_points, colormap.rgba[:, 0]
+                                colorbar_points,
+                                colormap_points,
+                                color_theme.colormap.rgba[:, 0],
                             )
                             * 255.0,
                             numpy.interp(
-                                colorbar_points, colormap_points, colormap.rgba[:, 1]
+                                colorbar_points,
+                                colormap_points,
+                                color_theme.colormap.rgba[:, 1],
                             )
                             * 255.0,
                             numpy.interp(
-                                colorbar_points, colormap_points, colormap.rgba[:, 2]
+                                colorbar_points,
+                                colormap_points,
+                                color_theme.colormap.rgba[:, 2],
                             )
                             * 255.0,
                             numpy.interp(
-                                colorbar_points, colormap_points, colormap.rgba[:, 3]
+                                colorbar_points,
+                                colormap_points,
+                                color_theme.colormap.rgba[:, 3],
                             )
                             * 255.0,
                         )
@@ -182,13 +174,7 @@ class Kinectograph:
                     legend_padding_top : legend_padding_top + colorbar_height,
                     legend_left : legend_left + legend_bar_width,
                 ] = colorbar.astype(numpy.uint8)
-                float_color = parse_color(font_color)
-                color = (
-                    int(round(float_color[0] * 255.0)),
-                    int(round(float_color[1] * 255.0)),
-                    int(round(float_color[2] * 255.0)),
-                    int(round(float_color[3] * 255.0)),
-                )
+                color = color_module.color_to_ints(color_theme.labels)
                 image.annotate(
                     frame=frame,
                     text=start_timecode,
@@ -232,14 +218,14 @@ class Kinectograph:
             new_dimensions=(overlay.shape[1], overlay.shape[0]),
             sampling_filter="nearest",
         )
-        return frame_stream.Rgba8888Frame(t=self._time_range_us[1], pixels=frame)
+        return frame_stream.Frame(t=self._time_range[1], pixels=frame)
 
     @classmethod
     def from_events(
         cls,
         stream: collections.abc.Iterable[numpy.ndarray],
         dimensions: tuple[int, int],
-        time_range_us: tuple[int, int],
+        time_range: tuple[timestamp.Time, timestamp.Time],
         threshold_quantile: float = 0.9,
         normalized_times_gamma: typing.Callable[
             [numpy.typing.NDArray[numpy.float64]], numpy.typing.NDArray[numpy.float64]
@@ -251,13 +237,15 @@ class Kinectograph:
             [events_stream_state.EventsStreamState], None
         ] = lambda _: None,
     ):
-        assert time_range_us[0] < time_range_us[1]
-        if time_range_us[1] == time_range_us[0] + 1:
+        assert time_range[0] < time_range[1]
+        if time_range[1].to_microseconds() == time_range[0].to_microseconds() + 1:
             slope = 0.0
             intercept = 0.5
         else:
-            slope = 1.0 / (time_range_us[1] - (time_range_us[0] + 1))
-            intercept = -slope * time_range_us[0]
+            slope = 1.0 / (
+                time_range[1].to_microseconds() - (time_range[0].to_microseconds() + 1)
+            )
+            intercept = -slope * time_range[0].to_microseconds()
         normalized_times_and_opacities = numpy.zeros(
             (dimensions[1], dimensions[0], 2), dtype=numpy.float64
         )
@@ -294,7 +282,7 @@ class Kinectograph:
             normalized_times_and_opacities[:, :, 1]
         )
         return cls(
-            time_range_us=time_range_us,
+            time_range=time_range,
             normalized_times_and_opacities=normalized_times_and_opacities,
             legend=normalized_times_gamma(
                 numpy.linspace(0.0, 1.0, LEGEND_MAXIMUM_RESOLUTION)

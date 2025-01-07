@@ -9,15 +9,15 @@ def create_kinectograph(colormap: faery.Colormap) -> faery.Task:
     def kinectograph(
         input: pathlib.Path,
         output: pathlib.Path,
-        start: faery.Time,
-        end: faery.Time,
+        start: faery.TimeOrTimecode,
+        end: faery.TimeOrTimecode,
     ):
         (
             faery.events_stream_from_file(input)
             .time_slice(start=start, end=end)
             .to_kinectograph(on_progress=faery.progress_bar_fold)
             .scale()
-            .colorize(colormap=colormap)
+            .render(color_theme=faery.LIGHT_COLOR_THEME.replace(colormap=colormap))
             .to_file(path=output)
         )
 
@@ -70,11 +70,13 @@ for colormap in faery.colormaps_list():
                     .time_slice(start=start, end=end)
                     .to_kinectograph(on_progress=faery.progress_bar_fold)
                     .scale()
-                    .colorize(colormap=self.colormap)
+                    .render(
+                        color_theme=faery.LIGHT_COLOR_THEME.replace(colormap=self.colormap)
+                    )
                     .to_file(path=output)
                 )
 
-        # There is no late binding issue here since we pass `colormap` to Kinectograph's `__init__` function.
+        # We avoid the late binding issue here since we pass `colormap` to Kinectograph's `__init__` function.
         sequential_colormaps_tasks.append(Kinectograph(colormap=colormap))
 
 
