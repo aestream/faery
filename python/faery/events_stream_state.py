@@ -206,8 +206,8 @@ class StateManager:
                             packet=PacketState(
                                 index=self.index,
                                 time_range=(
-                                    timestamp.Time(microseconds=events["t"][0]),
-                                    timestamp.Time(microseconds=events["t"][-1] + 1),
+                                    timestamp.Time(microseconds=int(events["t"][0])),
+                                    timestamp.Time(microseconds=int(events["t"][-1]) + 1),
                                 ),
                             )
                         )
@@ -218,8 +218,8 @@ class StateManager:
                             packet=PacketState(
                                 index=self.index,
                                 time_range=(
-                                    timestamp.Time(microseconds=events["t"][0]),
-                                    timestamp.Time(microseconds=events["t"][-1] + 1),
+                                    timestamp.Time(microseconds=int(events["t"][0])),
+                                    timestamp.Time(microseconds=int(events["t"][-1]) + 1),
                                 ),
                             ),
                             stream_time_range=self.time_range,
@@ -241,8 +241,8 @@ class StateManager:
                             packet=PacketState(
                                 index=self.index,
                                 time_range=(
-                                    timestamp.Time(microseconds=events["t"][0]),
-                                    timestamp.Time(microseconds=events["t"][-1] + 1),
+                                    timestamp.Time(microseconds=int(events["t"][0])),
+                                    timestamp.Time(microseconds=int(events["t"][-1]) + 1),
                                 ),
                             ),
                             frequency_hz=self.frequency_hz,
@@ -255,8 +255,8 @@ class StateManager:
                             packet=PacketState(
                                 index=self.index,
                                 time_range=(
-                                    timestamp.Time(microseconds=events["t"][0]),
-                                    timestamp.Time(microseconds=events["t"][-1] + 1),
+                                    timestamp.Time(microseconds=int(events["t"][0])),
+                                    timestamp.Time(microseconds=int(events["t"][-1]) + 1),
                                 ),
                             ),
                             stream_time_range=self.time_range,
