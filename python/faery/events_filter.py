@@ -472,7 +472,7 @@ class Transpose(events_stream.FiniteRegularEventsFilter):
                 events["y"] = dimensions[1] - 1 - events["y"]
             elif self.action == "rotate_90_counterclockwise":
                 x = events["x"].copy()
-                events["x"] = dimensions[0] - 1 - events["y"]
+                events["x"] = dimensions[1] - 1 - events["y"]
                 events["y"] = x
             elif self.action == "rotate_180":
                 events["x"] = dimensions[0] - 1 - events["x"]
@@ -480,15 +480,15 @@ class Transpose(events_stream.FiniteRegularEventsFilter):
             elif self.action == "rotate_270_counterclockwise":
                 x = events["x"].copy()
                 events["x"] = events["y"]
-                events["y"] = dimensions[1] - 1 - x
+                events["y"] = dimensions[0] - 1 - x
             elif self.action == "flip_up_diagonal":
                 x = events["x"].copy()
                 events["x"] = events["y"]
                 events["y"] = x
             elif self.action == "flip_down_diagonal":
                 x = events["x"].copy()
-                events["x"] = dimensions[0] - 1 - events["y"]
-                events["y"] = dimensions[1] - 1 - x
+                events["x"] = dimensions[1] - 1 - events["y"]
+                events["y"] = dimensions[0] - 1 - x
             else:
                 raise Exception(f'unknown action "{self.action}"')
             yield events
