@@ -11,11 +11,7 @@ colormap.to_file(
         faery.dirname.parent / "tests" / "data" / "dvs.es",
     )
     .regularize(frequency_hz=60.0)
-    .render(
-        decay="linear",
-        tau="00:00:00.100000",
-        colormap=colormap
-    )
+    .render(decay="linear", tau="00:00:00.100000", colormap=colormap)
     .to_files(
         faery.dirname.parent
         / "tests"

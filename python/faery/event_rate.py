@@ -4,15 +4,8 @@ import typing
 
 import numpy.typing
 
-from . import (
-    color as color_module,
-    enums,
-    events_stream_state,
-    file_encoder,
-    frame_stream,
-    svg,
-    timestamp,
-)
+from . import color as color_module
+from . import enums, events_stream_state, file_encoder, frame_stream, svg, timestamp
 
 if typing.TYPE_CHECKING:
     from .types import image, raster  # type: ignore

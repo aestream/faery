@@ -7,7 +7,8 @@ import typing
 import numpy
 import numpy.typing
 
-from . import color as color_module, enums, frame_stream, stream, timestamp
+from . import color as color_module
+from . import enums, frame_stream, stream, timestamp
 
 if typing.TYPE_CHECKING:
     from .types import image  # type: ignore

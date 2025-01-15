@@ -8,7 +8,7 @@ import faery
     .render(
         decay="exponential",
         tau="00:00:00.200000",
-        colormap=faery.colormaps.managua.flipped()
+        colormap=faery.colormaps.managua.flipped(),
     )
     .to_file(faery.dirname.parent / "tests" / "data_generated" / "dvs.mp4")
 )

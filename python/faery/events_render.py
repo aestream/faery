@@ -4,14 +4,8 @@ import typing
 
 import numpy
 
-from . import (
-    color as color_module,
-    enums,
-    events_stream,
-    frame_stream,
-    stream,
-    timestamp,
-)
+from . import color as color_module
+from . import enums, events_stream, frame_stream, stream, timestamp
 
 if typing.TYPE_CHECKING:
     from .types import render  # type: ignore

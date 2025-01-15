@@ -71,7 +71,9 @@ for colormap in faery.colormaps_list():
                     .to_kinectograph(on_progress=faery.progress_bar_fold)
                     .scale()
                     .render(
-                        color_theme=faery.LIGHT_COLOR_THEME.replace(colormap=self.colormap)
+                        color_theme=faery.LIGHT_COLOR_THEME.replace(
+                            colormap=self.colormap
+                        )
                     )
                     .to_file(path=output)
                 )

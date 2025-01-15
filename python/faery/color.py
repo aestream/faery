@@ -1,14 +1,11 @@
 from . import colormaps
-
-from .colormaps._base import (
-    Color as Color,
-    Colormap as Colormap,
-    ColorTheme as ColorTheme,
-    gradient as gradient,
-    color_to_ints as color_to_ints,
-    color_to_floats as color_to_floats,
-    color_to_hex_string as color_to_hex_string,
-)
+from .colormaps._base import Color as Color
+from .colormaps._base import Colormap as Colormap
+from .colormaps._base import ColorTheme as ColorTheme
+from .colormaps._base import color_to_floats as color_to_floats
+from .colormaps._base import color_to_hex_string as color_to_hex_string
+from .colormaps._base import color_to_ints as color_to_ints
+from .colormaps._base import gradient as gradient
 
 LIGHT_COLOR_THEME: ColorTheme = ColorTheme(
     background="#FFFFFFFF",

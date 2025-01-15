@@ -5,18 +5,11 @@ import typing
 import numpy
 import numpy.typing
 
-from . import (
-    color,
-    enums,
-    events_stream_state,
-    frame_stream,
-    stream,
-    timestamp,
-)
+from . import color, enums, events_stream_state, frame_stream, stream, timestamp
 
 if typing.TYPE_CHECKING:
+    from . import event_rate, kinectograph
     from .types import aedat  # type: ignore
-    from . import kinectograph, event_rate
 else:
     from .extension import aedat
 

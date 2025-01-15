@@ -15,6 +15,7 @@ class WiggleParameters:
 
     The __init__ function of this class uses such a description, with reasonnable defaults.
     """
+
     frequency_hz: float
     decay: enums.Decay
     tau: timestamp.Time
