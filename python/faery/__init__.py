@@ -97,10 +97,7 @@ from .timestamp import (
     ms as ms,
     s as s,
 )
-from .wiggle import (
-    WiggleParameters as WiggleParameters,
-    wiggle_parameters as wiggle_parameters,
-)
+from .wiggle import WiggleParameters as WiggleParameters
 
 if typing.TYPE_CHECKING:
     from .types import (
@@ -225,7 +222,6 @@ __all__ = [
     "ms",
     "s",
     "WiggleParameters",
-    "wiggle_parameters",
     "aedat",
     "csv",
     "dat",

@@ -4,7 +4,7 @@ stream = faery.events_stream_from_file(
     faery.dirname.parent / "tests" / "data" / "dvs.es",
 )
 
-wiggle_parameters = faery.wiggle_parameters(time_range=stream.time_range())
+wiggle_parameters = faery.WiggleParameters(time_range=stream.time_range())
 
 (
     stream.regularize(frequency_hz=wiggle_parameters.frequency_hz)
