@@ -31,10 +31,10 @@ class Kinectograph:
 
     def time_range(self) -> tuple[timestamp.Time, timestamp.Time]:
         """
-        Times of the kinectograph's start and end, in microseconds.
+        Times of the kinectograph's start and end.
 
         Returns:
-            tuple[int, int]: First and one-past-last timestamps in µs.
+            tuple[int, int]: First and one-past-last times.
         """
         return self._time_range
 

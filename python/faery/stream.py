@@ -43,7 +43,7 @@ class FiniteStream(Stream[ItemType]):
         It may also be wider, for instance `(0 * faery.us, 1000 * faery.us)`.
 
         Returns:
-            tuple[int, int]: First and one-past-last timecodes.
+            tuple[int, int]: First and one-past-last times.
         """
         raise NotImplementedError()
 
