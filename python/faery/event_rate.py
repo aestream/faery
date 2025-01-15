@@ -771,10 +771,12 @@ class EventRate:
         if file_type == "svg":
             with open(path if write_path is None else write_path, "w") as output:
                 output.write(svg_string)
-        else:
+        elif file_type == "png":
             frame = raster.render(svg_string)
             data = image.encode(frame=frame, compression_level=compression_level)
             with open(path if write_path is None else write_path, "wb") as output:
                 output.write(data)
+        else:
+            raise Exception(f"file type {file_type} not implemented")
         if write_path is not None:
             write_path.replace(path)

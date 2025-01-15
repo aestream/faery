@@ -329,7 +329,7 @@ def frames_to_file(
             tune=tune,
             profile=profile,
         )
-    else:
+    elif file_type == "gif":
         video_encoder = gif.Encoder(
             path=path if write_path is None else write_path,
             dimensions=dimensions,
@@ -346,6 +346,8 @@ def frames_to_file(
                 "none",
             },
         )
+    else:
+        raise Exception(f"file type {file_type} not implemented")
     with video_encoder as encoder:
         state_manager.start()
         for frame in stream:
