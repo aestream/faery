@@ -2,6 +2,20 @@ import pathlib
 
 import faery
 
+@faery.task(suffix=".png", icon="🎢")
+def event_rate(
+    input: pathlib.Path,
+    output: pathlib.Path,
+    start: faery.TimeOrTimecode,
+    end: faery.TimeOrTimecode,
+):
+    (
+        faery.events_stream_from_file(input)
+        .time_slice(start=start, end=end)
+        .to_event_rate()
+        .to_file(output)
+    )
+
 
 @faery.task(suffix=".png", icon="🎨")
 def kinectograph(
@@ -52,7 +66,7 @@ def wiggle(
     end: faery.TimeOrTimecode,
 ):
     stream = faery.events_stream_from_file(input).time_slice(start=start, end=end)
-    wiggle_parameters = faery.wiggle_parameters(time_range=stream.time_range())
+    wiggle_parameters = faery.WiggleParameters(time_range=stream.time_range())
     (
         stream.regularize(frequency_hz=wiggle_parameters.frequency_hz)
         .render(
@@ -71,9 +85,8 @@ def wiggle(
         )
     )
 
-
 @faery.task(suffix=".mp4", icon="🎬")
-def real_time_video(
+def video(
     input: pathlib.Path,
     output: pathlib.Path,
     start: faery.TimeOrTimecode,
@@ -94,7 +107,7 @@ def real_time_video(
     )
 
 
-tasks: list[faery.Task] = [kinectograph, kinectograph_dense, wiggle, real_time_video]
+tasks: list[faery.Task] = [event_rate, kinectograph, kinectograph_dense, wiggle, video]
 
 job_manager = faery.JobManager()
 
