@@ -482,6 +482,16 @@ class Colormap:
 
 @dataclasses.dataclass
 class ColorTheme:
+    """
+    ColorTheme bundles color preferences for different types of assets (event rate curves, colourtime plots...)
+
+    A ColorTheme object is typically one of the parameters of the function that creates the asset.
+
+    The faery library provides two themes (faery.LIGHT_COLOR_THEME and faery.DARK_COLOR_THEME).
+    If you wish to use an existing theme but change one of the colors, you may use the `replace` function.
+    For instance, `new_theme = faery.LIGHT_COLOR_THEME.replace(background="#DDDDDD")`.
+    """
+
     background: Color
     labels: Color
     axes: Color
@@ -500,6 +510,9 @@ class ColorTheme:
         lines: typing.Optional[list[Color]] = None,
         colormap: typing.Optional[Colormap] = None,
     ) -> "ColorTheme":
+        """
+        Creates a new theme by copying `self` and replacing the specified entries.
+        """
         return ColorTheme(
             background=self.background if background is None else background,
             labels=self.labels if labels is None else labels,
