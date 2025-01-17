@@ -7,11 +7,11 @@ print("🎬 Render dvs.es as a slow-motion video")
         faery.dirname.parent / "tests" / "data" / "dvs.es",
     )
     .regularize(frequency_hz=600.0)
-    .envelope(
+    .render(
         decay="exponential",
         tau="00:00:00.200000",
+        colormap=faery.colormaps.managua.flipped(),
     )
-    .colorize(colormap=faery.colormaps.managua.flipped())
     .scale()
     .add_timecode()
     .to_file(

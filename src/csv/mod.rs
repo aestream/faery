@@ -45,8 +45,8 @@ impl Decoder {
         on_value: Vec<u8>,
         off_value: Vec<u8>,
         skip_errors: bool,
-    ) -> Result<Self, PyErr> {
-        Python::with_gil(|python| -> Result<Self, PyErr> {
+    ) -> PyResult<Self> {
+        Python::with_gil(|python| -> PyResult<Self> {
             Ok(Decoder {
                 inner: Some(decoder::Decoder::new(
                     if path.is_none() {
@@ -151,8 +151,8 @@ impl Encoder {
         separator: u8,
         header: bool,
         dimensions: (u16, u16),
-    ) -> Result<Self, PyErr> {
-        Python::with_gil(|python| -> Result<Self, PyErr> {
+    ) -> PyResult<Self> {
+        Python::with_gil(|python| -> PyResult<Self> {
             Ok(Encoder {
                 inner: Some(encoder::Encoder::new(
                     if path.is_none() {

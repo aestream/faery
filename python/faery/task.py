@@ -62,8 +62,8 @@ class Task:
         self,
         input: pathlib.Path,
         output: pathlib.Path,
-        start: timestamp.Time,
-        end: timestamp.Time,
+        start: timestamp.TimeOrTimecode,
+        end: timestamp.TimeOrTimecode,
     ):
         raise NotImplementedError()
 
@@ -71,7 +71,12 @@ class Task:
 def task(suffix: str, icon: str = "", name: typing.Optional[str] = None):
     def task_generator(
         function: typing.Callable[
-            [pathlib.Path, pathlib.Path, timestamp.Time, timestamp.Time],
+            [
+                pathlib.Path,
+                pathlib.Path,
+                timestamp.TimeOrTimecode,
+                timestamp.TimeOrTimecode,
+            ],
             None,
         ]
     ) -> Task:
@@ -103,8 +108,8 @@ def task(suffix: str, icon: str = "", name: typing.Optional[str] = None):
                 self,
                 input: pathlib.Path,
                 output: pathlib.Path,
-                start: timestamp.Time,
-                end: timestamp.Time,
+                start: timestamp.TimeOrTimecode,
+                end: timestamp.TimeOrTimecode,
             ):
                 return function(input, output, start, end)
 
@@ -116,8 +121,8 @@ def task(suffix: str, icon: str = "", name: typing.Optional[str] = None):
 @dataclasses.dataclass
 class Job:
     input: pathlib.Path
-    start: timestamp.Time
-    end: timestamp.Time
+    start: timestamp.TimeOrTimecode
+    end: timestamp.TimeOrTimecode
     tasks: list[Task]
     name: str
 
@@ -132,16 +137,16 @@ class JobManager:
     def add(
         self,
         input: pathlib.Path,
-        start: timestamp.Time,
-        end: timestamp.Time,
+        start: timestamp.TimeOrTimecode,
+        end: timestamp.TimeOrTimecode,
         tasks: list[Task],
         nickname: typing.Optional[str] = None,
     ):
         name = input.stem if nickname is None else nickname
         triplet = (
             name,
-            timestamp.timestamp_to_timecode(timestamp.parse_timestamp(start)),
-            timestamp.timestamp_to_timecode(timestamp.parse_timestamp(end)),
+            timestamp.parse_time(start).to_timecode(),
+            timestamp.parse_time(end).to_timecode(),
         )
         if triplet in self.triplets:
             raise Exception(
@@ -176,12 +181,8 @@ class JobManager:
             output_name = "_".join(
                 (
                     job.name,
-                    timestamp.timestamp_to_timecode_dashes(
-                        timestamp.parse_timestamp(job.start)
-                    ),
-                    timestamp.timestamp_to_timecode_dashes(
-                        timestamp.parse_timestamp(job.end)
-                    ),
+                    timestamp.parse_time(job.start).to_timecode_with_dashes(),
+                    timestamp.parse_time(job.end).to_timecode_with_dashes(),
                 )
             )
             output_directory = self.output_directory / output_name

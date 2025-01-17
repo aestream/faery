@@ -4,13 +4,14 @@ import typing
 import uuid
 
 import numpy
+import numpy.typing
 
 from . import enums, events_stream_state, frame_stream, frame_stream_state, timestamp
 
 if typing.TYPE_CHECKING:
-    from .types import aedat, csv, dat, event_stream, evt, mp4  # type: ignore
+    from .types import aedat, csv, dat, event_stream, evt, gif, mp4  # type: ignore
 else:
-    from .extension import aedat, csv, dat, event_stream, evt, mp4
+    from .extension import aedat, csv, dat, event_stream, evt, gif, mp4
 
 
 def with_write_suffix(path: pathlib.Path) -> pathlib.Path:
@@ -198,18 +199,17 @@ def events_to_file(
         state_manager.end()
     else:
         raise Exception(f"file type {file_type} not implemented")
-    return timestamp.timestamp_to_timecode(t0)
+    return timestamp.Time(microseconds=t0).to_timecode()
 
 
 def frames_to_files(
-    stream: collections.abc.Iterable[frame_stream.Rgba8888Frame],
+    stream: collections.abc.Iterable[frame_stream.Frame],
     path_pattern: typing.Union[pathlib.Path, str],
     compression_level: enums.ImageFileCompressionLevel = "fast",
+    quality: int = 100,
     file_type: typing.Optional[enums.ImageFileType] = None,
     use_write_suffix: bool = True,
-    on_progress: typing.Callable[
-        [frame_stream.Rgba8888OutputState], None
-    ] = lambda _: None,
+    on_progress: typing.Callable[[frame_stream.OutputState], None] = lambda _: None,
 ):
     path_pattern = pathlib.Path(path_pattern)
     index_uuid = str(uuid.uuid4())
@@ -230,7 +230,7 @@ def frames_to_files(
                 break
     except KeyError as error:
         raise Exception(
-            f'unexpected variable "{error.args[0]}" in "{path_pattern}" (Rgba8888FrameStream.to_files calculates paths with Python\'s `format` method and the variables {{i}}/{{index}} and/or {{t}}/{{timestamp}}, see https://docs.python.org/3/library/string.html#formatstrings to escape other variables)'
+            f'unexpected variable "{error.args[0]}" in "{path_pattern}" (FrameStream.to_files calculates paths with Python\'s `format` method and the variables {{i}}/{{index}} and/or {{t}}/{{timestamp}}, see https://docs.python.org/3/library/string.html#formatstrings to escape other variables)'
         )
     if not found:
         raise Exception(
@@ -267,7 +267,7 @@ def frames_to_files(
 
 
 def frames_to_file(
-    stream: collections.abc.Iterable[frame_stream.Rgba8888Frame],
+    stream: collections.abc.Iterable[frame_stream.Frame],
     path: typing.Union[pathlib.Path, str],
     dimensions: tuple[int, int],
     frame_rate: float = 60.0,
@@ -275,12 +275,33 @@ def frames_to_file(
     preset: enums.VideoFilePreset = "medium",
     tune: enums.VideoFileTune = "none",
     profile: enums.VideoFileProfile = "baseline",
+    quality: int = 100,
+    rewind: bool = False,
+    skip: int = 0,
     file_type: typing.Optional[enums.VideoFileType] = None,
     use_write_suffix: bool = True,
-    on_progress: typing.Callable[
-        [frame_stream.Rgba8888OutputState], None
-    ] = lambda _: None,
+    on_progress: typing.Callable[[frame_stream.OutputState], None] = lambda _: None,
 ):
+    """
+    crf: only used if the file type is mp4
+
+    preset: trade-off between size and compression speed for mp4, sets the `fast` flag for gif as follows:
+        - "ultrafast", "superfast", "veryfast", "faster", "fast", "medium", "none" => fast = True
+        - "slow", "slower", "veryslow", "placebo" => fast = False
+
+    tune: only used if the file type is mp4
+
+    profile: only used if the file type is mp4
+
+    quality: only used if the file type is gif, must be a value in the range [1, 100]
+
+    rewind: whether to play the video in reverse after the forward pass.
+    This option stores all the frames in memory and can result in high memory usage on long videos.
+
+    skip: remove this many frames from the beginning of the recording.
+    The first frames have a different appearance when using a decay that is larger than the frame duration.
+    Removing them hides potentially important data but yields more consistent representations, especially when using `rewind`.
+    """
     path = pathlib.Path(path)
     if use_write_suffix:
         write_path = with_write_suffix(path=path)
@@ -297,19 +318,49 @@ def frames_to_file(
     state_manager = frame_stream_state.StateManager(
         stream=stream, on_progress=on_progress
     )
-    with mp4.Encoder(
-        path=path if write_path is None else write_path,
-        dimensions=dimensions,
-        frame_rate=frame_rate,
-        crf=crf,
-        preset=preset,
-        tune=tune,
-        profile=profile,
-    ) as encoder:
+    frames: list[frame_stream.Frame] = []
+    if file_type == "mp4":
+        video_encoder = mp4.Encoder(
+            path=path if write_path is None else write_path,
+            dimensions=dimensions,
+            frame_rate=frame_rate,
+            crf=crf,
+            preset=preset,
+            tune=tune,
+            profile=profile,
+        )
+    elif file_type == "gif":
+        video_encoder = gif.Encoder(
+            path=path if write_path is None else write_path,
+            dimensions=dimensions,
+            frame_rate=frame_rate,
+            quality=quality,
+            fast=preset
+            in {
+                "ultrafast",
+                "superfast",
+                "veryfast",
+                "faster",
+                "fast",
+                "medium",
+                "none",
+            },
+        )
+    else:
+        raise Exception(f"file type {file_type} not implemented")
+    with video_encoder as encoder:
         state_manager.start()
         for frame in stream:
-            encoder.write(frame=frame.pixels)
+            if skip > 0:
+                skip -= 1
+            else:
+                encoder.write(frame=frame.pixels)
+                if rewind:
+                    frames.append(frame)
             state_manager.commit(frame=frame)
+        if rewind and len(frames) >= 3:
+            for frame in reversed(frames[1 : len(frames) - 1]):
+                encoder.write(frame=frame.pixels)
     if write_path is not None:
         write_path.replace(path)
     state_manager.end()

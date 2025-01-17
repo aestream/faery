@@ -23,8 +23,8 @@ def test_mustache_template():
         jobs.append(
             faery.mustache.Job(
                 input=str(uuid.uuid4()),
-                start=faery.timestamp_to_timecode(start),
-                end=faery.timestamp_to_timecode(end),
+                start=faery.Time(microseconds=start).to_timecode(),
+                end=faery.Time(microseconds=end).to_timecode(),
                 nickname=str(uuid.uuid4()),
             )
         )

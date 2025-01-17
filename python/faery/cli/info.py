@@ -193,7 +193,6 @@ class Command(command.Command):
                 ),
             )
             dimensions = stream.dimensions()
-            time_range_us = stream.time_range_us()
             time_range = stream.time_range()
             t_hasher = hashlib.sha3_224()
             x_hasher = hashlib.sha3_224()
@@ -206,11 +205,15 @@ class Command(command.Command):
                 on_hasher.update(events["on"].tobytes())
             info["data"] = {
                 "dimensions": dimensions,
-                "time_range": time_range,
-                "time_range_us": time_range_us,
-                "duration": faery.timestamp_to_timecode(
-                    time_range_us[1] - time_range_us[0]
-                ),
+                "time_range": [
+                    time_range[0].to_timecode(),
+                    time_range[1].to_timecode(),
+                ],
+                "time_range_us": [
+                    time_range[0].to_microseconds(),
+                    time_range[1].to_microseconds(),
+                ],
+                "duration": (time_range[1] - time_range[0]).to_timecode(),
                 "t_hash": t_hasher.hexdigest(),
                 "x_hash": x_hasher.hexdigest(),
                 "y_hash": y_hasher.hexdigest(),

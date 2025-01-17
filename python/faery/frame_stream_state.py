@@ -1,8 +1,10 @@
 import dataclasses
 import typing
 
+from . import timestamp
+
 if typing.TYPE_CHECKING:
-    from .frame_stream import Float64Frame, Rgba8888Frame
+    from .frame_stream import Frame
 
 
 @dataclasses.dataclass
@@ -12,7 +14,7 @@ class FrameState:
     """
 
     index: int
-    t: int
+    t: timestamp.Time
 
 
 @dataclasses.dataclass
@@ -45,7 +47,7 @@ class FiniteFrameStreamState:
 
     "end" indicates the end of the stream (after reading the last frame)
     """
-    stream_time_range_us: tuple[int, int]
+    stream_time_range: tuple[timestamp.Time, timestamp.Time]
     """
     The stream's time range in microseconds.
     """
@@ -89,7 +91,7 @@ class FiniteRegularFrameStreamState:
 
     "end" indicates the end of the stream (after reading the last packet)
     """
-    stream_time_range_us: tuple[int, int]
+    stream_time_range: tuple[timestamp.Time, timestamp.Time]
     """
     The stream's time range in microseconds.
     """
@@ -119,22 +121,29 @@ class StateManager:
     ):
         self.index = 0
         try:
-            self.time_range_us = stream.time_range_us()
+            self.time_range = stream.time_range()
         except (AttributeError, NotImplementedError):
-            self.time_range_us = None
+            self.time_range = None
         try:
             self.frequency_hz = stream.frequency_hz()
         except (AttributeError, NotImplementedError):
             self.frequency_hz = None
         self.on_progress = on_progress
-        if self.time_range_us is None or self.frequency_hz is None:
+        if self.time_range is None or self.frequency_hz is None:
             self.frame_count = None
         else:
             self.frame_count = 1
             period_us = 1e6 / self.frequency_hz
             while True:
-                end = int(round(self.time_range_us[0] + self.frame_count * period_us))
-                if end >= self.time_range_us[1]:
+                end = timestamp.Time(
+                    microseconds=int(
+                        round(
+                            self.time_range[0].to_microseconds()
+                            + self.frame_count * period_us
+                        )
+                    )
+                )
+                if end >= self.time_range[1]:
                     break
                 self.frame_count += 1
 
@@ -143,7 +152,7 @@ class StateManager:
         Must be called by the stream consumer just before starting the iteration (before the first commit call).
         """
 
-        if self.time_range_us is None:
+        if self.time_range is None:
             if self.frequency_hz is None:
                 self.on_progress(FrameStreamState(frame="start"))
             else:
@@ -159,7 +168,7 @@ class StateManager:
                 self.on_progress(
                     FiniteFrameStreamState(
                         frame="start",
-                        stream_time_range_us=self.time_range_us,
+                        stream_time_range=self.time_range,
                         progress=0.0,
                     )
                 )
@@ -168,23 +177,20 @@ class StateManager:
                 self.on_progress(
                     FiniteRegularFrameStreamState(
                         frame="start",
-                        stream_time_range_us=self.time_range_us,
+                        stream_time_range=self.time_range,
                         frequency_hz=self.frequency_hz,
                         progress=0.0,
                         frame_count=self.frame_count,
                     )
                 )
 
-    def commit(
-        self,
-        frame: typing.Union["Float64Frame", "Rgba8888Frame"],
-    ):
+    def commit(self, frame: "Frame"):
         """
         Must be called by the stream consumer after processing a frame.
         """
 
         if self.frequency_hz is None:
-            if self.time_range_us is None:
+            if self.time_range is None:
                 self.on_progress(
                     FrameStreamState(
                         frame=FrameState(
@@ -200,13 +206,16 @@ class StateManager:
                             index=self.index,
                             t=frame.t,
                         ),
-                        stream_time_range_us=self.time_range_us,
-                        progress=(frame.t - self.time_range_us[0])
-                        / (self.time_range_us[1] - self.time_range_us[0]),
+                        stream_time_range=self.time_range,
+                        progress=(frame.t - self.time_range[0])
+                        / (
+                            self.time_range[1].to_microseconds()
+                            - self.time_range[0].to_microseconds()
+                        ),
                     )
                 )
         else:
-            if self.time_range_us is None:
+            if self.time_range is None:
                 self.on_progress(
                     RegularFrameStreamState(
                         frame=FrameState(
@@ -224,10 +233,17 @@ class StateManager:
                             index=self.index,
                             t=frame.t,
                         ),
-                        stream_time_range_us=self.time_range_us,
+                        stream_time_range=self.time_range,
                         frequency_hz=self.frequency_hz,
-                        progress=(frame.t + 1 - self.time_range_us[0])
-                        / (self.time_range_us[1] - self.time_range_us[0]),
+                        progress=(
+                            frame.t.to_microseconds()
+                            + 1
+                            - self.time_range[0].to_microseconds()
+                        )
+                        / (
+                            self.time_range[1].to_microseconds()
+                            - self.time_range[0].to_microseconds()
+                        ),
                         frame_count=self.frame_count,
                     )
                 )
@@ -238,7 +254,7 @@ class StateManager:
         Must be called by the stream consumer after processing the last frame (after the last commit call).
         """
 
-        if self.time_range_us is None:
+        if self.time_range is None:
             if self.frequency_hz is None:
                 self.on_progress(FrameStreamState(frame="end"))
             else:
@@ -254,7 +270,7 @@ class StateManager:
                 self.on_progress(
                     FiniteFrameStreamState(
                         frame="end",
-                        stream_time_range_us=self.time_range_us,
+                        stream_time_range=self.time_range,
                         progress=1.0,
                     )
                 )
@@ -263,7 +279,7 @@ class StateManager:
                 self.on_progress(
                     FiniteRegularFrameStreamState(
                         frame="end",
-                        stream_time_range_us=self.time_range_us,
+                        stream_time_range=self.time_range,
                         frequency_hz=self.frequency_hz,
                         progress=1.0,
                         frame_count=self.frame_count,

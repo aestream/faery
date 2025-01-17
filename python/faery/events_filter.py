@@ -65,54 +65,60 @@ class Regularize(events_stream.FiniteRegularEventsFilter):
         self,
         parent: stream.FiniteRegularStream[numpy.ndarray],
         frequency_hz: float,
-        start: typing.Optional[timestamp.Time] = None,
+        start: typing.Optional[timestamp.TimeOrTimecode] = None,
     ):
         self.init(parent=parent)
         self._frequency_hz = frequency_hz
-        self.start = None if start is None else timestamp.parse_timestamp(start)
+        self.start = None if start is None else timestamp.parse_time(start)
 
     def frequency_hz(self) -> float:
         return self._frequency_hz
 
     @restrict({"FiniteRegular"})
-    def time_range_us(self) -> tuple[int, int]:
-        parent_time_range_us = self.parent.time_range_us()
+    def time_range(self) -> tuple[timestamp.Time, timestamp.Time]:
+        parent_time_range = self.parent.time_range()
         if self.start is None:
-            start = parent_time_range_us[0]
+            start = parent_time_range[0]
         else:
             start = self.start
         period_us = 1e6 / self.frequency_hz()
         assert period_us > 0
-        target_end = max(start + 1, parent_time_range_us[1])
+        time_range_end = max(start + 1 * timestamp.us, parent_time_range[1])
         end_index = 1
         while True:
-            end = int(round(start + end_index * period_us))
-            if end >= target_end:
+            end = timestamp.Time(
+                microseconds=int(round(start.to_microseconds() + end_index * period_us))
+            )
+            if end >= time_range_end:
                 return (start, end)
             end_index += 1
 
     def __iter__(self) -> collections.abc.Iterator[numpy.ndarray]:
         try:
-            parent_time_range_us = self.parent.time_range_us()
+            parent_time_range = self.parent.time_range()
             packet_index = 0
-            first_packet_start_t = (
-                parent_time_range_us[0] if self.start is None else self.start
+            first_packet_start_t_us = (
+                parent_time_range[0].to_microseconds()
+                if self.start is None
+                else self.start.to_microseconds()
             )
-            end_t = parent_time_range_us[1]
+            end_t_us = parent_time_range[1].to_microseconds()
         except (AttributeError, NotImplementedError):
             packet_index = 0
-            first_packet_start_t = self.start
-            end_t = None
+            first_packet_start_t_us = (
+                None if self.start is None else self.start.to_microseconds()
+            )
+            end_t_us = None
         events_buffers: list[numpy.ndarray] = []
         period_us = 1e6 / self._frequency_hz
         for events in self.parent:
             while len(events) > 0:
-                if first_packet_start_t is None:
-                    first_packet_start_t = events["t"][0]
-                if events["t"][-1] < first_packet_start_t:
+                if first_packet_start_t_us is None:
+                    first_packet_start_t_us = int(events["t"][0])
+                if events["t"][-1] < first_packet_start_t_us:
                     break
                 next_packet_start_t = int(
-                    round(first_packet_start_t + (packet_index + 1) * period_us)
+                    round(first_packet_start_t_us + (packet_index + 1) * period_us)
                 )
                 if events["t"][0] >= next_packet_start_t:
                     if len(events_buffers) == 0:
@@ -139,12 +145,12 @@ class Regularize(events_stream.FiniteRegularEventsFilter):
                 events = events[pivot:]
                 packet_index += 1
         if len(events_buffers) > 0:
-            assert first_packet_start_t is not None
+            assert first_packet_start_t_us is not None
             yield numpy.concatenate(events_buffers, dtype=events_stream.EVENTS_DTYPE)
             events_buffers = []
             packet_index += 1
-        if first_packet_start_t is not None and end_t is not None:
-            while first_packet_start_t + packet_index * period_us < end_t:
+        if first_packet_start_t_us is not None and end_t_us is not None:
+            while first_packet_start_t_us + packet_index * period_us < end_t_us:
                 yield numpy.array([], dtype=events_stream.EVENTS_DTYPE)
                 packet_index += 1
 
@@ -196,42 +202,45 @@ class TimeSlice(events_stream.FiniteEventsFilter):  # type: ignore
     def __init__(
         self,
         parent: stream.FiniteStream[numpy.ndarray],
-        start: timestamp.Time,
-        end: timestamp.Time,
+        start: timestamp.TimeOrTimecode,
+        end: timestamp.TimeOrTimecode,
         zero: bool,
     ):
         self.init(parent=parent)
-        self.start = timestamp.parse_timestamp(start)
-        self.end = timestamp.parse_timestamp(end)
+        self.start = timestamp.parse_time(start)
+        self.end = timestamp.parse_time(end)
         assert self.start < self.end, f"{start=} must be strictly smaller than {end=}"
         self.zero = zero
 
-    def time_range_us(self) -> tuple[int, int]:
-        parent_time_range_us = self.parent.time_range_us()
+    def time_range(self) -> tuple[timestamp.Time, timestamp.Time]:
+        parent_time_range = self.parent.time_range()
         if self.zero:
             return (
-                max(self.start, parent_time_range_us[0]) - self.start,
-                min(self.end, parent_time_range_us[1]) - self.start,
+                max(self.start, parent_time_range[0]) - self.start,
+                min(self.end, parent_time_range[1]) - self.start,
             )
         else:
             return (
-                max(self.start, parent_time_range_us[0]),
-                min(self.end, parent_time_range_us[1]),
+                max(self.start, parent_time_range[0]),
+                min(self.end, parent_time_range[1]),
             )
 
     def __iter__(self) -> collections.abc.Iterator[numpy.ndarray]:
         for events in self.parent:
             if len(events) > 0:
-                if events["t"][-1] < self.start:
+                if events["t"][-1] < self.start.to_microseconds():
                     continue
-                if events["t"][0] >= self.end:
+                if events["t"][0] >= self.end.to_microseconds():
                     return
                 events = events[
-                    numpy.logical_and(events["t"] >= self.start, events["t"] < self.end)
+                    numpy.logical_and(
+                        events["t"] >= self.start.to_microseconds(),
+                        events["t"] < self.end.to_microseconds(),
+                    )
                 ]
                 if len(events) > 0:
                     if self.zero:
-                        events["t"] -= self.start
+                        events["t"] -= self.start.to_microseconds()
                     yield events
 
 
@@ -250,27 +259,48 @@ class PacketSlice(events_stream.FiniteRegularEventsFilter):  # type: ignore
         assert start < end, f"{start=} must be strictly smaller than {end=}"
         self.zero = zero
 
-    def time_range_us(self) -> tuple[int, int]:
+    def time_range(self) -> tuple[timestamp.Time, timestamp.Time]:
         period_us = 1e6 / self.frequency_hz()
-        parent_time_range_us = self.parent.time_range_us()
+        parent_time_range = self.parent.time_range()
         if self.zero:
             return (
-                0,
-                round(
-                    int(parent_time_range_us[0] + period_us * (self.end - self.start))
+                timestamp.Time(microseconds=0),
+                timestamp.Time(
+                    microseconds=int(
+                        round(
+                            parent_time_range[0].to_microseconds()
+                            + period_us * (self.end - self.start)
+                        )
+                    )
                 ),
             )
         else:
             return (
-                round(int(parent_time_range_us[0] + period_us * self.start)),
-                round(int(parent_time_range_us[0] + period_us * self.end)),
+                timestamp.Time(
+                    microseconds=round(
+                        int(
+                            parent_time_range[0].to_microseconds()
+                            + period_us * self.start
+                        )
+                    )
+                ),
+                timestamp.Time(
+                    microseconds=round(
+                        int(
+                            parent_time_range[0].to_microseconds()
+                            + period_us * self.end
+                        )
+                    )
+                ),
             )
 
     def __iter__(self) -> collections.abc.Iterator[numpy.ndarray]:
         if self.zero:
             period_us = 1e6 / self.frequency_hz()
-            parent_time_range_us = self.parent.time_range_us()
-            offset = round(int(parent_time_range_us[0] + period_us * self.start))
+            parent_time_range = self.parent.time_range()
+            offset = round(
+                int(parent_time_range[0].to_microseconds() + period_us * self.start)
+            )
         else:
             offset = None
         for index, events in enumerate(self.parent):
@@ -442,7 +472,7 @@ class Transpose(events_stream.FiniteRegularEventsFilter):
                 events["y"] = dimensions[1] - 1 - events["y"]
             elif self.action == "rotate_90_counterclockwise":
                 x = events["x"].copy()
-                events["x"] = dimensions[0] - 1 - events["y"]
+                events["x"] = dimensions[1] - 1 - events["y"]
                 events["y"] = x
             elif self.action == "rotate_180":
                 events["x"] = dimensions[0] - 1 - events["x"]
@@ -450,15 +480,15 @@ class Transpose(events_stream.FiniteRegularEventsFilter):
             elif self.action == "rotate_270_counterclockwise":
                 x = events["x"].copy()
                 events["x"] = events["y"]
-                events["y"] = dimensions[1] - 1 - x
+                events["y"] = dimensions[0] - 1 - x
             elif self.action == "flip_up_diagonal":
                 x = events["x"].copy()
                 events["x"] = events["y"]
                 events["y"] = x
             elif self.action == "flip_down_diagonal":
                 x = events["x"].copy()
-                events["x"] = dimensions[0] - 1 - events["y"]
-                events["y"] = dimensions[1] - 1 - x
+                events["x"] = dimensions[1] - 1 - events["y"]
+                events["y"] = dimensions[0] - 1 - x
             else:
                 raise Exception(f'unknown action "{self.action}"')
             yield events

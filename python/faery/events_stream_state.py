@@ -3,6 +3,8 @@ import typing
 
 import numpy
 
+from . import timestamp
+
 
 @dataclasses.dataclass
 class PacketState:
@@ -10,11 +12,11 @@ class PacketState:
     The index and time range of an events packet in a stream.
 
     The events' timestamps in the packet are guaranteed to be larger than
-    or equal to time_range_us[0] and strictly smaller than time_range_us[1].
+    or equal to time_range[0] and strictly smaller than time_range[1].
     """
 
     index: int
-    time_range_us: tuple[int, int]
+    time_range: tuple[timestamp.Time, timestamp.Time]
 
 
 @dataclasses.dataclass
@@ -47,7 +49,7 @@ class FiniteEventsStreamState:
 
     "end" indicates the end of the stream (after reading the last packet)
     """
-    stream_time_range_us: tuple[int, int]
+    stream_time_range: tuple[timestamp.Time, timestamp.Time]
     """
     The stream's time range in microseconds.
     """
@@ -91,7 +93,7 @@ class FiniteRegularEventsStreamState:
 
     "end" indicates the end of the stream (after reading the last packet)
     """
-    stream_time_range_us: tuple[int, int]
+    stream_time_range: tuple[timestamp.Time, timestamp.Time]
     """
     The stream's time range in microseconds.
     """
@@ -121,22 +123,31 @@ class StateManager:
     ):
         self.index = 0
         try:
-            self.time_range_us = stream.time_range_us()
+            self.time_range: typing.Optional[tuple[timestamp.Time, timestamp.Time]] = (
+                stream.time_range()
+            )
         except (AttributeError, NotImplementedError):
-            self.time_range_us = None
+            self.time_range = None
         try:
             self.frequency_hz = stream.frequency_hz()
         except (AttributeError, NotImplementedError):
             self.frequency_hz = None
         self.on_progress = on_progress
-        if self.time_range_us is None or self.frequency_hz is None:
+        if self.time_range is None or self.frequency_hz is None:
             self.packet_count = None
         else:
             self.packet_count = 1
             period_us = 1e6 / self.frequency_hz
             while True:
-                end = int(round(self.time_range_us[0] + self.packet_count * period_us))
-                if end >= self.time_range_us[1]:
+                end = timestamp.Time(
+                    microseconds=int(
+                        round(
+                            self.time_range[0].to_microseconds()
+                            + self.packet_count * period_us
+                        )
+                    )
+                )
+                if end >= self.time_range[1]:
                     break
                 self.packet_count += 1
 
@@ -144,7 +155,7 @@ class StateManager:
         """
         Must be called by the stream consumer just before starting the iteration (before the first commit call).
         """
-        if self.time_range_us is None:
+        if self.time_range is None:
             if self.frequency_hz is None:
                 self.on_progress(EventsStreamState(packet="start"))
             else:
@@ -160,7 +171,7 @@ class StateManager:
                 self.on_progress(
                     FiniteEventsStreamState(
                         packet="start",
-                        stream_time_range_us=self.time_range_us,
+                        stream_time_range=self.time_range,
                         progress=0.0,
                     )
                 )
@@ -169,7 +180,7 @@ class StateManager:
                 self.on_progress(
                     FiniteRegularEventsStreamState(
                         packet="start",
-                        stream_time_range_us=self.time_range_us,
+                        stream_time_range=self.time_range,
                         frequency_hz=self.frequency_hz,
                         progress=0.0,
                         packet_count=self.packet_count,
@@ -183,18 +194,23 @@ class StateManager:
         if len(events) == 0:
             if self.frequency_hz is None:
                 return
-            if self.time_range_us is None:
+            if self.time_range is None:
                 pass
             else:
                 pass
         else:
             if self.frequency_hz is None:
-                if self.time_range_us is None:
+                if self.time_range is None:
                     self.on_progress(
                         EventsStreamState(
                             packet=PacketState(
                                 index=self.index,
-                                time_range_us=(events["t"][0], events["t"][-1] + 1),
+                                time_range=(
+                                    timestamp.Time(microseconds=int(events["t"][0])),
+                                    timestamp.Time(
+                                        microseconds=int(events["t"][-1]) + 1
+                                    ),
+                                ),
                             )
                         )
                     )
@@ -203,20 +219,37 @@ class StateManager:
                         FiniteEventsStreamState(
                             packet=PacketState(
                                 index=self.index,
-                                time_range_us=(events["t"][0], events["t"][-1] + 1),
+                                time_range=(
+                                    timestamp.Time(microseconds=int(events["t"][0])),
+                                    timestamp.Time(
+                                        microseconds=int(events["t"][-1]) + 1
+                                    ),
+                                ),
                             ),
-                            stream_time_range_us=self.time_range_us,
-                            progress=(events["t"][-1] + 1 - self.time_range_us[0])
-                            / (self.time_range_us[1] - self.time_range_us[0]),
+                            stream_time_range=self.time_range,
+                            progress=(
+                                events["t"][-1]
+                                + 1
+                                - self.time_range[0].to_microseconds()
+                            )
+                            / (
+                                self.time_range[1].to_microseconds()
+                                - self.time_range[0].to_microseconds()
+                            ),
                         )
                     )
             else:
-                if self.time_range_us is None:
+                if self.time_range is None:
                     self.on_progress(
                         RegularEventsStreamState(
                             packet=PacketState(
                                 index=self.index,
-                                time_range_us=(events["t"][0], events["t"][-1] + 1),
+                                time_range=(
+                                    timestamp.Time(microseconds=int(events["t"][0])),
+                                    timestamp.Time(
+                                        microseconds=int(events["t"][-1]) + 1
+                                    ),
+                                ),
                             ),
                             frequency_hz=self.frequency_hz,
                         )
@@ -227,12 +260,24 @@ class StateManager:
                         FiniteRegularEventsStreamState(
                             packet=PacketState(
                                 index=self.index,
-                                time_range_us=(events["t"][0], events["t"][-1] + 1),
+                                time_range=(
+                                    timestamp.Time(microseconds=int(events["t"][0])),
+                                    timestamp.Time(
+                                        microseconds=int(events["t"][-1]) + 1
+                                    ),
+                                ),
                             ),
-                            stream_time_range_us=self.time_range_us,
+                            stream_time_range=self.time_range,
                             frequency_hz=self.frequency_hz,
-                            progress=(events["t"][-1] + 1 - self.time_range_us[0])
-                            / (self.time_range_us[1] - self.time_range_us[0]),
+                            progress=(
+                                events["t"][-1]
+                                + 1
+                                - self.time_range[0].to_microseconds()
+                            )
+                            / (
+                                self.time_range[1].to_microseconds()
+                                - self.time_range[0].to_microseconds()
+                            ),
                             packet_count=self.packet_count,
                         )
                     )
@@ -243,7 +288,7 @@ class StateManager:
         Must be called by the stream consumer after processing the last events packet (after the last commit call).
         """
 
-        if self.time_range_us is None:
+        if self.time_range is None:
             if self.frequency_hz is None:
                 self.on_progress(EventsStreamState(packet="end"))
             else:
@@ -259,7 +304,7 @@ class StateManager:
                 self.on_progress(
                     FiniteEventsStreamState(
                         packet="end",
-                        stream_time_range_us=self.time_range_us,
+                        stream_time_range=self.time_range,
                         progress=1.0,
                     )
                 )
@@ -268,7 +313,7 @@ class StateManager:
                 self.on_progress(
                     FiniteRegularEventsStreamState(
                         packet="end",
-                        stream_time_range_us=self.time_range_us,
+                        stream_time_range=self.time_range,
                         frequency_hz=self.frequency_hz,
                         progress=1.0,
                         packet_count=self.packet_count,

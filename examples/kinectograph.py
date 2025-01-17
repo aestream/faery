@@ -6,6 +6,10 @@ import faery
     )
     .to_kinectograph()
     .scale()
-    .colorize(colormap=faery.colormaps.roma_o.rolled(shift=128).repeated(count=2))
+    .render(
+        color_theme=faery.DARK_COLOR_THEME.replace(
+            colormap=faery.colormaps.roma_o.rolled(shift=128).repeated(count=2),
+        )
+    )
     .to_file(faery.dirname.parent / "tests" / "data_generated" / "kinectograph.png")
 )

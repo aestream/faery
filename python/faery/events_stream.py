@@ -5,10 +5,10 @@ import typing
 import numpy
 import numpy.typing
 
-from . import enums, events_stream_state, frame_stream, stream, timestamp
-from .colormaps._base import Color, Colormap
+from . import color, enums, events_stream_state, frame_stream, stream, timestamp
 
 if typing.TYPE_CHECKING:
+    from . import event_rate, kinectograph
     from .types import aedat  # type: ignore
 else:
     from .extension import aedat
@@ -138,7 +138,7 @@ class Output(typing.Generic[OutputState]):
         from . import file_encoder
 
         try:
-            self.time_range_us()  # type: ignore
+            self.time_range()  # type: ignore
             use_write_suffix = True
         except (AttributeError, NotImplementedError):
             use_write_suffix = False
@@ -220,7 +220,7 @@ class EventsStream(
     def regularize(
         self,
         frequency_hz: float,
-        start: typing.Optional[timestamp.Time] = None,
+        start: typing.Optional[timestamp.TimeOrTimecode] = None,
     ) -> "RegularEventsStream":
         """
         Converts the stream to a regular stream with the given frequency (or packet rate).
@@ -236,8 +236,8 @@ class EventsStream(
 
     def time_slice(
         self,
-        start: timestamp.Time,
-        end: timestamp.Time,
+        start: timestamp.TimeOrTimecode,
+        end: timestamp.TimeOrTimecode,
         zero: bool = False,
     ) -> "FiniteEventsStream": ...
 
@@ -269,11 +269,12 @@ class EventsStream(
     ) -> "EventsStream":
         return filter_class(self, *args, **kwargs)  # type: ignore
 
-    def envelope(
+    def render(
         self,
         decay: enums.Decay,
-        tau: timestamp.Time,
-    ) -> frame_stream.Float64FrameStream: ...
+        tau: timestamp.TimeOrTimecode,
+        colormap: color.Colormap,
+    ) -> frame_stream.FrameStream: ...
 
 
 class FiniteEventsStream(
@@ -283,7 +284,7 @@ class FiniteEventsStream(
     def regularize(
         self,
         frequency_hz: float,
-        start: typing.Optional[timestamp.Time] = None,
+        start: typing.Optional[timestamp.TimeOrTimecode] = None,
     ) -> "FiniteRegularEventsStream":
         """
         Converts the stream to a regular stream with the given frequency (or packet rate).
@@ -291,7 +292,7 @@ class FiniteEventsStream(
         Args:
             parent: An iterable of event arrays (structured arrays with dtype faery.EVENTS_DTYPE).
             frequency: Number of packets per second.
-            start: Optional starting time of the first packet. If None (default), the start of the time range (`parent.time_range_us()[0]`) is used.
+            start: Optional starting time of the first packet. If None (default), the start of the time range (`parent.time_range()[0]`) is used.
         """
         ...
 
@@ -305,8 +306,8 @@ class FiniteEventsStream(
 
     def time_slice(
         self,
-        start: timestamp.Time,
-        end: timestamp.Time,
+        start: timestamp.TimeOrTimecode,
+        end: timestamp.TimeOrTimecode,
         zero: bool = False,
     ) -> "FiniteEventsStream": ...
 
@@ -358,11 +359,12 @@ class FiniteEventsStream(
         state_manager.end()
         return result
 
-    def envelope(
+    def render(
         self,
         decay: enums.Decay,
-        tau: timestamp.Time,
-    ) -> frame_stream.FiniteFloat64FrameStream: ...
+        tau: timestamp.TimeOrTimecode,
+        colormap: color.Colormap,
+    ) -> frame_stream.FiniteFrameStream: ...
 
     def to_kinectograph(
         self,
@@ -374,17 +376,32 @@ class FiniteEventsStream(
             [numpy.typing.NDArray[numpy.float64]], numpy.typing.NDArray[numpy.float64]
         ] = lambda opacities_gamma: opacities_gamma,
         on_progress: typing.Callable[[OutputState], None] = lambda _: None,
-    ):
+    ) -> "kinectograph.Kinectograph":
 
         from . import kinectograph
 
         return kinectograph.Kinectograph.from_events(
             stream=self,
             dimensions=self.dimensions(),
-            time_range_us=self.time_range_us(),
+            time_range=self.time_range(),
             threshold_quantile=threshold_quantile,
             normalized_times_gamma=normalized_times_gamma,
             opacities_gamma=opacities_gamma,
+            on_progress=on_progress,  # type: ignore
+        )
+
+    def to_event_rate(
+        self,
+        samples: int = 1600,
+        on_progress: typing.Callable[[OutputState], None] = lambda _: None,
+    ) -> "event_rate.EventRate":
+
+        from . import event_rate
+
+        return event_rate.EventRate.from_events(
+            stream=self,
+            time_range=self.time_range(),
+            samples=samples,
             on_progress=on_progress,  # type: ignore
         )
 
@@ -396,7 +413,7 @@ class RegularEventsStream(
     def regularize(
         self,
         frequency_hz: float,
-        start: typing.Optional[timestamp.Time] = None,
+        start: typing.Optional[timestamp.TimeOrTimecode] = None,
     ) -> "RegularEventsStream":
         """
         Changes the frequency of the stream.
@@ -453,11 +470,12 @@ class RegularEventsStream(
     ) -> "RegularEventsStream":
         return filter_class(self, *args, **kwargs)  # type: ignore
 
-    def envelope(
+    def render(
         self,
         decay: enums.Decay,
-        tau: timestamp.Time,
-    ) -> frame_stream.RegularFloat64FrameStream: ...
+        tau: timestamp.TimeOrTimecode,
+        colormap: color.Colormap,
+    ) -> frame_stream.RegularFrameStream: ...
 
 
 class FiniteRegularEventsStream(
@@ -467,7 +485,7 @@ class FiniteRegularEventsStream(
     def regularize(
         self,
         frequency_hz: float,
-        start: typing.Optional[timestamp.Time] = None,
+        start: typing.Optional[timestamp.TimeOrTimecode] = None,
     ) -> "FiniteRegularEventsStream":
         """
         Changes the frequency of the stream.
@@ -475,7 +493,7 @@ class FiniteRegularEventsStream(
         Args:
             parent: An iterable of event arrays (structured arrays with dtype faery.EVENTS_DTYPE).
             period: Time interval covered by each packet.
-            start: Optional starting time of the first packet. If None (default), the start of the time range (`parent.time_range_us()[0]`) is used.
+            start: Optional starting time of the first packet. If None (default), the start of the time range (`parent.time_range()[0]`) is used.
         """
         ...
 
@@ -538,11 +556,12 @@ class FiniteRegularEventsStream(
         state_manager.end()
         return result
 
-    def envelope(
+    def render(
         self,
         decay: enums.Decay,
-        tau: timestamp.Time,
-    ) -> frame_stream.FiniteRegularFloat64FrameStream: ...
+        tau: timestamp.TimeOrTimecode,
+        colormap: color.Colormap,
+    ) -> frame_stream.FiniteRegularFrameStream: ...
 
     def to_kinectograph(
         self,
@@ -554,17 +573,32 @@ class FiniteRegularEventsStream(
             [numpy.typing.NDArray[numpy.float64]], numpy.typing.NDArray[numpy.float64]
         ] = lambda opacities_gamma: opacities_gamma,
         on_progress: typing.Callable[[OutputState], None] = lambda _: None,
-    ):
+    ) -> "kinectograph.Kinectograph":
 
         from . import kinectograph
 
         return kinectograph.Kinectograph.from_events(
             stream=self,
             dimensions=self.dimensions(),
-            time_range_us=self.time_range_us(),
+            time_range=self.time_range(),
             threshold_quantile=threshold_quantile,
             normalized_times_gamma=normalized_times_gamma,
             opacities_gamma=opacities_gamma,
+            on_progress=on_progress,  # type: ignore
+        )
+
+    def to_event_rate(
+        self,
+        samples: int = 1600,
+        on_progress: typing.Callable[[OutputState], None] = lambda _: None,
+    ) -> "event_rate.EventRate":
+
+        from . import event_rate
+
+        return event_rate.EventRate.from_events(
+            stream=self,
+            time_range=self.time_range(),
+            samples=samples,
             on_progress=on_progress,  # type: ignore
         )
 
@@ -581,7 +615,7 @@ def bind(prefix: typing.Literal["", "Finite", "Regular", "FiniteRegular"]):
     def regularize(
         self,
         frequency_hz: float,
-        start: typing.Optional[timestamp.Time] = None,
+        start: typing.Optional[timestamp.TimeOrTimecode] = None,
     ):
         from .events_filter import FILTERS
 
@@ -604,7 +638,10 @@ def bind(prefix: typing.Literal["", "Finite", "Regular", "FiniteRegular"]):
     if prefix == "" or prefix == "Finite":
 
         def time_slice(
-            self, start: timestamp.Time, end: timestamp.Time, zero: bool = False
+            self,
+            start: timestamp.TimeOrTimecode,
+            end: timestamp.TimeOrTimecode,
+            zero: bool = False,
         ):
             from .events_filter import FILTERS
 
@@ -716,14 +753,17 @@ def bind(prefix: typing.Literal["", "Finite", "Regular", "FiniteRegular"]):
             function=function,
         )
 
-    def envelope(
+    def render(
         self,
         decay: enums.Decay,
-        tau: timestamp.Time,
+        tau: timestamp.TimeOrTimecode,
+        colormap: color.Colormap,
     ):
-        from .render import FILTERS
+        from .events_render import FILTERS
 
-        return FILTERS[f"{prefix}Float64Envelope"](parent=self, decay=decay, tau=tau)
+        return FILTERS[f"{prefix}Render"](
+            parent=self, decay=decay, tau=tau, colormap=colormap
+        )
 
     regularize.filter_return_annotation = f"{regularize_prefix}EventsStream"
     chunks.filter_return_annotation = f"{unregularize_prefix}EventsStream"
@@ -737,7 +777,7 @@ def bind(prefix: typing.Literal["", "Finite", "Regular", "FiniteRegular"]):
         f"{unregularize_prefix}EventsStream"
     )
     map.filter_return_annotation = f"{prefix}EventsStream"
-    envelope.filter_return_annotation = f"{prefix}Float64FrameStream"
+    render.filter_return_annotation = f"{prefix}FrameStream"
 
     globals()[f"{prefix}EventsStream"].regularize = regularize
     globals()[f"{prefix}EventsStream"].chunks = chunks
@@ -751,7 +791,7 @@ def bind(prefix: typing.Literal["", "Finite", "Regular", "FiniteRegular"]):
         f"{prefix}EventsStream"
     ].filter_arbiter_saturation_lines = filter_arbiter_saturation_lines
     globals()[f"{prefix}EventsStream"].map = map
-    globals()[f"{prefix}EventsStream"].envelope = envelope
+    globals()[f"{prefix}EventsStream"].render = render
 
 
 for prefix in ("", "Finite", "Regular", "FiniteRegular"):
@@ -771,10 +811,13 @@ class Array(FiniteEventsStream):
     def dimensions(self) -> tuple[int, int]:
         return self.inner_dimensions
 
-    def time_range_us(self) -> tuple[int, int]:
+    def time_range(self) -> tuple[timestamp.Time, timestamp.Time]:
         if len(self.events) == 0:
-            return (0, 1)
-        return (int(self.events["t"][0]), int(self.events["t"][-1]) + 1)
+            return (timestamp.Time(microseconds=0), timestamp.Time(microseconds=1))
+        return (
+            timestamp.Time(microseconds=int(self.events["t"][0])),
+            timestamp.Time(microseconds=int(self.events["t"][-1]) + 1),
+        )
 
 
 class EventsFilter(

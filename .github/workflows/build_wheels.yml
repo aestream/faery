@@ -38,6 +38,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - run: python -m pip install cibuildwheel==2.21.3
+      - run: echo "MACOSX_DEPLOYMENT_TARGET=$(sw_vers -productVersion | cut -d '.' -f 1-2)" >> $GITHUB_ENV
+        if: startsWith(matrix.os, 'macos')
       - run: |
           brew install nasm
           python -m cibuildwheel

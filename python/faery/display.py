@@ -66,7 +66,7 @@ def progress_bar_implementation(
                 suffix = ""
                 last = True
             else:
-                suffix = timestamp.timestamp_to_timecode(state.packet.time_range_us[1])
+                suffix = state.packet.time_range[1].to_timecode()
                 last = False
         else:
             if state.frame == "start":
@@ -76,7 +76,7 @@ def progress_bar_implementation(
                 suffix = ""
                 last = True
             else:
-                suffix = timestamp.timestamp_to_timecode(state.frame.t)
+                suffix = state.frame.t.to_timecode()
                 last = False
         columns = os.get_terminal_size().columns
         progress_bar_width = columns - len(suffix) - 2
@@ -123,25 +123,27 @@ def progress_bar_implementation(
             ),
         ):
             if state.packet == "start":
-                numerator = state.stream_time_range_us[0]
+                numerator = state.stream_time_range[0]
                 last = False
             elif state.packet == "end":
-                numerator = state.stream_time_range_us[1]
+                numerator = state.stream_time_range[1]
                 last = True
             else:
-                numerator = state.packet.time_range_us[1]
+                numerator = state.packet.time_range[1]
                 last = False
         else:
             if state.frame == "start":
-                numerator = state.stream_time_range_us[0]
+                numerator = state.stream_time_range[0]
                 last = False
             elif state.frame == "end":
-                numerator = state.stream_time_range_us[1]
+                numerator = state.stream_time_range[1]
                 last = True
             else:
                 numerator = state.frame.t
                 last = False
-        suffix = f"{timestamp.timestamp_to_timecode(numerator)} / {timestamp.timestamp_to_timecode(state.stream_time_range_us[1])}"
+        suffix = (
+            f"{numerator.to_timecode()} / {state.stream_time_range[1].to_timecode()}"
+        )
         columns = os.get_terminal_size().columns
         progress_bar_width = columns - len(prefix) - len(suffix) - 3
         if progress_bar_width > 2:

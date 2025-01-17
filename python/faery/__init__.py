@@ -7,11 +7,16 @@ import typing
 __version__ = importlib.metadata.version("faery")
 
 from . import colormaps as colormaps
-from .colormaps._base import (
+from .color import (
     Color as Color,
     Colormap as Colormap,
+    ColorTheme as ColorTheme,
     gradient as gradient,
-    parse_color as parse_color,
+    color_to_ints as color_to_ints,
+    color_to_floats as color_to_floats,
+    color_to_hex_string as color_to_hex_string,
+    LIGHT_COLOR_THEME as LIGHT_COLOR_THEME,
+    DARK_COLOR_THEME as DARK_COLOR_THEME,
 )
 from .display import (
     progress_bar as progress_bar,
@@ -42,6 +47,7 @@ from .events_input import (
     events_stream_from_stdin as events_stream_from_stdin,
     events_stream_from_udp as events_stream_from_udp,
 )
+from .event_rate import EventRate as EventRate
 from .events_stream import (
     EVENTS_DTYPE as EVENTS_DTYPE,
     EventsFilter as EventsFilter,
@@ -60,22 +66,14 @@ from .events_stream_state import (
     RegularEventsStreamState as RegularEventsStreamState,
 )
 from .frame_stream import (
-    Float64Frame as Float64Frame,
-    Float64FrameStream as Float64FrameStream,
-    FiniteFloat64FrameStream as FiniteFloat64FrameStream,
-    FiniteFloat64FrameFilter as FiniteFloat64FrameFilter,
-    FiniteRegularFloat64FrameFilter as FiniteRegularFloat64FrameFilter,
-    FiniteRegularFloat64FrameStream as FiniteRegularFloat64FrameStream,
-    FiniteRegularRgba8888FrameFilter as FiniteRegularRgba8888FrameFilter,
-    FiniteRegularRgba8888FrameStream as FiniteRegularRgba8888FrameStream,
-    FiniteRgba8888FrameStream as FiniteRgba8888FrameStream,
-    FiniteRgba8888FrameFilter as FiniteRgba8888FrameFilter,
-    RegularFloat64FrameFilter as RegularFloat64FrameFilter,
-    RegularFloat64FrameStream as RegularFloat64FrameStream,
-    RegularRgba8888FrameFilter as RegularRgba8888FrameFilter,
-    RegularRgba8888FrameStream as RegularRgba8888FrameStream,
-    Rgba8888Frame as Rgba8888Frame,
-    Rgba8888FrameStream as Rgba8888FrameStream,
+    FiniteRegularFrameFilter as FiniteRegularFrameFilter,
+    FiniteRegularFrameStream as FiniteRegularFrameStream,
+    FiniteFrameStream as FiniteFrameStream,
+    FiniteFrameFilter as FiniteFrameFilter,
+    RegularFrameFilter as RegularFrameFilter,
+    RegularFrameStream as RegularFrameStream,
+    Frame as Frame,
+    FrameStream as FrameStream,
 )
 from .frame_stream_state import (
     FrameStreamState as FrameStreamState,
@@ -84,6 +82,7 @@ from .frame_stream_state import (
     RegularFrameStreamState as RegularFrameStreamState,
 )
 from .file_decoder import CsvProperties as CsvProperties
+from .kinectograph import Kinectograph as Kinectograph
 from .task import (
     dirname as dirname,
     Task as Task,
@@ -92,10 +91,13 @@ from .task import (
 )
 from .timestamp import (
     Time as Time,
-    parse_timestamp as parse_timestamp,
-    timestamp_to_seconds as timestamp_to_seconds,
-    timestamp_to_timecode as timestamp_to_timecode,
+    TimeOrTimecode as TimeOrTimecode,
+    parse_time as parse_time,
+    us as us,
+    ms as ms,
+    s as s,
 )
+from .wiggle import WiggleParameters as WiggleParameters
 
 if typing.TYPE_CHECKING:
     from .types import (
@@ -104,10 +106,12 @@ if typing.TYPE_CHECKING:
         dat,  # type: ignore
         event_stream,  # type: ignore
         evt,  # type: ignore
+        gif,  # type: ignore
         image,  # type: ignore
         job_metadata,  # type: ignore
         mp4,  # type: ignore
         mustache,  # type: ignore
+        raster,  # type: ignore
     )
 else:
     from .extension import (
@@ -116,10 +120,12 @@ else:
         dat,
         event_stream,
         evt,
+        gif,
         image,
         job_metadata,
         mp4,
         mustache,
+        raster,
     )
 
 
@@ -146,14 +152,20 @@ __all__ = [
     "colormaps",
     "Color",
     "Colormap",
+    "ColorTheme",
     "gradient",
-    "parse_color",
+    "color_to_ints",
+    "color_to_floats",
+    "color_to_hex_string",
+    "LIGHT_COLOR_THEME",
+    "DARK_COLOR_THEME",
     "progress_bar",
     "progress_bar_fold",
     "format_bold",
     "format_color",
     "ColorblindnessType",
     "Decay",
+    "EventRate",
     "EventsFileCompression",
     "EventsFileType",
     "EventsFileVersion",
@@ -162,6 +174,7 @@ __all__ = [
     "ImageFileCompressionLevel",
     "ImageFileType",
     "ImageResizeSamplingFilter",
+    "Kinectograph",
     "TransposeAction",
     "VideoFilePreset",
     "VideoFileProfile",
@@ -184,22 +197,14 @@ __all__ = [
     "FiniteEventsStreamState",
     "FiniteRegularEventsStreamState",
     "RegularEventsStreamState",
-    "Float64Frame",
-    "Float64FrameStream",
-    "FiniteFloat64FrameStream",
-    "FiniteFloat64FrameFilter",
-    "FiniteRegularFloat64FrameFilter",
-    "FiniteRegularFloat64FrameStream",
-    "FiniteRegularRgba8888FrameFilter",
-    "FiniteRegularRgba8888FrameStream",
-    "FiniteRgba8888FrameStream",
-    "FiniteRgba8888FrameFilter",
-    "RegularFloat64FrameFilter",
-    "RegularFloat64FrameStream",
-    "RegularRgba8888FrameFilter",
-    "RegularRgba8888FrameStream",
-    "Rgba8888Frame",
-    "Rgba8888FrameStream",
+    "FiniteRegularFrameFilter",
+    "FiniteRegularFrameStream",
+    "FiniteFrameStream",
+    "FiniteFrameFilter",
+    "RegularFrameFilter",
+    "RegularFrameStream",
+    "Frame",
+    "FrameStream",
     "FrameStreamState",
     "FiniteFrameStreamState",
     "FiniteRegularFrameStreamState",
@@ -211,17 +216,25 @@ __all__ = [
     "JobManager",
     "task",
     "Time",
-    "parse_timestamp",
-    "timestamp_to_seconds",
-    "timestamp_to_timecode",
+    "TimeOrTimecode",
+    "parse_time",
+    "us",
+    "ms",
+    "s",
+    "WiggleParameters",
     "aedat",
     "csv",
     "dat",
     "event_stream",
     "evt",
+    "gif",
     "image",
     "job_metadata",
     "mp4",
+    "mustache",
+    "raster",
     "colormaps_list",
     "name_to_colormaps",
+    "LIGHT_COLOR_THEME",
+    "DARK_COLOR_THEME",
 ]

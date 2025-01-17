@@ -46,7 +46,9 @@ ImageResizeSamplingFilter = typing.Literal[
     "nearest", "triangle", "catmull_rom", "gaussian", "lanczos3"
 ]
 
-VideoFileType = typing.Literal["mp4"]
+GraphFileType = typing.Literal["png", "svg"]
+
+VideoFileType = typing.Literal["gif", "mp4"]
 
 VideoFilePreset = typing.Literal[
     "ultrafast",
@@ -83,6 +85,8 @@ VideoFileProfile = typing.Literal[
     "high444",
 ]
 
+
+ColormapType = typing.Literal["sequential", "diverging", "cyclic"]
 
 ColorblindnessType = typing.Literal["protanopia", "deuteranopia", "tritanopia"]
 
@@ -129,10 +133,16 @@ def validate_image_file_compression_level(
     return VALIDATORS["validate_image_file_compression_level"](value)
 
 
-def validate_image_resize_filter(
+def validate_image_resize_samplin_filter(
     value: ImageResizeSamplingFilter,
 ) -> ImageResizeSamplingFilter:
     return VALIDATORS["validate_image_resize_sampling_filter"](value)
+
+
+def validate_graph_file_type(
+    value: GraphFileType,
+) -> GraphFileType:
+    return VALIDATORS["validate_graph_file_type"](value)
 
 
 def validate_video_file_type(
@@ -157,6 +167,12 @@ def validate_video_file_profile(
     value: VideoFileProfile,
 ) -> VideoFileProfile:
     return VALIDATORS["validate_video_file_profile"](value)
+
+
+def validate_colormap_type(
+    value: ColormapType,
+) -> ColormapType:
+    return VALIDATORS["validate_colormap_type"](value)
 
 
 def validate_colorblindness_type(
@@ -258,7 +274,7 @@ def events_file_type_guess(path: pathlib.Path) -> EventsFileType:
             for type_extension in events_file_type_extensions(file_type)
         ):
             return file_type
-    raise Exception(f"unsupported file {path}")
+    raise Exception(f"unsupported file extension {path}")
 
 
 def image_file_type_extensions(image_file_type: ImageFileType) -> tuple[str, ...]:
@@ -276,10 +292,32 @@ def image_file_type_guess(path: pathlib.Path) -> ImageFileType:
             for type_extension in image_file_type_extensions(file_type)
         ):
             return file_type
-    raise Exception(f"unsupported file {path}")
+    raise Exception(f"unsupported file extension {path}")
+
+
+def graph_file_type_extensions(graph_file_type: GraphFileType) -> tuple[str, ...]:
+    if graph_file_type == "png":
+        return (".png",)
+    if graph_file_type == "svg":
+        return (".svg",)
+    raise Exception(f"extensions is not implemented for {graph_file_type}")
+
+
+def graph_file_type_guess(path: pathlib.Path) -> GraphFileType:
+    file_types = typing.get_args(GraphFileType)
+    extension = path.suffix
+    for file_type in file_types:
+        if any(
+            extension == type_extension
+            for type_extension in graph_file_type_extensions(file_type)
+        ):
+            return file_type
+    raise Exception(f"unsupported file extension {path}")
 
 
 def video_file_type_extensions(video_file_type: VideoFileType) -> tuple[str, ...]:
+    if video_file_type == "gif":
+        return (".gif",)
     if video_file_type == "mp4":
         return (".mp4",)
     raise Exception(f"extensions is not implemented for {video_file_type}")
@@ -294,4 +332,4 @@ def video_file_type_guess(path: pathlib.Path) -> VideoFileType:
             for type_extension in video_file_type_extensions(file_type)
         ):
             return file_type
-    raise Exception(f"unsupported file {path}")
+    raise Exception(f"unsupported file extension {path}")
