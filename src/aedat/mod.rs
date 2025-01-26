@@ -460,6 +460,7 @@ impl Decoder {
 pub struct Encoder {
     inner: Option<encoder::Encoder>,
     frame_buffer: Vec<u8>,
+    enforce_monotonic: bool,
 }
 
 #[derive(FromPyObject)]
@@ -471,11 +472,12 @@ enum DescriptionOrTracks {
 #[pymethods]
 impl Encoder {
     #[new]
-    #[pyo3(signature = (path, description_or_tracks, compression))]
+    #[pyo3(signature = (path, description_or_tracks, compression, enforce_monotonic))]
     fn new(
         path: &pyo3::Bound<'_, pyo3::types::PyAny>,
         description_or_tracks: DescriptionOrTracks,
         compression: Option<(String, u8)>,
+        enforce_monotonic: bool,
     ) -> PyResult<Self> {
         Python::with_gil(|python| -> PyResult<Self> {
             Ok(Encoder {
@@ -507,6 +509,7 @@ impl Encoder {
                     encoder::Compression::from_name_and_level(compression)?,
                 )?),
                 frame_buffer: Vec::new(),
+                enforce_monotonic,
             })
         })
     }
@@ -555,7 +558,7 @@ impl Encoder {
                                             u16,
                                         > = types::array_at(python, array, index);
                                         let event = *event_cell;
-                                        if event.t < *previous_t {
+                                        if self.enforce_monotonic && event.t < *previous_t {
                                             return Err(utilities::WriteError::NonMonotonic {
                                                 previous_t: *previous_t,
                                                 t: event.t,

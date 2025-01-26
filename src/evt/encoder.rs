@@ -9,6 +9,7 @@ pub struct Evt2Encoder {
     previous_t: u64,
     t_high: u64,
     t0: Option<u64>,
+    enforce_monotonic: bool,
 }
 
 pub struct Evt21Encoder {
@@ -16,6 +17,7 @@ pub struct Evt21Encoder {
     dimensions: (u16, u16),
     previous_t: u64,
     t0: Option<u64>,
+    enforce_monotonic: bool,
 }
 
 pub struct Evt3Encoder {
@@ -25,6 +27,7 @@ pub struct Evt3Encoder {
     msb: u64,
     vector: Vector,
     t0: Option<u64>,
+    enforce_monotonic: bool,
 }
 
 pub enum Encoder {
@@ -54,6 +57,7 @@ impl Encoder {
         version: common::Version,
         zero_t0: bool,
         dimensions: (u16, u16),
+        enforce_monotonic: bool,
     ) -> Result<Self, Error> {
         Ok(match version {
             common::Version::Evt2 => {
@@ -89,6 +93,7 @@ impl Encoder {
                     previous_t: 0,
                     t_high: u64::MAX,
                     t0: if zero_t0 { None } else { Some(0) },
+                    enforce_monotonic,
                 })
             }
             common::Version::Evt21 => {
@@ -107,6 +112,7 @@ impl Encoder {
                     width,
                     height,
                     previous_t: 0,
+                    enforce_monotonic,
                 })
                 */
             }
@@ -152,6 +158,7 @@ impl Encoder {
                         index: 0,
                     },
                     t0: if zero_t0 { None } else { Some(0) },
+                    enforce_monotonic,
                 })
             }
         })
@@ -239,7 +246,7 @@ impl Evt2Encoder {
             }
         };
         let t = event.t - t0;
-        if t < self.previous_t {
+        if self.enforce_monotonic && t < self.previous_t {
             return Err(utilities::WriteError::NonMonotonic {
                 previous_t: self.previous_t + t0,
                 t: t + t0,
@@ -286,7 +293,7 @@ impl Evt2Encoder {
             }
         };
         let t = event.t - t0;
-        if t < self.previous_t {
+        if self.enforce_monotonic && t < self.previous_t {
             return Err(utilities::WriteError::NonMonotonic {
                 previous_t: self.previous_t + t0,
                 t: t + t0,
@@ -369,7 +376,7 @@ impl Evt3Encoder {
             }
         };
         let t = event.t - t0;
-        if t < self.previous_t {
+        if self.enforce_monotonic && t < self.previous_t {
             return Err(utilities::WriteError::NonMonotonic {
                 previous_t: self.previous_t + t0,
                 t: t + t0,
@@ -408,7 +415,7 @@ impl Evt3Encoder {
             }
         };
         let t = event.t - t0;
-        if t < self.previous_t {
+        if self.enforce_monotonic && t < self.previous_t {
             return Err(utilities::WriteError::NonMonotonic {
                 previous_t: self.previous_t + t0,
                 t: t + t0,

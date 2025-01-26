@@ -34,6 +34,7 @@ def events_to_file(
     on_progress: typing.Callable[
         [events_stream_state.EventsStreamState], None
     ] = lambda _: None,
+    enforce_monotonic_timestamps: bool = False,
 ) -> str:
     """Writes the stream to an event file (supports .aedat4, .es, .raw, and .dat).
 
@@ -54,6 +55,7 @@ def events_to_file(
         csv_separator: Separator for CSV files, must be a single character. Defaults to b",".
         csv_header: Whether to add a header to the CSV file. Defaults to True.
         file_type: Override the type determination algorithm. Defaults to None.
+        enforce_monotonic_timestamps: Whether to enforce that timestamps are monotonically increasing. Defaults to False.
 
     Returns:
         The original t0 as a timecode if the file type is ES, EVT (.raw), or DAT, and if `zero_t0` is true. 0 as a timecode otherwise.
@@ -97,6 +99,7 @@ def events_to_file(
                 aedat.Track(id=0, data_type="events", dimensions=dimensions),
             ],
             compression=compression,
+            enforce_monotonic=enforce_monotonic_timestamps,
         ) as encoder:
             state_manager.start()
             for events in stream:
@@ -113,6 +116,7 @@ def events_to_file(
             separator=csv_separator[0],
             header=csv_header,
             dimensions=dimensions,
+            enforce_monotonic=enforce_monotonic_timestamps,
         ) as encoder:
             state_manager.start()
             for events in stream:
@@ -131,6 +135,7 @@ def events_to_file(
             event_type="cd",
             zero_t0=zero_t0,
             dimensions=dimensions,
+            enforce_monotonic=enforce_monotonic_timestamps,
         ) as encoder:
             state_manager.start()
             for events in stream:
@@ -163,6 +168,7 @@ def events_to_file(
             event_type="dvs",
             zero_t0=zero_t0,
             dimensions=dimensions,
+            enforce_monotonic=enforce_monotonic_timestamps,
         ) as encoder:
             state_manager.start()
             for events in stream:
@@ -184,6 +190,7 @@ def events_to_file(
             version="evt3" if version is None else version,  # type: ignore
             zero_t0=zero_t0,
             dimensions=dimensions,
+            enforce_monotonic=enforce_monotonic_timestamps,
         ) as encoder:
             state_manager.start()
             for events in stream:

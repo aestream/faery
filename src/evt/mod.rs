@@ -166,6 +166,7 @@ impl Encoder {
         version: &str,
         zero_t0: bool,
         dimensions: (u16, u16),
+        enforce_monotonic: bool,
     ) -> PyResult<Self> {
         Python::with_gil(|python| -> PyResult<Self> {
             Ok(Encoder {
@@ -174,6 +175,7 @@ impl Encoder {
                     common::Version::from_string(version)?,
                     zero_t0,
                     dimensions,
+                    enforce_monotonic,
                 )?),
             })
         })

@@ -8,6 +8,7 @@ pub struct Encoder {
     event_type: common::Type,
     previous_t: u64,
     t0: Option<u64>,
+    enforce_monotonic: bool,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -28,6 +29,7 @@ impl Encoder {
         version: common::Version,
         zero_t0: bool,
         event_type: common::Type,
+        enforce_monotonic: bool,
     ) -> Result<Self, Error> {
         match event_type {
             common::Type::Event2d(width, height) | common::Type::EventCd(width, height) => {
@@ -100,6 +102,7 @@ impl Encoder {
             event_type,
             previous_t: 0,
             t0: if zero_t0 { None } else { Some(0) },
+            enforce_monotonic,
         })
     }
 
@@ -147,7 +150,7 @@ impl Encoder {
                 t0
             }
         };
-        if event.t < self.previous_t {
+        if self.enforce_monotonic && event.t < self.previous_t {
             return Err(PacketError::NonMonotonic {
                 previous_t: self.previous_t,
                 t: event.t,

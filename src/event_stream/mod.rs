@@ -229,12 +229,13 @@ fn atis_payload_error(exposure: u8, polarity: u8) -> String {
 #[pymethods]
 impl Encoder {
     #[new]
-    #[pyo3(signature = (path, event_type, zero_t0, dimensions))]
+    #[pyo3(signature = (path, event_type, zero_t0, dimensions, enforce_monotonic))]
     fn new(
         path: &pyo3::Bound<'_, pyo3::types::PyAny>,
         event_type: &str,
         zero_t0: bool,
         dimensions: Option<(u16, u16)>,
+        enforce_monotonic: bool,
     ) -> PyResult<Self> {
         Python::with_gil(|python| -> PyResult<Self> {
             Ok(Encoder {
@@ -242,6 +243,7 @@ impl Encoder {
                     types::python_path_to_string(python, path)?,
                     zero_t0,
                     encoder::EncoderType::new(event_type, dimensions)?,
+                    enforce_monotonic,
                 )?),
             })
         })

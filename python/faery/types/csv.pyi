@@ -40,6 +40,7 @@ class Encoder:
         separator: int,
         header: bool,
         dimensions: tuple[int, int],
+        enforce_monotonic: bool,
     ): ...
     def __enter__(self) -> Encoder: ...
     def __exit__(
