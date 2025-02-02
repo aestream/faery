@@ -111,7 +111,7 @@ def lab_to_rgb(
     mask = rgb > 0.0031308
     rgb[mask] = 1.055 * numpy.power(rgb[mask], 1 / 2.4) - 0.055
     rgb[numpy.logical_not(mask)] *= 12.92
-    numpy.clip(rgb, 0.0, 1.1, out=rgb)
+    numpy.clip(rgb, 0.0, 1.0, out=rgb)
     return rgb
 
 
