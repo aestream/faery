@@ -7,8 +7,11 @@ class Renderer:
     def __init__(
         self,
         dimensions: tuple[int, int],
-        decay: typing.Literal["exponential", "linear", "window"],
+        decay: typing.Literal["exponential", "linear", "window", "cumulative"],
         tau: int,
+        minimum_clip: float,
+        maximum_clip: float,
+        gamma: float,
         colormap_type: typing.Literal["sequential", "diverging", "cyclic"],
         colormap_rgba: numpy.typing.NDArray[numpy.float64],
     ): ...

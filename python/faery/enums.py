@@ -1,7 +1,7 @@
 import pathlib
 import typing
 
-Decay = typing.Literal["exponential", "linear", "window"]
+Decay = typing.Literal["exponential", "linear", "window", "cumulative"]
 
 TransposeAction = typing.Literal[
     "flip_left_right",
