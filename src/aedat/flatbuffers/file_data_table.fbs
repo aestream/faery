@@ -1,0 +1,20 @@
+file_identifier "FTAB";
+
+struct PacketHeader {
+	track_id: int32;
+	size: int32;
+}
+
+table FileDataDefinition {
+	byte_offset: int64;
+	packet_header: PacketHeader;
+	elements_count: int64;
+	start_t: int64;
+	end_t: int64;
+}
+
+table FileDataTable {
+	file_data_definitions: [FileDataDefinition];
+}
+
+root_type FileDataTable;

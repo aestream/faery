@@ -19,7 +19,7 @@ pub fn decode(bytes: &[u8]) -> PyResult<PyObject> {
         numpy::ndarray::ArrayView3::<u8>::from_shape((height as usize, width as usize, 4), &image)
             .map_err(|error| pyo3::exceptions::PyException::new_err(format!("{error}")))?;
     Ok(Python::with_gil(|python| {
-        array.to_pyarray_bound(python).into()
+        array.to_pyarray(python).unbind().into_any()
     }))
 }
 
@@ -85,7 +85,7 @@ pub fn encode(
             .map_err(|error| pyo3::exceptions::PyRuntimeError::new_err(format!("{error:?}")))?;
     }
     Ok(Python::with_gil(|python| {
-        pyo3::types::PyBytes::new_bound(python, &buffer).into()
+        pyo3::types::PyBytes::new(python, &buffer).into()
     }))
 }
 
@@ -292,12 +292,9 @@ pub fn resize(
         )));
     }
     let image_type = Python::with_gil(|python| {
-        if frame.dtype().is_equiv_to(&numpy::dtype_bound::<u8>(python)) {
+        if frame.dtype().is_equiv_to(&numpy::dtype::<u8>(python)) {
             Some(ImageType::U8)
-        } else if frame
-            .dtype()
-            .is_equiv_to(&numpy::dtype_bound::<f64>(python))
-        {
+        } else if frame.dtype().is_equiv_to(&numpy::dtype::<f64>(python)) {
             Some(ImageType::F64)
         } else {
             None
@@ -327,7 +324,7 @@ pub fn resize(
                 )
                 .map_err(|error| pyo3::exceptions::PyException::new_err(format!("{error}")))?;
                 Ok(Python::with_gil(|python| {
-                    array.to_pyarray_bound(python).into()
+                    array.to_pyarray(python).unbind().into_any()
                 }))
             } else if array_dimensions.2 == 4 {
                 let image = image::ImageBuffer::<image::Rgba<u8>, &[u8]>::from_raw(
@@ -348,7 +345,7 @@ pub fn resize(
                 )
                 .map_err(|error| pyo3::exceptions::PyException::new_err(format!("{error}")))?;
                 Ok(Python::with_gil(|python| {
-                    array.to_pyarray_bound(python).into()
+                    array.to_pyarray(python).unbind().into_any()
                 }))
             } else {
                 Err(pyo3::exceptions::PyAttributeError::new_err(format!(
@@ -385,7 +382,7 @@ pub fn resize(
                 )
                 .map_err(|error| pyo3::exceptions::PyException::new_err(format!("{error}")))?;
                 Ok(Python::with_gil(|python| {
-                    array.to_pyarray_bound(python).into()
+                    array.to_pyarray(python).unbind().into_any()
                 }))
             } else {
                 Err(pyo3::exceptions::PyAttributeError::new_err(format!(

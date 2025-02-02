@@ -68,7 +68,7 @@ pub fn render(svg_string: &str) -> PyResult<PyObject> {
                 python,
                 3,
                 dimensions.as_mut_ptr(),
-                u8::get_dtype_bound(python).into_ptr() as *mut numpy::npyffi::PyArray_Descr,
+                u8::get_dtype(python).into_ptr() as *mut numpy::npyffi::PyArray_Descr,
                 0,
             ) as *mut numpy::npyffi::PyArrayObject;
             std::ptr::copy_nonoverlapping(

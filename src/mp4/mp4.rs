@@ -56,8 +56,7 @@ impl<W: std::io::Write + std::io::Seek> Encoder<W> {
                 },
             )?,
             initial_dts: None,
-            frame_duration_in_timescale: (TIMESCALE as f64 / parameters.frame_rate).round()
-                as u32,
+            frame_duration_in_timescale: (TIMESCALE as f64 / parameters.frame_rate).round() as u32,
         };
         {
             let headers = encoder.x264_encoder.headers()?;
@@ -93,7 +92,8 @@ impl<W: std::io::Write + std::io::Seek> Encoder<W> {
                         start_time: ((picture.i_dts - dts_offset) as u64)
                             * self.frame_duration_in_timescale as u64,
                         duration: self.frame_duration_in_timescale,
-                        rendering_offset: ((picture.i_pts - picture.i_dts) as i32) * self.frame_duration_in_timescale as i32,
+                        rendering_offset: ((picture.i_pts - picture.i_dts) as i32)
+                            * self.frame_duration_in_timescale as i32,
                         is_sync: picture.b_keyframe > 0,
                         bytes: mp4::Bytes::copy_from_slice(payload),
                     },

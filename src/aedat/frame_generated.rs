@@ -119,9 +119,9 @@ impl<'a> flatbuffers::Follow<'a> for Frame<'a> {
 
 impl<'a> Frame<'a> {
     pub const VT_T: flatbuffers::VOffsetT = 4;
-    pub const VT_BEGIN_T: flatbuffers::VOffsetT = 6;
+    pub const VT_START_T: flatbuffers::VOffsetT = 6;
     pub const VT_END_T: flatbuffers::VOffsetT = 8;
-    pub const VT_EXPOSURE_BEGIN_T: flatbuffers::VOffsetT = 10;
+    pub const VT_EXPOSURE_START_T: flatbuffers::VOffsetT = 10;
     pub const VT_EXPOSURE_END_T: flatbuffers::VOffsetT = 12;
     pub const VT_FORMAT: flatbuffers::VOffsetT = 14;
     pub const VT_WIDTH: flatbuffers::VOffsetT = 16;
@@ -141,9 +141,9 @@ impl<'a> Frame<'a> {
     ) -> flatbuffers::WIPOffset<Frame<'bldr>> {
         let mut builder = FrameBuilder::new(_fbb);
         builder.add_exposure_end_t(args.exposure_end_t);
-        builder.add_exposure_begin_t(args.exposure_begin_t);
+        builder.add_exposure_start_t(args.exposure_start_t);
         builder.add_end_t(args.end_t);
-        builder.add_begin_t(args.begin_t);
+        builder.add_start_t(args.start_t);
         builder.add_t(args.t);
         if let Some(x) = args.pixels {
             builder.add_pixels(x);
@@ -164,11 +164,11 @@ impl<'a> Frame<'a> {
         unsafe { self._tab.get::<i64>(Frame::VT_T, Some(0)).unwrap() }
     }
     #[inline]
-    pub fn begin_t(&self) -> i64 {
+    pub fn start_t(&self) -> i64 {
         // Safety:
         // Created from valid Table for this object
         // which contains a valid value in this slot
-        unsafe { self._tab.get::<i64>(Frame::VT_BEGIN_T, Some(0)).unwrap() }
+        unsafe { self._tab.get::<i64>(Frame::VT_START_T, Some(0)).unwrap() }
     }
     #[inline]
     pub fn end_t(&self) -> i64 {
@@ -178,13 +178,13 @@ impl<'a> Frame<'a> {
         unsafe { self._tab.get::<i64>(Frame::VT_END_T, Some(0)).unwrap() }
     }
     #[inline]
-    pub fn exposure_begin_t(&self) -> i64 {
+    pub fn exposure_start_t(&self) -> i64 {
         // Safety:
         // Created from valid Table for this object
         // which contains a valid value in this slot
         unsafe {
             self._tab
-                .get::<i64>(Frame::VT_EXPOSURE_BEGIN_T, Some(0))
+                .get::<i64>(Frame::VT_EXPOSURE_START_T, Some(0))
                 .unwrap()
         }
     }
@@ -262,9 +262,9 @@ impl flatbuffers::Verifiable for Frame<'_> {
         use self::flatbuffers::Verifiable;
         v.visit_table(pos)?
             .visit_field::<i64>("t", Self::VT_T, false)?
-            .visit_field::<i64>("begin_t", Self::VT_BEGIN_T, false)?
+            .visit_field::<i64>("start_t", Self::VT_START_T, false)?
             .visit_field::<i64>("end_t", Self::VT_END_T, false)?
-            .visit_field::<i64>("exposure_begin_t", Self::VT_EXPOSURE_BEGIN_T, false)?
+            .visit_field::<i64>("exposure_start_t", Self::VT_EXPOSURE_START_T, false)?
             .visit_field::<i64>("exposure_end_t", Self::VT_EXPOSURE_END_T, false)?
             .visit_field::<FrameFormat>("format", Self::VT_FORMAT, false)?
             .visit_field::<i16>("width", Self::VT_WIDTH, false)?
@@ -282,9 +282,9 @@ impl flatbuffers::Verifiable for Frame<'_> {
 }
 pub struct FrameArgs<'a> {
     pub t: i64,
-    pub begin_t: i64,
+    pub start_t: i64,
     pub end_t: i64,
-    pub exposure_begin_t: i64,
+    pub exposure_start_t: i64,
     pub exposure_end_t: i64,
     pub format: FrameFormat,
     pub width: i16,
@@ -298,9 +298,9 @@ impl<'a> Default for FrameArgs<'a> {
     fn default() -> Self {
         FrameArgs {
             t: 0,
-            begin_t: 0,
+            start_t: 0,
             end_t: 0,
-            exposure_begin_t: 0,
+            exposure_start_t: 0,
             exposure_end_t: 0,
             format: FrameFormat::Gray,
             width: 0,
@@ -322,17 +322,17 @@ impl<'a: 'b, 'b, A: flatbuffers::Allocator + 'a> FrameBuilder<'a, 'b, A> {
         self.fbb_.push_slot::<i64>(Frame::VT_T, t, 0);
     }
     #[inline]
-    pub fn add_begin_t(&mut self, begin_t: i64) {
-        self.fbb_.push_slot::<i64>(Frame::VT_BEGIN_T, begin_t, 0);
+    pub fn add_start_t(&mut self, start_t: i64) {
+        self.fbb_.push_slot::<i64>(Frame::VT_START_T, start_t, 0);
     }
     #[inline]
     pub fn add_end_t(&mut self, end_t: i64) {
         self.fbb_.push_slot::<i64>(Frame::VT_END_T, end_t, 0);
     }
     #[inline]
-    pub fn add_exposure_begin_t(&mut self, exposure_begin_t: i64) {
+    pub fn add_exposure_start_t(&mut self, exposure_start_t: i64) {
         self.fbb_
-            .push_slot::<i64>(Frame::VT_EXPOSURE_BEGIN_T, exposure_begin_t, 0);
+            .push_slot::<i64>(Frame::VT_EXPOSURE_START_T, exposure_start_t, 0);
     }
     #[inline]
     pub fn add_exposure_end_t(&mut self, exposure_end_t: i64) {
@@ -384,9 +384,9 @@ impl core::fmt::Debug for Frame<'_> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let mut ds = f.debug_struct("Frame");
         ds.field("t", &self.t());
-        ds.field("begin_t", &self.begin_t());
+        ds.field("start_t", &self.start_t());
         ds.field("end_t", &self.end_t());
-        ds.field("exposure_begin_t", &self.exposure_begin_t());
+        ds.field("exposure_start_t", &self.exposure_start_t());
         ds.field("exposure_end_t", &self.exposure_end_t());
         ds.field("format", &self.format());
         ds.field("width", &self.width());

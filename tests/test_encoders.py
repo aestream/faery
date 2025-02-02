@@ -17,12 +17,12 @@ data_generated.mkdir()
 @pytest.mark.parametrize("file", assets.files)
 def test_low_level_decoder_encoder(file: assets.File):
     output = data_generated / file.path.name
-    if file.format == "aedat":
+    if file.format == "aedat4":
         print(f"faery.aedat.Decoder + faery.aedat.Encoder ({file.path.name})")
-        with faery.aedat.Decoder(file.path) as decoder:
+        with faery.aedat.Decoder(path=file.path) as decoder:
             with faery.aedat.Encoder(
                 path=output,
-                description_or_tracks=decoder.description(),
+                description=decoder.description(),
                 compression=faery.aedat.LZ4_HIGHEST,
             ) as encoder:
                 for track, packet in decoder:
@@ -177,7 +177,7 @@ def test_low_level_decoder_encoder(file: assets.File):
         path=output,
         format=file.format,
         field_to_digest=file.field_to_digest,
-        header_lines=file.header_lines,
+        description=file.description,
         tracks=file.tracks,
         content_lines=file.content_lines,
         t0=file.t0,
@@ -189,7 +189,7 @@ def test_low_level_decoder_encoder(file: assets.File):
 
 @pytest.mark.parametrize(
     "file",
-    [file for file in assets.files if file.format == "aedat"],
+    [file for file in assets.files if file.format == "aedat4"],
 )
 def test_aedat_compression(file: assets.File):
     for compression, level in (
@@ -211,10 +211,10 @@ def test_aedat_compression(file: assets.File):
             f"faery.aedat.Decoder + faery.aedat.Encoder, {compression}@{level} ({file.path.name})"
         )
         begin = time.monotonic()
-        with faery.aedat.Decoder(file.path) as decoder:
+        with faery.aedat.Decoder(path=file.path) as decoder:
             with faery.aedat.Encoder(
                 path=output,
-                description_or_tracks=decoder.tracks(),
+                description=decoder.description(),
                 compression=(compression, level),  # type: ignore
             ) as encoder:
                 for track, packet in decoder:
@@ -224,7 +224,7 @@ def test_aedat_compression(file: assets.File):
             path=output,
             format=file.format,
             field_to_digest=file.field_to_digest,
-            header_lines=None,
+            description=None,
             tracks=file.tracks,
             content_lines=file.content_lines,
             t0=file.t0,
@@ -274,14 +274,14 @@ def test_high_level_decoder_encoder(file: assets.File):
                 "y": file.field_to_digest["y"],
                 "on": file.field_to_digest["on"],
             },
-            header_lines=None,
+            description=None,
             tracks=(
                 [
                     faery.aedat.Track(
                         id=0, data_type="events", dimensions=file.dimensions
                     )
                 ]
-                if output_format == "aedat"
+                if output_format == "aedat4"
                 else None
             ),
             content_lines=None,

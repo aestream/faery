@@ -38,16 +38,14 @@ impl Decoder {
         dimensions_fallback: Option<(u16, u16)>,
         version_fallback: Option<String>,
     ) -> PyResult<Self> {
-        Python::with_gil(|python| -> PyResult<Self> {
-            Ok(Decoder {
-                inner: Some(decoder::Decoder::new(
-                    types::python_path_to_string(python, path)?,
-                    dimensions_fallback,
-                    version_fallback
-                        .map(|version| common::Version::from_string(&version))
-                        .transpose()?,
-                )?),
-            })
+        Ok(Decoder {
+            inner: Some(decoder::Decoder::new(
+                types::python_path_to_string(path)?,
+                dimensions_fallback,
+                version_fallback
+                    .map(|version| common::Version::from_string(&version))
+                    .transpose()?,
+            )?),
         })
     }
 
@@ -111,7 +109,7 @@ impl Decoder {
             }
         };
         Python::with_gil(|python| -> PyResult<Option<PyObject>> {
-            let python_packet = pyo3::types::PyDict::new_bound(python);
+            let python_packet = pyo3::types::PyDict::new(python);
             if !packet.0.is_empty() {
                 let length = packet.0.len() as numpy::npyffi::npy_intp;
                 let array = types::ArrayType::Dvs.new_array(python, length);
@@ -168,16 +166,14 @@ impl Encoder {
         dimensions: (u16, u16),
         enforce_monotonic: bool,
     ) -> PyResult<Self> {
-        Python::with_gil(|python| -> PyResult<Self> {
-            Ok(Encoder {
-                inner: Some(encoder::Encoder::new(
-                    types::python_path_to_string(python, path)?,
-                    common::Version::from_string(version)?,
-                    zero_t0,
-                    dimensions,
-                    enforce_monotonic,
-                )?),
-            })
+        Ok(Encoder {
+            inner: Some(encoder::Encoder::new(
+                types::python_path_to_string(path)?,
+                common::Version::from_string(version)?,
+                zero_t0,
+                dimensions,
+                enforce_monotonic
+            )?),
         })
     }
 

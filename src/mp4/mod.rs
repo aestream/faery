@@ -21,7 +21,8 @@ impl From<mp4::Error> for PyErr {
 
 #[pyclass]
 pub struct Encoder {
-    inner: Option<mp4::Encoder<std::io::BufWriter<std::fs::File>>>,
+    inner:
+        Option<std::sync::Arc<std::sync::Mutex<mp4::Encoder<std::io::BufWriter<std::fs::File>>>>>,
 }
 
 #[pymethods]
@@ -36,23 +37,30 @@ impl Encoder {
         tune: &str,
         profile: &str,
     ) -> PyResult<Self> {
-        Python::with_gil(|python| -> PyResult<Self> {
+        if dimensions.0 % 2 == 0 && dimensions.1 % 2 == 0 {
             Ok(Encoder {
-                inner: Some(mp4::Encoder::from_parameters_and_path(
-                    x264::Parameters {
-                        preset: x264::Preset::from_string(preset)?,
-                        tune: x264::Tune::from_string(tune)?,
-                        profile: x264::Profile::from_string(profile)?,
-                        crf,
-                        width: dimensions.0,
-                        height: dimensions.1,
-                        use_opencl: false,
-                        frame_rate,
-                    },
-                    types::python_path_to_string(python, path)?,
-                )?),
+                inner: Some(std::sync::Arc::new(std::sync::Mutex::new(
+                    mp4::Encoder::from_parameters_and_path(
+                        x264::Parameters {
+                            preset: x264::Preset::from_string(preset)?,
+                            tune: x264::Tune::from_string(tune)?,
+                            profile: x264::Profile::from_string(profile)?,
+                            crf,
+                            width: dimensions.0,
+                            height: dimensions.1,
+                            use_opencl: false,
+                            frame_rate,
+                        },
+                        types::python_path_to_string(path)?,
+                    )?,
+                ))),
             })
-        })
+        } else {
+            Err(pyo3::exceptions::PyException::new_err(format!(
+                "mp4 dimensions must be even numbers (got {} x {})",
+                dimensions.0, dimensions.1,
+            )))
+        }
     }
 
     fn __enter__(slf: Py<Self>) -> Py<Self> {
@@ -68,7 +76,7 @@ impl Encoder {
     ) -> PyResult<bool> {
         match self.inner.as_mut() {
             Some(inner) => {
-                let _ = inner.finalize();
+                let _ = inner.lock().expect("the mutex is not poisoned").finalize();
             }
             None => {
                 return Err(pyo3::exceptions::PyException::new_err(
@@ -99,30 +107,36 @@ impl Encoder {
         match self.inner.as_mut() {
             Some(encoder) => {
                 if dimensions.2 == 3 {
-                    encoder.push_rgb(x264::RGBFrame::new(
-                        dimensions.1 as u16,
-                        dimensions.0 as u16,
-                        // unsafe: the array is contiguous
-                        unsafe {
-                            std::slice::from_raw_parts(
-                                array.as_ptr(),
-                                dimensions.0 * dimensions.1 * 3,
-                            )
-                        },
-                    )?)?;
+                    encoder
+                        .lock()
+                        .expect("the mutex is not poisoned")
+                        .push_rgb(x264::RGBFrame::new(
+                            dimensions.1 as u16,
+                            dimensions.0 as u16,
+                            // unsafe: the array is contiguous
+                            unsafe {
+                                std::slice::from_raw_parts(
+                                    array.as_ptr(),
+                                    dimensions.0 * dimensions.1 * 3,
+                                )
+                            },
+                        )?)?;
                 } else {
                     assert_eq!(dimensions.2, 4, "the last dimension is 4");
-                    encoder.push_rgba(x264::RGBAFrame::new(
-                        dimensions.1 as u16,
-                        dimensions.0 as u16,
-                        // unsafe: the array is contiguous
-                        unsafe {
-                            std::slice::from_raw_parts(
-                                array.as_ptr() as *const u32,
-                                dimensions.0 * dimensions.1,
-                            )
-                        },
-                    )?)?;
+                    encoder
+                        .lock()
+                        .expect("the mutex is not poisoned")
+                        .push_rgba(x264::RGBAFrame::new(
+                            dimensions.1 as u16,
+                            dimensions.0 as u16,
+                            // unsafe: the array is contiguous
+                            unsafe {
+                                std::slice::from_raw_parts(
+                                    array.as_ptr() as *const u32,
+                                    dimensions.0 * dimensions.1,
+                                )
+                            },
+                        )?)?;
                 }
                 Ok(())
             }

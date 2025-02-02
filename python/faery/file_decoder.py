@@ -138,7 +138,7 @@ class Decoder(events_stream.FiniteEventsStream):
         self.event_type: typing.Optional[str] = None
         if self.file_type == "aedat":
             assert self.path is not None
-            with aedat.Decoder(self.path) as decoder:
+            with aedat.Decoder(path=self.path) as decoder:
                 found = False
                 for track in decoder.tracks():
                     if self.track_id is None:
@@ -225,21 +225,21 @@ class Decoder(events_stream.FiniteEventsStream):
                 return time_range
         else:
             path_hash = None
-        begin: typing.Optional[int] = None
+        start: typing.Optional[int] = None
         end: typing.Optional[int] = None
         for events in self:
             if len(events) > 0:
-                if begin is None:
-                    begin = events["t"][0]
+                if start is None:
+                    start = events["t"][0]
                 end = events["t"][-1]
-        if begin is None or end is None:
+        if start is None or end is None:
             time_range = (
                 timestamp.Time(microseconds=0),
                 timestamp.Time(microseconds=1),
             )
         else:
             time_range = (
-                timestamp.Time(microseconds=int(begin)),
+                timestamp.Time(microseconds=int(start)),
                 timestamp.Time(microseconds=(int(end) + 1)),
             )
         if path_hash is not None:
@@ -254,7 +254,7 @@ class Decoder(events_stream.FiniteEventsStream):
     def __iter__(self) -> collections.abc.Iterator[numpy.ndarray]:
         if self.file_type == "aedat":
             assert self.path is not None
-            with aedat.Decoder(self.path) as decoder:
+            with aedat.Decoder(path=self.path) as decoder:
                 for track, packet in decoder:
                     if (
                         track.id == self.track_id

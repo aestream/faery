@@ -10,16 +10,13 @@ from . import assets
 
 @pytest.mark.parametrize("file", assets.files)
 def test_low_level_decoder(file: assets.File):
-    if file.format == "aedat":
+    if file.format == "aedat4":
         print(f"faery.aedat.Decoder ({file.path.name})")
         assert file.dimensions is not None
         assert file.tracks is not None
         with faery.aedat.Decoder(path=file.path) as decoder:
-            if file.header_lines is not None:
-                for index, line in enumerate(decoder.description().split("\n")):
-                    assert (
-                        file.header_lines[index] == line
-                    ), f"{file=}, {index=}, {line=}, {file.header_lines[index]=}"
+            if file.description is not None:
+                assert file.description == decoder.description()
             tracks = decoder.tracks()
             assert len(tracks) == len(file.tracks)
             for track, file_track in zip(tracks, file.tracks):
@@ -47,6 +44,7 @@ def test_low_level_decoder(file: assets.File):
                     field_to_hasher["frame"].update(packet.pixels.tobytes())
                 elif track.data_type == "imus":
                     assert isinstance(packet, numpy.ndarray)
+
                     field_to_hasher["imus"].update(packet.tobytes())
                 elif track.data_type == "triggers":
                     assert isinstance(packet, numpy.ndarray)

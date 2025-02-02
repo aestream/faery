@@ -50,16 +50,14 @@ impl Decoder {
         dimensions_fallback: Option<(u16, u16)>,
         version_fallback: Option<String>,
     ) -> PyResult<Self> {
-        Python::with_gil(|python| -> PyResult<Self> {
-            Ok(Decoder {
-                inner: Some(decoder::Decoder::new(
-                    types::python_path_to_string(python, path)?,
-                    dimensions_fallback,
-                    version_fallback
-                        .map(|version| common::Version::from_string(&version))
-                        .transpose()?,
-                )?),
-            })
+        Ok(Decoder {
+            inner: Some(decoder::Decoder::new(
+                types::python_path_to_string(path)?,
+                dimensions_fallback,
+                version_fallback
+                    .map(|version| common::Version::from_string(&version))
+                    .transpose()?,
+            )?),
         })
     }
 
@@ -169,15 +167,13 @@ impl Encoder {
         zero_t0: bool,
         dimensions: Option<(u16, u16)>,
     ) -> PyResult<Self> {
-        Python::with_gil(|python| -> PyResult<Self> {
-            Ok(Encoder {
-                inner: Some(encoder::Encoder::new(
-                    types::python_path_to_string(python, path)?,
-                    common::Version::from_string(version)?,
-                    zero_t0,
-                    common::Type::new(event_type, dimensions)?,
-                )?),
-            })
+        Ok(Encoder {
+            inner: Some(encoder::Encoder::new(
+                types::python_path_to_string(path)?,
+                common::Version::from_string(version)?,
+                zero_t0,
+                common::Type::new(event_type, dimensions)?,
+            )?),
         })
     }
 

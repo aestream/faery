@@ -46,23 +46,21 @@ impl Decoder {
         off_value: Vec<u8>,
         skip_errors: bool,
     ) -> PyResult<Self> {
-        Python::with_gil(|python| -> PyResult<Self> {
-            Ok(Decoder {
-                inner: Some(decoder::Decoder::new(
-                    if path.is_none() {
-                        decoder::Input::stdin()
-                    } else {
-                        decoder::Input::File(std::io::BufReader::new(std::fs::File::open(
-                            types::python_path_to_string(python, path)?,
-                        )?))
-                    },
-                    decoder::Properties::new(
-                        dimensions, has_header, separator, t_index, x_index, y_index, on_index,
-                        t_scale, t0, on_value, off_value,
-                    )?,
-                    skip_errors,
-                )?),
-            })
+        Ok(Decoder {
+            inner: Some(decoder::Decoder::new(
+                if path.is_none() {
+                    decoder::Input::stdin()
+                } else {
+                    decoder::Input::File(std::io::BufReader::new(std::fs::File::open(
+                        types::python_path_to_string(path)?,
+                    )?))
+                },
+                decoder::Properties::new(
+                    dimensions, has_header, separator, t_index, x_index, y_index, on_index,
+                    t_scale, t0, on_value, off_value,
+                )?,
+                skip_errors,
+            )?),
         })
     }
 
@@ -153,22 +151,20 @@ impl Encoder {
         dimensions: (u16, u16),
         enforce_monotonic: bool,
     ) -> PyResult<Self> {
-        Python::with_gil(|python| -> PyResult<Self> {
-            Ok(Encoder {
-                inner: Some(encoder::Encoder::new(
-                    if path.is_none() {
-                        encoder::Output::stdout()
-                    } else {
-                        encoder::Output::File(std::io::BufWriter::new(std::fs::File::create(
-                            types::python_path_to_string(python, path)?,
-                        )?))
-                    },
-                    separator,
-                    header,
-                    dimensions,
-                    enforce_monotonic,
-                )?),
-            })
+        Ok(Encoder {
+            inner: Some(encoder::Encoder::new(
+                if path.is_none() {
+                    encoder::Output::stdout()
+                } else {
+                    encoder::Output::File(std::io::BufWriter::new(std::fs::File::create(
+                        types::python_path_to_string(path)?,
+                    )?))
+                },
+                separator,
+                header,
+                dimensions,
+                enforce_monotonic,
+            )?),
         })
     }
 

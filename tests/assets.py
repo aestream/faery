@@ -10,7 +10,7 @@ dirname = (
 )  # faery.dirname does not work with pytest
 
 Format = typing.Literal[
-    "aedat",
+    "aedat4",
     "csv",
     "dat2",
     "es-atis",
@@ -22,7 +22,7 @@ Format = typing.Literal[
 ]
 
 DECODE_DVS_FORMATS: list[Format] = [
-    "aedat",
+    "aedat4",
     "csv",
     "dat2",
     "es-atis",
@@ -32,7 +32,7 @@ DECODE_DVS_FORMATS: list[Format] = [
 ]
 
 ENCODE_DVS_FORMATS: list[Format] = [
-    "aedat",
+    "aedat4",
     "csv",
     "dat2",
     "es-dvs",
@@ -42,8 +42,8 @@ ENCODE_DVS_FORMATS: list[Format] = [
 
 
 def format_to_extension(format: Format) -> str:
-    if format == "aedat":
-        return "aedat"
+    if format == "aedat4":
+        return "aedat4"
     if format == "csv":
         return "csv"
     if format == "dat2":
@@ -70,7 +70,7 @@ class File:
     field_to_digest: dict[str, str]
     dimensions: typing.Optional[tuple[int, int]]
     time_range: tuple[str, str]
-    header_lines: typing.Optional[list[str]]
+    description: typing.Optional[list[faery.aedat.DescriptionNode]]
     tracks: typing.Optional[list[faery.aedat.Track]]
     content_lines: typing.Optional[list[bytes]]
     t0: typing.Optional[str]
@@ -86,7 +86,7 @@ class File:
         format: Format,
         field_to_digest: dict[str, str],
         tracks: typing.Optional[list[faery.aedat.Track]],
-        header_lines: typing.Optional[list[str]],
+        description: typing.Optional[list[faery.aedat.DescriptionNode]],
         content_lines: typing.Optional[list[bytes]],
         t0: typing.Optional[str],
     ) -> "File":
@@ -96,7 +96,7 @@ class File:
             field_to_digest=field_to_digest,
             dimensions=self.dimensions,
             time_range=self.time_range,
-            header_lines=header_lines,
+            description=description,
             tracks=tracks,
             content_lines=content_lines,
             t0=t0,
@@ -121,7 +121,7 @@ files: list[File] = [
         },
         dimensions=(320, 240),
         time_range=("00:00:00.000000", "00:00:00.999001"),
-        header_lines=None,
+        description=None,
         tracks=None,
         content_lines=None,
         t0="00:00:00.000000",
@@ -140,14 +140,14 @@ files: list[File] = [
         },
         dimensions=(320, 240),
         time_range=("00:00:00.000000", "00:00:00.999001"),
-        header_lines=None,
+        description=None,
         tracks=None,
         content_lines=None,
         t0="00:00:00.000000",
     ),
     File(
         path=dirname / "data" / "davis346.aedat4",
-        format="aedat",
+        format="aedat4",
         field_to_digest={
             "t": "f1e093cad5afb6ecb971dfa2ef7646ab4ae0f467f73a48804e40bb68",
             "x": "1d8ea97b0febadfde24dd0b9e608682fc6934fc88656823b15f0e7a7",
@@ -159,60 +159,178 @@ files: list[File] = [
         },
         dimensions=(346, 260),
         time_range=("441434:12:27.368868", "441434:12:29.728814"),
-        header_lines=[
-            '<dv version="2.0">',
-            '    <node name="outInfo" path="/mainloop/Recorder/outInfo/">',
-            '        <node name="0" path="/mainloop/Recorder/outInfo/0/">',
-            '            <attr key="compression" type="string">LZ4</attr>',
-            '            <attr key="originalModuleName" type="string">capture</attr>',
-            '            <attr key="originalOutputName" type="string">events</attr>',
-            '            <attr key="typeDescription" type="string">Array of events (polarity ON/OFF).</attr>',
-            '            <attr key="typeIdentifier" type="string">EVTS</attr>',
-            '            <node name="info" path="/mainloop/Recorder/outInfo/0/info/">',
-            '                <attr key="sizeX" type="int">346</attr>',
-            '                <attr key="sizeY" type="int">260</attr>',
-            '                <attr key="source" type="string">DAVIS346_00000002</attr>',
-            '                <attr key="tsOffset" type="long">1589163005536052</attr>',
-            "            </node>",
-            "        </node>",
-            '        <node name="1" path="/mainloop/Recorder/outInfo/1/">',
-            '            <attr key="compression" type="string">LZ4</attr>',
-            '            <attr key="originalModuleName" type="string">capture</attr>',
-            '            <attr key="originalOutputName" type="string">frames</attr>',
-            '            <attr key="typeDescription" type="string">Standard frame (8-bit image).</attr>',
-            '            <attr key="typeIdentifier" type="string">FRME</attr>',
-            '            <node name="info" path="/mainloop/Recorder/outInfo/1/info/">',
-            '                <attr key="sizeX" type="int">346</attr>',
-            '                <attr key="sizeY" type="int">260</attr>',
-            '                <attr key="source" type="string">DAVIS346_00000002</attr>',
-            '                <attr key="tsOffset" type="long">1589163005536052</attr>',
-            "            </node>",
-            "        </node>",
-            '        <node name="2" path="/mainloop/Recorder/outInfo/2/">',
-            '            <attr key="compression" type="string">LZ4</attr>',
-            '            <attr key="originalModuleName" type="string">capture</attr>',
-            '            <attr key="originalOutputName" type="string">imu</attr>',
-            '            <attr key="typeDescription" type="string">Inertial Measurement Unit data samples.</attr>',
-            '            <attr key="typeIdentifier" type="string">IMUS</attr>',
-            '            <node name="info" path="/mainloop/Recorder/outInfo/2/info/">',
-            '                <attr key="source" type="string">DAVIS346_00000002</attr>',
-            '                <attr key="tsOffset" type="long">1589163005536052</attr>',
-            "            </node>",
-            "        </node>",
-            '        <node name="3" path="/mainloop/Recorder/outInfo/3/">',
-            '            <attr key="compression" type="string">LZ4</attr>',
-            '            <attr key="originalModuleName" type="string">capture</attr>',
-            '            <attr key="originalOutputName" type="string">triggers</attr>',
-            '            <attr key="typeDescription" type="string">External triggers and special signals.</attr>',
-            '            <attr key="typeIdentifier" type="string">TRIG</attr>',
-            '            <node name="info" path="/mainloop/Recorder/outInfo/3/info/">',
-            '                <attr key="source" type="string">DAVIS346_00000002</attr>',
-            '                <attr key="tsOffset" type="long">1589163005536052</attr>',
-            "            </node>",
-            "        </node>",
-            "    </node>",
-            "</dv>",
-            "",
+        description=[
+            faery.aedat.DescriptionNode(
+                name="outInfo",
+                path="/mainloop/Recorder/outInfo/",
+                attributes={},
+                nodes=[
+                    faery.aedat.DescriptionNode(
+                        name="0",
+                        path="/mainloop/Recorder/outInfo/0/",
+                        attributes={
+                            "compression": faery.aedat.DescriptionAttribute(
+                                attribute_type="string", value="LZ4"
+                            ),
+                            "originalModuleName": faery.aedat.DescriptionAttribute(
+                                attribute_type="string", value="capture"
+                            ),
+                            "originalOutputName": faery.aedat.DescriptionAttribute(
+                                attribute_type="string", value="events"
+                            ),
+                            "typeDescription": faery.aedat.DescriptionAttribute(
+                                attribute_type="string",
+                                value="Array of events (polarity ON/OFF).",
+                            ),
+                            "typeIdentifier": faery.aedat.DescriptionAttribute(
+                                attribute_type="string", value="EVTS"
+                            ),
+                        },
+                        nodes=[
+                            faery.aedat.DescriptionNode(
+                                name="info",
+                                path="/mainloop/Recorder/outInfo/0/info/",
+                                attributes={
+                                    "sizeX": faery.aedat.DescriptionAttribute(
+                                        attribute_type="int", value=346
+                                    ),
+                                    "sizeY": faery.aedat.DescriptionAttribute(
+                                        attribute_type="int", value=260
+                                    ),
+                                    "source": faery.aedat.DescriptionAttribute(
+                                        attribute_type="string",
+                                        value="DAVIS346_00000002",
+                                    ),
+                                    "tsOffset": faery.aedat.DescriptionAttribute(
+                                        attribute_type="long", value=1589163005536052
+                                    ),
+                                },
+                                nodes=[],
+                            )
+                        ],
+                    ),
+                    faery.aedat.DescriptionNode(
+                        name="1",
+                        path="/mainloop/Recorder/outInfo/1/",
+                        attributes={
+                            "compression": faery.aedat.DescriptionAttribute(
+                                attribute_type="string", value="LZ4"
+                            ),
+                            "originalModuleName": faery.aedat.DescriptionAttribute(
+                                attribute_type="string", value="capture"
+                            ),
+                            "originalOutputName": faery.aedat.DescriptionAttribute(
+                                attribute_type="string", value="frames"
+                            ),
+                            "typeDescription": faery.aedat.DescriptionAttribute(
+                                attribute_type="string",
+                                value="Standard frame (8-bit image).",
+                            ),
+                            "typeIdentifier": faery.aedat.DescriptionAttribute(
+                                attribute_type="string", value="FRME"
+                            ),
+                        },
+                        nodes=[
+                            faery.aedat.DescriptionNode(
+                                name="info",
+                                path="/mainloop/Recorder/outInfo/1/info/",
+                                attributes={
+                                    "sizeX": faery.aedat.DescriptionAttribute(
+                                        attribute_type="int", value=346
+                                    ),
+                                    "sizeY": faery.aedat.DescriptionAttribute(
+                                        attribute_type="int", value=260
+                                    ),
+                                    "source": faery.aedat.DescriptionAttribute(
+                                        attribute_type="string",
+                                        value="DAVIS346_00000002",
+                                    ),
+                                    "tsOffset": faery.aedat.DescriptionAttribute(
+                                        attribute_type="long", value=1589163005536052
+                                    ),
+                                },
+                                nodes=[],
+                            )
+                        ],
+                    ),
+                    faery.aedat.DescriptionNode(
+                        name="2",
+                        path="/mainloop/Recorder/outInfo/2/",
+                        attributes={
+                            "compression": faery.aedat.DescriptionAttribute(
+                                attribute_type="string", value="LZ4"
+                            ),
+                            "originalModuleName": faery.aedat.DescriptionAttribute(
+                                attribute_type="string", value="capture"
+                            ),
+                            "originalOutputName": faery.aedat.DescriptionAttribute(
+                                attribute_type="string", value="imu"
+                            ),
+                            "typeDescription": faery.aedat.DescriptionAttribute(
+                                attribute_type="string",
+                                value="Inertial Measurement Unit data samples.",
+                            ),
+                            "typeIdentifier": faery.aedat.DescriptionAttribute(
+                                attribute_type="string", value="IMUS"
+                            ),
+                        },
+                        nodes=[
+                            faery.aedat.DescriptionNode(
+                                name="info",
+                                path="/mainloop/Recorder/outInfo/2/info/",
+                                attributes={
+                                    "source": faery.aedat.DescriptionAttribute(
+                                        attribute_type="string",
+                                        value="DAVIS346_00000002",
+                                    ),
+                                    "tsOffset": faery.aedat.DescriptionAttribute(
+                                        attribute_type="long", value=1589163005536052
+                                    ),
+                                },
+                                nodes=[],
+                            )
+                        ],
+                    ),
+                    faery.aedat.DescriptionNode(
+                        name="3",
+                        path="/mainloop/Recorder/outInfo/3/",
+                        attributes={
+                            "compression": faery.aedat.DescriptionAttribute(
+                                attribute_type="string", value="LZ4"
+                            ),
+                            "originalModuleName": faery.aedat.DescriptionAttribute(
+                                attribute_type="string", value="capture"
+                            ),
+                            "originalOutputName": faery.aedat.DescriptionAttribute(
+                                attribute_type="string", value="triggers"
+                            ),
+                            "typeDescription": faery.aedat.DescriptionAttribute(
+                                attribute_type="string",
+                                value="External triggers and special signals.",
+                            ),
+                            "typeIdentifier": faery.aedat.DescriptionAttribute(
+                                attribute_type="string", value="TRIG"
+                            ),
+                        },
+                        nodes=[
+                            faery.aedat.DescriptionNode(
+                                name="info",
+                                path="/mainloop/Recorder/outInfo/3/info/",
+                                attributes={
+                                    "source": faery.aedat.DescriptionAttribute(
+                                        attribute_type="string",
+                                        value="DAVIS346_00000002",
+                                    ),
+                                    "tsOffset": faery.aedat.DescriptionAttribute(
+                                        attribute_type="long", value=1589163005536052
+                                    ),
+                                },
+                                nodes=[],
+                            )
+                        ],
+                    ),
+                ],
+            )
         ],
         tracks=[
             faery.aedat.Track(id=0, data_type="events", dimensions=(346, 260)),
@@ -234,7 +352,7 @@ files: list[File] = [
         },
         dimensions=(320, 240),
         time_range=("00:00:00.000000", "00:00:00.999001"),
-        header_lines=None,
+        description=None,
         tracks=None,
         content_lines=None,
         t0="00:00:00.000000",
@@ -251,7 +369,7 @@ files: list[File] = [
         },
         dimensions=(320, 240),
         time_range=("00:00:00.000000", "00:00:00.999001"),
-        header_lines=None,
+        description=None,
         tracks=None,
         content_lines=None,
         t0="00:00:00.000000",
@@ -267,7 +385,7 @@ files: list[File] = [
         },
         dimensions=(640, 480),
         time_range=("00:15:13.716224", "00:15:13.812096"),
-        header_lines=None,
+        description=None,
         tracks=None,
         content_lines=None,
         t0=None,
@@ -283,7 +401,7 @@ files: list[File] = [
         },
         dimensions=(1280, 720),
         time_range=("00:00:11.200224", "00:00:21.968222"),
-        header_lines=None,
+        description=None,
         tracks=None,
         content_lines=None,
         t0=None,
@@ -299,7 +417,7 @@ files: list[File] = [
         },
         dimensions=(1280, 720),
         time_range=("00:00:00.005856", "00:00:10.773854"),
-        header_lines=None,
+        description=None,
         tracks=None,
         content_lines=None,
         t0=None,
@@ -312,7 +430,7 @@ files: list[File] = [
         },
         dimensions=None,
         time_range=("00:00:00.000000", "00:00:01.207923"),
-        header_lines=None,
+        description=None,
         tracks=None,
         content_lines=[
             b"Lorem",
