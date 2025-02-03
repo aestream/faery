@@ -28,7 +28,6 @@ class Encoder:
         event_type: typing.Literal["generic"],
         zero_t0: bool,
         dimensions: None,
-        enforce_monotonic: bool,
     ): ...
     @typing.overload
     def __init__(
@@ -37,7 +36,6 @@ class Encoder:
         event_type: typing.Literal["dvs"],
         zero_t0: bool,
         dimensions: tuple[int, int],
-        enforce_monotonic: bool,
     ): ...
     @typing.overload
     def __init__(
@@ -46,7 +44,6 @@ class Encoder:
         event_type: typing.Literal["atis"],
         zero_t0: bool,
         dimensions: tuple[int, int],
-        enforce_monotonic: bool,
     ): ...
     @typing.overload
     def __init__(
@@ -55,7 +52,6 @@ class Encoder:
         event_type: typing.Literal["color"],
         zero_t0: bool,
         dimensions: tuple[int, int],
-        enforce_monotonic: bool,
     ): ...
     def __enter__(self) -> Encoder: ...
     def __exit__(

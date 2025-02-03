@@ -53,7 +53,6 @@ pub struct GenericEncoder {
     file: std::io::BufWriter<std::fs::File>,
     previous_t: u64,
     t0: Option<u64>,
-    enforce_monotonic: bool,
 }
 
 pub struct DvsEncoder {
@@ -61,7 +60,6 @@ pub struct DvsEncoder {
     dimensions: (u16, u16),
     previous_t: u64,
     t0: Option<u64>,
-    enforce_monotonic: bool,
 }
 
 pub struct AtisEncoder {
@@ -69,7 +67,6 @@ pub struct AtisEncoder {
     dimensions: (u16, u16),
     previous_t: u64,
     t0: Option<u64>,
-    enforce_monotonic: bool,
 }
 
 pub struct ColorEncoder {
@@ -77,7 +74,6 @@ pub struct ColorEncoder {
     dimensions: (u16, u16),
     previous_t: u64,
     t0: Option<u64>,
-    enforce_monotonic: bool,
 }
 
 pub enum Encoder {
@@ -92,18 +88,17 @@ impl Encoder {
         path: P,
         zero_t0: bool,
         encoder_type: EncoderType,
-        enforce_monotonic: bool,
     ) -> Result<Self, Error> {
         Ok(match encoder_type {
-            EncoderType::Generic => Encoder::Generic(GenericEncoder::new(path, zero_t0, enforce_monotonic)?),
+            EncoderType::Generic => Encoder::Generic(GenericEncoder::new(path, zero_t0)?),
             EncoderType::Dvs(width, height) => {
-                Encoder::Dvs(DvsEncoder::new(path, zero_t0, (width, height), enforce_monotonic)?)
+                Encoder::Dvs(DvsEncoder::new(path, zero_t0, (width, height))?)
             }
             EncoderType::Atis(width, height) => {
-                Encoder::Atis(AtisEncoder::new(path, zero_t0, (width, height), enforce_monotonic)?)
+                Encoder::Atis(AtisEncoder::new(path, zero_t0, (width, height))?)
             }
             EncoderType::Color(width, height) => {
-                Encoder::Color(ColorEncoder::new(path, zero_t0, (width, height), enforce_monotonic)?)
+                Encoder::Color(ColorEncoder::new(path, zero_t0, (width, height))?)
             }
         })
     }
@@ -133,7 +128,7 @@ fn open<P: AsRef<std::path::Path>>(
 }
 
 impl GenericEncoder {
-    pub fn new<P: AsRef<std::path::Path>>(path: P, zero_t0: bool, enforce_monotonic: bool) -> Result<Self, Error> {
+    pub fn new<P: AsRef<std::path::Path>>(path: P, zero_t0: bool) -> Result<Self, Error> {
         Ok(GenericEncoder {
             file: {
                 let mut file = std::io::BufWriter::new(std::fs::File::create(path)?);
@@ -144,7 +139,6 @@ impl GenericEncoder {
             },
             previous_t: 0,
             t0: if zero_t0 { None } else { Some(0) },
-            enforce_monotonic,
         })
     }
 
@@ -158,7 +152,7 @@ impl GenericEncoder {
             }
         };
         let t = event.t - t0;
-        if self.enforce_monotonic && t < self.previous_t {
+        if t < self.previous_t {
             return Err(utilities::WriteError::NonMonotonic {
                 previous_t: self.previous_t + t0,
                 t: t + t0,
@@ -194,14 +188,12 @@ impl DvsEncoder {
         path: P,
         zero_t0: bool,
         dimensions: (u16, u16),
-        enforce_monotonic: bool,
     ) -> Result<Self, Error> {
         Ok(DvsEncoder {
             file: open(path, common::Type::Dvs, dimensions)?,
             dimensions,
             previous_t: 0,
             t0: if zero_t0 { None } else { Some(0) },
-            enforce_monotonic,
         })
     }
 
@@ -218,7 +210,7 @@ impl DvsEncoder {
             }
         };
         let t = event.t - t0;
-        if self.enforce_monotonic && t < self.previous_t {
+        if t < self.previous_t {
             return Err(utilities::WriteError::NonMonotonic {
                 previous_t: self.previous_t + t0,
                 t: t + t0,
@@ -258,14 +250,12 @@ impl AtisEncoder {
         path: P,
         zero_t0: bool,
         dimensions: (u16, u16),
-        enforce_monotonic: bool,
     ) -> Result<Self, Error> {
         Ok(AtisEncoder {
             file: open(path, common::Type::Atis, dimensions)?,
             dimensions,
             previous_t: 0,
             t0: if zero_t0 { None } else { Some(0) },
-            enforce_monotonic,
         })
     }
 
@@ -282,7 +272,7 @@ impl AtisEncoder {
             }
         };
         let t = event.t - t0;
-        if self.enforce_monotonic && t < self.previous_t {
+        if t < self.previous_t {
             return Err(utilities::WriteError::NonMonotonic {
                 previous_t: self.previous_t + t0,
                 t: t + t0,
@@ -331,14 +321,12 @@ impl ColorEncoder {
         path: P,
         zero_t0: bool,
         dimensions: (u16, u16),
-        enforce_monotonic: bool,
     ) -> Result<Self, Error> {
         Ok(ColorEncoder {
             file: open(path, common::Type::Color, dimensions)?,
             dimensions,
             previous_t: 0,
             t0: if zero_t0 { None } else { Some(0) },
-            enforce_monotonic,
         })
     }
 
@@ -352,7 +340,7 @@ impl ColorEncoder {
             }
         };
         let t = event.t - t0;
-        if self.enforce_monotonic && t < self.previous_t {
+        if t < self.previous_t {
             return Err(utilities::WriteError::NonMonotonic {
                 previous_t: self.previous_t + t0,
                 t: t + t0,

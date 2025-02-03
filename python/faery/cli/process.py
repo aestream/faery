@@ -279,6 +279,11 @@ def output_parser(
             default="none",
             help="(default: %(default)s)",
         )
+        subparser.add_argument(
+            "--enforce-monotonic-timestamps",
+            action=argparse.BooleanOptionalAction,
+            help="Enforce non-monitonic timestamps. Defaults to True. Negate this with causion: some file formats do not support non-monotonic timestamps.")
+        subparser.set_defaults(enforce_monotonic_timestamps=True)
         if stream_parent_class in {
             faery.FiniteEventsStream,
             faery.FiniteRegularEventsStream,

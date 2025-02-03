@@ -34,7 +34,6 @@ class Encoder:
         event_type: typing.Literal["2d"],
         zero_t0: bool,
         dimensions: tuple[int, int],
-        enforce_monotonic: bool,
     ): ...
     @typing.overload
     def __init__(
@@ -44,7 +43,6 @@ class Encoder:
         event_type: typing.Literal["cd"],
         zero_t0: bool,
         dimensions: tuple[int, int],
-        enforce_monotonic: bool,
     ): ...
     @typing.overload
     def __init__(
@@ -54,7 +52,6 @@ class Encoder:
         event_type: typing.Literal["trigger"],
         zero_t0: bool,
         dimensions: None,
-        enforce_monotonic: bool,
     ): ...
     def __enter__(self) -> Encoder: ...
     def __exit__(
@@ -62,7 +59,6 @@ class Encoder:
         exception_type: typing.Optional[typing.Type[BaseException]],
         value: typing.Optional[BaseException],
         traceback: typing.Optional[types.TracebackType],
-        enforce_monotonic: bool,
     ) -> bool: ...
     def t0(self) -> typing.Optional[int]: ...
     def write(self, packet: numpy.ndarray): ...

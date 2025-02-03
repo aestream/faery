@@ -161,14 +161,13 @@ pub struct Encoder {
 #[pymethods]
 impl Encoder {
     #[new]
-    #[pyo3(signature = (path, version, event_type, zero_t0, dimensions, enforce_monotonic))]
+    #[pyo3(signature = (path, version, event_type, zero_t0, dimensions))]
     fn new(
         path: &pyo3::Bound<'_, pyo3::types::PyAny>,
         version: &str,
         event_type: &str,
         zero_t0: bool,
         dimensions: Option<(u16, u16)>,
-        enforce_monotonic: bool,
     ) -> PyResult<Self> {
         Python::with_gil(|python| -> PyResult<Self> {
             Ok(Encoder {
@@ -177,7 +176,6 @@ impl Encoder {
                     common::Version::from_string(version)?,
                     zero_t0,
                     common::Type::new(event_type, dimensions)?,
-                    enforce_monotonic
                 )?),
             })
         })

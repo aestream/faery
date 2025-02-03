@@ -75,7 +75,6 @@ class Encoder:
         path: typing.Union[pathlib.Path, str],
         description_or_tracks: typing.Union[str, list[Track]],
         compression: typing.Optional[typing.Tuple[typing.Literal["lz4", "zstd"], int]],
-        enforce_monotonic: bool,
     ): ...
     def __enter__(self) -> Encoder: ...
     def __exit__(
