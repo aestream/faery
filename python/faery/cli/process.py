@@ -78,6 +78,7 @@ def add_csv_properties(parser: argparse.ArgumentParser):
 def input_parser() -> argparse.ArgumentParser:
     parser = base_parser("input")
     subparsers = parser.add_subparsers(required=True, dest="input")
+    # Stdin subparser
     subparser = subparsers.add_parser("stdin")
     subparser.add_argument(
         "--dimensions",
@@ -125,6 +126,10 @@ def input_parser() -> argparse.ArgumentParser:
         help="(default: %(default)s)",
     )
     add_csv_properties(subparser)
+    # Inivation subparser
+    subparser = subparsers.add_parser("inivation")
+    subparser.add_argument("--buffer-size", type=int, default=1024, help="Array buffer size (default: %(default)s)")
+    # UDP subparser
     subparser = subparsers.add_parser("udp")
     subparser.add_argument("address", type=list_filters.parse_udp)
     subparser.add_argument(
@@ -274,6 +279,11 @@ def output_parser(
             default="none",
             help="(default: %(default)s)",
         )
+        subparser.add_argument(
+            "--enforce-monotonic-timestamps",
+            action=argparse.BooleanOptionalAction,
+            help="Enforce non-monitonic timestamps. Defaults to True. Negate this with causion: some file formats do not support non-monotonic timestamps.")
+        subparser.set_defaults(enforce_monotonic_timestamps=True)
         if stream_parent_class in {
             faery.FiniteEventsStream,
             faery.FiniteRegularEventsStream,
@@ -490,6 +500,8 @@ class StreamWrapper:
                     skip_errors=args.csv_skip_errors,
                 ),
             )
+        elif args.input == "inivation":
+            self.stream = faery.events_stream_from_camera("Inivation")
         elif args.input == "udp":
             self.stream = faery.events_stream_from_udp(
                 dimensions=args.dimensions,

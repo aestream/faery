@@ -151,6 +151,7 @@ impl Encoder {
         separator: u8,
         header: bool,
         dimensions: (u16, u16),
+        enforce_monotonic: bool,
     ) -> PyResult<Self> {
         Python::with_gil(|python| -> PyResult<Self> {
             Ok(Encoder {
@@ -165,6 +166,7 @@ impl Encoder {
                     separator,
                     header,
                     dimensions,
+                    enforce_monotonic,
                 )?),
             })
         })

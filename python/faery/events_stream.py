@@ -105,6 +105,7 @@ class Output(typing.Generic[OutputState]):
         csv_header: bool = True,
         file_type: typing.Optional[enums.EventsFileType] = None,
         on_progress: typing.Callable[[OutputState], None] = lambda _: None,
+        enforce_monotonic_timestamps: bool = True,
     ) -> str:
         """
         Writes the stream to an event file (supports .aedat4, .es, .raw, and .dat).
@@ -128,6 +129,8 @@ class Output(typing.Generic[OutputState]):
             csv_separator: Separator between CSV fields. Defaults to b",".
             csv_header: Whether to generate a CSV header. Defaults to True.
             file_type: Override the type determination algorithm. Defaults to None.
+            enforce_monotonic_timestamps: Whether to enforce that timestamps are monotonically increasing. Note that some formats
+                (such as AEDAT, ES, and DAT) do not support non-monotonic timestamps. Defaults to True.
 
         Returns:
             The original t0 as a timecode if the file type is ES, EVT (.raw) or DAT, and if `zero_t0` is true. 0 as a timecode otherwise.
@@ -154,6 +157,7 @@ class Output(typing.Generic[OutputState]):
             file_type=file_type,
             use_write_suffix=use_write_suffix,
             on_progress=on_progress,  # type: ignore
+            enforce_monotonic_timestamps=enforce_monotonic_timestamps,
         )
 
     def to_stdout(
@@ -407,7 +411,7 @@ class FiniteEventsStream(
 
 
 class RegularEventsStream(
-    stream.RegularStream[numpy.ndarray],
+    stream.Stream[numpy.ndarray],
     Output[events_stream_state.RegularEventsStreamState],
 ):
     def regularize(

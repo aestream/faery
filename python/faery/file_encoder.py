@@ -34,6 +34,7 @@ def events_to_file(
     on_progress: typing.Callable[
         [events_stream_state.EventsStreamState], None
     ] = lambda _: None,
+    enforce_monotonic_timestamps: bool = True,
 ) -> str:
     """Writes the stream to an event file (supports .aedat4, .es, .raw, and .dat).
 
@@ -54,6 +55,8 @@ def events_to_file(
         csv_separator: Separator for CSV files, must be a single character. Defaults to b",".
         csv_header: Whether to add a header to the CSV file. Defaults to True.
         file_type: Override the type determination algorithm. Defaults to None.
+        enforce_monotonic_timestamps: Whether to enforce that timestamps are monotonically increasing. Note that some formats
+            (such as AEDAT, ES, and DAT) do not support non-monotonic timestamps. Defaults to True.
 
     Returns:
         The original t0 as a timecode if the file type is ES, EVT (.raw), or DAT, and if `zero_t0` is true. 0 as a timecode otherwise.
@@ -91,6 +94,7 @@ def events_to_file(
     )
     if file_type == "aedat":
         assert path is not None
+        assert enforce_monotonic_timestamps, "AEDAT files do not support non-monotonic timestamps, since timestamps may overflow"
         with aedat.Encoder(
             path=path if write_path is None else write_path,
             description_or_tracks=[
@@ -113,6 +117,7 @@ def events_to_file(
             separator=csv_separator[0],
             header=csv_header,
             dimensions=dimensions,
+            enforce_monotonic=enforce_monotonic_timestamps,
         ) as encoder:
             state_manager.start()
             for events in stream:
@@ -125,6 +130,7 @@ def events_to_file(
         t0 = 0
     elif file_type == "dat":
         assert path is not None
+        assert enforce_monotonic_timestamps, "DAT files do not support non-monotonic timestamps, since timestamps may overflow"
         with dat.Encoder(
             path=path if write_path is None else write_path,
             version="dat2" if version is None else version,  # type: ignore
@@ -158,6 +164,7 @@ def events_to_file(
         state_manager.end()
     elif file_type == "es":
         assert path is not None
+        assert enforce_monotonic_timestamps, "ES files do not support non-monotonic timestamps"
         with event_stream.Encoder(
             path=path if write_path is None else write_path,
             event_type="dvs",
@@ -184,6 +191,7 @@ def events_to_file(
             version="evt3" if version is None else version,  # type: ignore
             zero_t0=zero_t0,
             dimensions=dimensions,
+            enforce_monotonic=enforce_monotonic_timestamps,
         ) as encoder:
             state_manager.start()
             for events in stream:

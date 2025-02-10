@@ -51,6 +51,7 @@ def test_low_level_decoder_encoder(file: assets.File):
                 separator=b","[0],
                 header=True,
                 dimensions=file.dimensions,
+                enforce_monotonic=True
             ) as encoder:
                 for events in decoder:
                     encoder.write(events)
@@ -150,6 +151,7 @@ def test_low_level_decoder_encoder(file: assets.File):
                 version="evt2",
                 zero_t0=True,
                 dimensions=decoder.dimensions,
+                enforce_monotonic=True
             ) as encoder:
                 for packet in decoder:
                     encoder.write(packet)
@@ -165,6 +167,7 @@ def test_low_level_decoder_encoder(file: assets.File):
                 version="evt3",
                 zero_t0=True,
                 dimensions=decoder.dimensions,
+                enforce_monotonic=True
             ) as encoder:
                 for packet in decoder:
                     encoder.write(packet)

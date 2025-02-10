@@ -12,7 +12,7 @@
         pkgs = import nixpkgs { inherit system; };
         faery =
           let
-            pypkgs = pkgs.python313Packages;
+            pypkgs = pkgs.python312Packages;
           in
           pkgs.mkShell {
             buildInputs = [

@@ -25,6 +25,7 @@ pub struct Encoder {
     dimensions: (u16, u16),
     separator: char,
     previous_t: u64,
+    enforce_monotonic: bool,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -48,6 +49,7 @@ impl Encoder {
         separator: u8,
         header: bool,
         dimensions: (u16, u16),
+        enforce_monotonic: bool,
     ) -> Result<Self, Error> {
         let separator = std::str::from_utf8(&[separator])?
             .chars()
@@ -67,6 +69,7 @@ impl Encoder {
             dimensions,
             separator,
             previous_t: 0,
+            enforce_monotonic
         })
     }
 
@@ -74,7 +77,7 @@ impl Encoder {
         &mut self,
         event: neuromorphic_types::DvsEvent<u64, u16, u16>,
     ) -> Result<(), utilities::WriteError> {
-        if event.t < self.previous_t {
+        if self.enforce_monotonic && event.t < self.previous_t {
             return Err(utilities::WriteError::NonMonotonic {
                 previous_t: self.previous_t,
                 t: event.t,
