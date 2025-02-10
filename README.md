@@ -190,7 +190,7 @@ python3 -m venv .venv
 source .venv/bin/activate
 # x86 platforms may need to install https://www.nasm.us
 pip install --upgrade pip
-pip install maturin
+pip install maturin==1.7.4
 maturin develop  # or maturin develop --release to build with optimizations
 ```
 

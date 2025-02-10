@@ -701,7 +701,6 @@ impl Encoder {
                     },
                 );
         }
-        println!(""); // @DEV
         let vector = builder.create_vector(file_data_definitions_offsets);
         let packet = common::file_data_table_generated::FileDataTable::create(
             builder,

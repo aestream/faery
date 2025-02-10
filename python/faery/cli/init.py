@@ -136,7 +136,14 @@ class Command(command.Command):
             generated_nicknames = coolname.generate_distinct(len(resolved_to_original))
         else:
             generated_nicknames = None
-        for index, (resolved_path, path) in enumerate(resolved_to_original.items()):
+        resolved_and_original = sorted(
+            resolved_to_original.items(),
+            key=lambda resolved_and_original: (
+                resolved_and_original[1],
+                resolved_and_original[0],
+            ),
+        )
+        for index, (resolved_path, path) in enumerate(resolved_and_original):
             if args.generate_nicknames:
                 assert generated_nicknames is not None
                 nickname = generated_nicknames[index]

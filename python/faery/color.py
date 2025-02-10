@@ -13,7 +13,7 @@ LIGHT_COLOR_THEME: ColorTheme = ColorTheme(
     axes="#000000FF",
     grid="#000000FF",
     subgrid="#00000050",
-    lines=["#CCCCCCFF", "#000000FF"],
+    lines=["#C1D5F4", "#0C55CDFF"],
     colormap=colormaps.batlow,
 )
 

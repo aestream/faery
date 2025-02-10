@@ -215,15 +215,9 @@ class TimeSlice(events_stream.FiniteEventsFilter):  # type: ignore
     def time_range(self) -> tuple[timestamp.Time, timestamp.Time]:
         parent_time_range = self.parent.time_range()
         if self.zero:
-            return (
-                max(self.start, parent_time_range[0]) - self.start,
-                min(self.end, parent_time_range[1]) - self.start,
-            )
+            return (timestamp.Time(microseconds=0), self.end - self.start)
         else:
-            return (
-                max(self.start, parent_time_range[0]),
-                min(self.end, parent_time_range[1]),
-            )
+            return (self.start, self.end)
 
     def __iter__(self) -> collections.abc.Iterator[numpy.ndarray]:
         for events in self.parent:
@@ -573,7 +567,9 @@ class FilterHotPixels(events_stream.FiniteRegularEventsFilter):
             top[0] = 1
             bottom = numpy.roll(count, -1, axis=0)
             bottom[-1] = 1
-            maximum = numpy.maximum.reduce([left, right, top, bottom], dtype=numpy.float64)
+            maximum = numpy.maximum.reduce(
+                [left, right, top, bottom], dtype=numpy.float64
+            )
             numpy.multiply(maximum, self.maximum_relative_event_count, out=maximum)
             mask = count < maximum
             yield events[mask[events["y"], events["x"]]]
