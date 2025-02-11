@@ -215,15 +215,9 @@ class TimeSlice(events_stream.FiniteEventsFilter):  # type: ignore
     def time_range(self) -> tuple[timestamp.Time, timestamp.Time]:
         parent_time_range = self.parent.time_range()
         if self.zero:
-            return (
-                max(self.start, parent_time_range[0]) - self.start,
-                min(self.end, parent_time_range[1]) - self.start,
-            )
+            return (timestamp.Time(microseconds=0), self.end - self.start)
         else:
-            return (
-                max(self.start, parent_time_range[0]),
-                min(self.end, parent_time_range[1]),
-            )
+            return (self.start, self.end)
 
     def __iter__(self) -> collections.abc.Iterator[numpy.ndarray]:
         for events in self.parent:
@@ -532,7 +526,7 @@ class FilterArbiterSaturationLines(events_stream.FiniteRegularEventsFilter):
                 if len(large_jump_indices_indices) == 0:
                     yield buffer[: jumps_indices[-1]].copy()
                 else:
-                    mask = numpy.full(len(buffer), True, dtype=numpy.bool)
+                    mask = numpy.full(len(buffer), True, dtype="?")
                     mask[jumps_indices[-1] :] = False
                     for large_jump_indices_index in large_jump_indices_indices:
                         mask[
@@ -543,6 +537,42 @@ class FilterArbiterSaturationLines(events_stream.FiniteRegularEventsFilter):
                     if numpy.count_nonzero(mask) > 0:
                         yield buffer[mask].copy()
                 buffer = buffer[jumps_indices[-1] :]
+
+
+@typed_filter({"", "Finite", "Regular", "FiniteRegular"})
+class FilterHotPixels(events_stream.FiniteRegularEventsFilter):
+    def __init__(
+        self,
+        parent: stream.FiniteRegularStream[numpy.ndarray],
+        maximum_relative_event_count: float,
+    ):
+        self.init(parent=parent)
+        self.maximum_relative_event_count = maximum_relative_event_count
+        assert self.maximum_relative_event_count >= 0.0
+
+    def __iter__(self) -> collections.abc.Iterator[numpy.ndarray]:
+        dimensions = self.parent.dimensions()
+        for events in self.parent:
+            count = numpy.ones((dimensions[1], dimensions[0]), dtype=numpy.uint64)
+            numpy.add.at(
+                count,
+                (events["y"], events["x"]),
+                1,
+            )
+            left = numpy.roll(count, 1, axis=1)
+            left[:, 0] = 1
+            right = numpy.roll(count, -1, axis=1)
+            right[:, -1] = 1
+            top = numpy.roll(count, 1, axis=0)
+            top[0] = 1
+            bottom = numpy.roll(count, -1, axis=0)
+            bottom[-1] = 1
+            maximum = numpy.maximum.reduce(
+                [left, right, top, bottom], dtype=numpy.float64
+            )
+            numpy.multiply(maximum, self.maximum_relative_event_count, out=maximum)
+            mask = count < maximum
+            yield events[mask[events["y"], events["x"]]]
 
 
 @typed_filter({"", "Finite", "Regular", "FiniteRegular"})

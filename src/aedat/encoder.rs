@@ -4,19 +4,19 @@ use std::io::Write;
 use crate::aedat::common;
 use crate::utilities;
 
+pub const MAXIMUM_EVENTS_PER_BUFFER: usize = 1 << 12;
+pub const MAXIMUM_IMUS_PER_BUFFER: usize = 1 << 10;
+pub const MAXIMUM_TRIGGERS_PER_BUFFER: usize = 1 << 12;
+
 pub struct Encoder {
     file: std::io::BufWriter<std::fs::File>,
-    id_to_track: std::collections::HashMap<u32, common::Track>,
+    id_to_track: std::collections::HashMap<i32, common::Track>,
     compression: Compression,
     builder_buffer: Option<Vec<u8>>,
     buffer: Vec<u8>,
     file_data_position_offset: u64,
     file_data_position: u64,
-}
-
-pub enum DescriptionOrIdsAndTracks<'a> {
-    Description(&'a str),
-    IdsAndTracks(Vec<(u32, common::Track)>),
+    file_data_definitions: Vec<common::FileDataDefinition>,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -98,6 +98,15 @@ impl Compression {
 pub enum PacketError {
     #[error(transparent)]
     Io(#[from] std::io::Error),
+
+    #[error("too many elements (got {count} but the maximum is {maximum})")]
+    ElementsOverflow { count: usize, maximum: usize },
+
+    #[error("start_t ({start_t:?}) must be smaller than or equal to end_t {end_t:?}")]
+    FileDataDefinition {
+        start_t: Option<u64>,
+        end_t: Option<u64>,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -130,6 +139,41 @@ pub struct Trigger {
     pub source: u8,
 }
 
+struct PacketInformation {
+    track_id: i32,
+    elements_count: usize,
+    start_t: u64,
+    end_t: u64,
+}
+
+impl PacketInformation {
+    fn new(
+        track_id: i32,
+        elements_count: usize,
+        start_t: Option<u64>,
+        end_t: Option<u64>,
+    ) -> Result<Self, PacketError> {
+        match start_t {
+            Some(some_start_t) => match end_t {
+                Some(some_end_t) => {
+                    if some_start_t > some_end_t {
+                        Err(PacketError::FileDataDefinition { start_t, end_t })
+                    } else {
+                        Ok(Self {
+                            track_id,
+                            elements_count,
+                            start_t: some_start_t,
+                            end_t: some_end_t,
+                        })
+                    }
+                }
+                None => Err(PacketError::FileDataDefinition { start_t, end_t }),
+            },
+            None => Err(PacketError::FileDataDefinition { start_t, end_t }),
+        }
+    }
+}
+
 impl Encoder {
     fn write_description(
         file: &mut std::io::BufWriter<std::fs::File>,
@@ -138,13 +182,13 @@ impl Encoder {
         description: &str,
     ) -> Result<(u64, u64), std::io::Error> {
         let flatbuffer_description = builder.create_string(description);
-        let ioheader = common::ioheader_generated::Ioheader::create(
+        let ioheader = common::io_header_generated::IOHeader::create(
             builder,
-            &common::ioheader_generated::IoheaderArgs {
+            &common::io_header_generated::IOHeaderArgs {
                 compression: match compression {
-                    Compression::None => common::ioheader_generated::Compression::None,
-                    Compression::Lz4 { .. } => common::ioheader_generated::Compression::Lz4,
-                    Compression::Zstd { .. } => common::ioheader_generated::Compression::Zstd,
+                    Compression::None => common::io_header_generated::Compression::None,
+                    Compression::Lz4 { .. } => common::io_header_generated::Compression::Lz4,
+                    Compression::Zstd { .. } => common::io_header_generated::Compression::Zstd,
                 },
                 file_data_position: -1,
                 description: Some(flatbuffer_description),
@@ -152,117 +196,46 @@ impl Encoder {
         );
         builder.finish_size_prefixed(
             ioheader,
-            Some(common::ioheader_generated::IOHEADER_IDENTIFIER),
+            Some(common::io_header_generated::IOHEADER_IDENTIFIER),
         );
         let data = builder.finished_data();
-        file.write_all(builder.finished_data())?;
+        file.write_all(data)?;
         let ioheader =
-            unsafe { common::ioheader_generated::root_as_ioheader_unchecked(&data[4..]) };
+            unsafe { common::io_header_generated::root_as_ioheader_unchecked(&data[4..]) };
         let offset = 4
             + ioheader._tab.loc()
             + ioheader
                 ._tab
                 .vtable()
-                .get(common::ioheader_generated::Ioheader::VT_FILE_DATA_POSITION)
+                .get(common::io_header_generated::IOHeader::VT_FILE_DATA_POSITION)
                 as usize;
         Ok((offset as u64, data.len() as u64))
     }
 
     pub fn new<P: AsRef<std::path::Path>>(
         path: P,
-        description_or_id_to_track: DescriptionOrIdsAndTracks,
+        description: common::Description,
         compression: Compression,
     ) -> Result<Self, Error> {
         let mut file = std::io::BufWriter::new(std::fs::File::create(path)?);
         file.write_all(common::MAGIC_NUMBER.as_bytes())?;
         let mut builder = flatbuffers::FlatBufferBuilder::with_capacity(utilities::BUFFER_SIZE);
         builder.force_defaults(true);
-        let (id_to_track, file_data_position_offset, file_data_position) =
-            match description_or_id_to_track {
-                DescriptionOrIdsAndTracks::Description(description) => {
-                    let (file_data_position_offset, file_data_position) =
-                        Self::write_description(&mut file, compression, &mut builder, description)?;
-                    (
-                        common::description_to_id_to_tracks(description)?,
-                        common::MAGIC_NUMBER.len() as u64 + file_data_position_offset,
-                        common::MAGIC_NUMBER.len() as u64 + file_data_position,
-                    )
-                }
-                DescriptionOrIdsAndTracks::IdsAndTracks(ids_and_tracks) => {
-                    use std::fmt::Write;
-                    let mut description = "<dv version=\"2.0\">\n".to_owned();
-                    description +=
-                        "    <node name=\"outInfo\" path=\"/mainloop/Recorder/outInfo/\">\n";
-                    for (id, track) in ids_and_tracks.iter() {
-                        write!(
-                            description,
-                            "        <node name=\"{}\" path=\"/mainloop/Recorder/outInfo/{}/\">\n",
-                            id, id
-                        )?;
-                        write!(
-                            description,
-                            "            <attr key=\"compression\" type=\"string\">{}</attr>\n",
-                            match compression {
-                                Compression::None => "NONE",
-                                Compression::Lz4 { .. } => "LZ4",
-                                Compression::Zstd { .. } => "ZSTD",
-                            }
-                        )?;
-                        match track {
-                            common::Track::Events { dimensions, .. } => {
-                                write!(description, "            <attr key=\"typeIdentifier\" type=\"string\">EVTS</attr>\n")?;
-                                write!(description, "            <node name=\"info\" path=\"/mainloop/Recorder/outInfo/{}/info/\">\n", id)?;
-                                write!(
-                                    description,
-                                    "                <attr key=\"sizeX\" type=\"int\">{}</attr>\n",
-                                    dimensions.0
-                                )?;
-                                write!(
-                                    description,
-                                    "                <attr key=\"sizeY\" type=\"int\">{}</attr>\n",
-                                    dimensions.1
-                                )?;
-                                description += "            </node>\n";
-                            }
-                            common::Track::Frame { dimensions, .. } => {
-                                write!(description, "            <attr key=\"typeIdentifier\" type=\"string\">FRME</attr>\n")?;
-                                write!(description, "            <node name=\"info\" path=\"/mainloop/Recorder/outInfo/{}/info/\">\n", id)?;
-                                write!(
-                                    description,
-                                    "                <attr key=\"sizeX\" type=\"int\">{}</attr>\n",
-                                    dimensions.0
-                                )?;
-                                write!(
-                                    description,
-                                    "                <attr key=\"sizeY\" type=\"int\">{}</attr>\n",
-                                    dimensions.1
-                                )?;
-                                description += "            </node>\n";
-                            }
-                            common::Track::Imus { .. } => {
-                                write!(description, "            <attr key=\"typeIdentifier\" type=\"string\">IMUS</attr>\n")?;
-                            }
-                            common::Track::Triggers { .. } => {
-                                write!(description, "            <attr key=\"typeIdentifier\" type=\"string\">TRIG</attr>\n")?;
-                            }
-                        }
-                        description += "        </node>\n";
-                    }
-                    description += "    </node>\n</dv>\n";
-                    let (file_data_position_offset, file_data_position) = Self::write_description(
-                        &mut file,
-                        compression,
-                        &mut builder,
-                        &description,
-                    )?;
-                    (
-                        common::description_to_id_to_tracks(&description)?,
-                        common::MAGIC_NUMBER.len() as u64 + file_data_position_offset,
-                        common::MAGIC_NUMBER.len() as u64 + file_data_position,
-                    )
-                }
-            };
-        let (builder_buffer, _) = builder.collapse();
+        let id_to_track = description.id_to_track()?;
+        let (file_data_position_offset, file_data_position) = {
+            let (file_data_position_offset, file_data_position) = Self::write_description(
+                &mut file,
+                compression,
+                &mut builder,
+                &description.to_xml_string(),
+            )?;
+            (
+                common::MAGIC_NUMBER.len() as u64 + file_data_position_offset,
+                common::MAGIC_NUMBER.len() as u64 + file_data_position,
+            )
+        };
+        let (mut builder_buffer, _) = builder.collapse();
+        builder_buffer.fill(0);
         Ok(Self {
             file,
             id_to_track,
@@ -271,10 +244,11 @@ impl Encoder {
             file_data_position_offset,
             file_data_position,
             buffer: Vec::new(),
+            file_data_definitions: Vec::new(),
         })
     }
 
-    pub fn get_track(&mut self, track_id: u32) -> Option<&mut common::Track> {
+    pub fn get_track(&mut self, track_id: i32) -> Option<&mut common::Track> {
         self.id_to_track.get_mut(&track_id)
     }
 
@@ -287,12 +261,24 @@ impl Encoder {
         Ok(())
     }
 
-    fn compress_and_write(&mut self, track_id: u32, data: &[u8]) -> Result<(), PacketError> {
-        match self.compression {
+    fn compress_and_write(
+        &mut self,
+        data: &[u8],
+        packet_information: Option<PacketInformation>,
+    ) -> Result<(), PacketError> {
+        let byte_offset = self.file_data_position + 8;
+        let size = match self.compression {
             Compression::None => {
-                self.file.write_all(&track_id.to_le_bytes())?;
-                self.file.write_all(&(data.len() as u32).to_le_bytes())?;
+                if let Some(packet_information) = packet_information.as_ref() {
+                    self.file
+                        .write_all(&packet_information.track_id.to_le_bytes())?;
+                    self.file.write_all(&(data.len() as u32).to_le_bytes())?;
+                }
                 self.file.write_all(data)?;
+                if packet_information.is_some() {
+                    self.file_data_position += 8 + data.len() as u64;
+                }
+                data.len()
             }
             Compression::Lz4(level) => {
                 self.buffer.clear();
@@ -301,28 +287,53 @@ impl Encoder {
                     .build(&mut self.buffer)?;
                 encoder.write_all(data)?;
                 encoder.finish().1?;
-                self.file.write_all(&track_id.to_le_bytes())?;
-                self.file
-                    .write_all(&(self.buffer.len() as u32).to_le_bytes())?;
+                if let Some(packet_information) = packet_information.as_ref() {
+                    self.file
+                        .write_all(&packet_information.track_id.to_le_bytes())?;
+                    self.file
+                        .write_all(&(self.buffer.len() as u32).to_le_bytes())?;
+                }
                 self.file.write_all(&self.buffer)?;
+                if packet_information.is_some() {
+                    self.file_data_position += 8 + self.buffer.len() as u64;
+                }
+                self.buffer.len()
             }
             Compression::Zstd(level) => {
                 self.buffer.clear();
-                let mut encoder = zstd::stream::Encoder::new(&mut self.buffer, level as i32)?;
-                encoder.write_all(data)?;
-                encoder.finish()?;
-                self.file.write_all(&track_id.to_le_bytes())?;
-                self.file
-                    .write_all(&(self.buffer.len() as u32).to_le_bytes())?;
+                self.buffer
+                    .resize(zstd::zstd_safe::compress_bound(data.len()), 0u8);
+                let mut compressor = zstd::bulk::Compressor::new(level as i32)?;
+                compressor.compress_to_buffer(data, &mut self.buffer)?;
+                if let Some(packet_information) = packet_information.as_ref() {
+                    self.file
+                        .write_all(&packet_information.track_id.to_le_bytes())?;
+                    self.file
+                        .write_all(&(self.buffer.len() as u32).to_le_bytes())?;
+                }
                 self.file.write_all(&self.buffer)?;
+                if packet_information.is_some() {
+                    self.file_data_position += 8 + self.buffer.len() as u64;
+                }
+                self.buffer.len()
             }
+        };
+        if let Some(packet_information) = packet_information {
+            self.file_data_definitions.push(common::FileDataDefinition {
+                byte_offset: byte_offset as i64,
+                track_id: packet_information.track_id,
+                size: size as i32,
+                elements_count: packet_information.elements_count as i64,
+                start_t: packet_information.start_t as i64,
+                end_t: packet_information.end_t as i64,
+            });
         }
         Ok(())
     }
 
     fn write_events_with_builder<EventIterator>(
         &mut self,
-        track_id: u32,
+        track_id: i32,
         events: EventIterator,
         builder: &mut flatbuffers::FlatBufferBuilder,
     ) -> Result<(), PacketError>
@@ -330,7 +341,26 @@ impl Encoder {
         EventIterator: ExactSizeIterator<Item = neuromorphic_types::DvsEvent<u64, u16, u16>>
             + DoubleEndedIterator<Item = neuromorphic_types::DvsEvent<u64, u16, u16>>,
     {
+        let count = events.len();
+        if count > MAXIMUM_EVENTS_PER_BUFFER {
+            return Err(PacketError::ElementsOverflow {
+                count,
+                maximum: MAXIMUM_EVENTS_PER_BUFFER,
+            });
+        }
+        if count == 0 {
+            return Ok(());
+        }
+        let mut start_t = None;
+        let mut end_t = None;
+
+        // create_vector_from_iter calls .rev()
+        // the following map function is thus called from last event to first event
         let vector = builder.create_vector_from_iter(events.map(|event| {
+            if end_t.is_none() {
+                end_t = Some(event.t);
+            }
+            start_t = Some(event.t);
             common::events_generated::Event::new(
                 event.t as i64,
                 event.x as i16,
@@ -348,12 +378,15 @@ impl Encoder {
             packet,
             Some(common::events_generated::EVENT_PACKET_IDENTIFIER),
         );
-        self.compress_and_write(track_id, builder.finished_data())
+        self.compress_and_write(
+            builder.finished_data(),
+            Some(PacketInformation::new(track_id, count, start_t, end_t)?),
+        )
     }
 
     pub fn write_events<EventIterator>(
         &mut self,
-        track_id: u32,
+        track_id: i32,
         events: EventIterator,
     ) -> Result<(), PacketError>
     where
@@ -366,18 +399,19 @@ impl Encoder {
                 .expect("builder_buffer is not taken"),
         );
         let result = self.write_events_with_builder(track_id, events, &mut builder);
-        let (builder_buffer, _) = builder.collapse();
+        let (mut builder_buffer, _) = builder.collapse();
+        builder_buffer.fill(0);
         self.builder_buffer.replace(builder_buffer);
         result
     }
 
     fn write_frame_with_builder(
         &mut self,
-        track_id: u32,
+        track_id: i32,
         t: u64,
-        begin_t: i64,
+        start_t: i64,
         end_t: i64,
-        exposure_begin_t: i64,
+        exposure_start_t: i64,
         exposure_end_t: i64,
         format: Format,
         width: i16,
@@ -392,9 +426,9 @@ impl Encoder {
             builder,
             &common::frame_generated::FrameArgs {
                 t: t as i64,
-                begin_t,
+                start_t,
                 end_t,
-                exposure_begin_t,
+                exposure_start_t,
                 exposure_end_t,
                 format: match format {
                     Format::L => common::frame_generated::FrameFormat::Gray,
@@ -409,16 +443,19 @@ impl Encoder {
             },
         );
         builder.finish_size_prefixed(packet, Some(common::frame_generated::FRAME_IDENTIFIER));
-        self.compress_and_write(track_id, builder.finished_data())
+        self.compress_and_write(
+            builder.finished_data(),
+            Some(PacketInformation::new(track_id, 1, Some(t), Some(t))?),
+        )
     }
 
     pub fn write_frame(
         &mut self,
-        track_id: u32,
+        track_id: i32,
         t: u64,
-        begin_t: i64,
+        start_t: i64,
         end_t: i64,
-        exposure_begin_t: i64,
+        exposure_start_t: i64,
         exposure_end_t: i64,
         format: Format,
         width: i16,
@@ -435,9 +472,9 @@ impl Encoder {
         let result = self.write_frame_with_builder(
             track_id,
             t,
-            begin_t,
+            start_t,
             end_t,
-            exposure_begin_t,
+            exposure_start_t,
             exposure_end_t,
             format,
             width,
@@ -447,34 +484,51 @@ impl Encoder {
             pixels,
             &mut builder,
         );
-        let (builder_buffer, _) = builder.collapse();
+        let (mut builder_buffer, _) = builder.collapse();
+        builder_buffer.fill(0);
         self.builder_buffer.replace(builder_buffer);
         result
     }
 
     fn write_imus_with_builder<ImuIterator>(
         &mut self,
-        track_id: u32,
+        track_id: i32,
         imus: ImuIterator,
         builder: &mut flatbuffers::FlatBufferBuilder,
     ) -> Result<(), PacketError>
     where
         ImuIterator: ExactSizeIterator<Item = Imu> + DoubleEndedIterator<Item = Imu>,
     {
+        let count = imus.len();
+        if count > MAXIMUM_IMUS_PER_BUFFER {
+            return Err(PacketError::ElementsOverflow {
+                count,
+                maximum: MAXIMUM_IMUS_PER_BUFFER,
+            });
+        }
+        if count == 0 {
+            return Ok(());
+        }
         self.buffer.clear();
         self.buffer.resize(
-            imus.len() * std::mem::size_of::<flatbuffers::WIPOffset<common::imus_generated::Imu>>(),
+            count * std::mem::size_of::<flatbuffers::WIPOffset<common::imus_generated::Imu>>(),
             0,
         );
         let imus_offsets = unsafe {
             std::slice::from_raw_parts_mut(
                 self.buffer.as_mut_ptr()
                     as *mut flatbuffers::WIPOffset<common::imus_generated::Imu>,
-                imus.len(),
+                count,
             )
         };
+        let mut start_t = None;
+        let mut end_t = None;
         for (index, imu) in imus.enumerate() {
-            let offset = common::imus_generated::Imu::create(
+            if start_t.is_none() {
+                start_t = Some(imu.t);
+            }
+            end_t = Some(imu.t);
+            imus_offsets[index] = common::imus_generated::Imu::create(
                 builder,
                 &common::imus_generated::ImuArgs {
                     t: imu.t as i64,
@@ -490,7 +544,6 @@ impl Encoder {
                     magnetometer_z: imu.magnetometer_z,
                 },
             );
-            imus_offsets[index] = offset;
         }
         let vector = builder.create_vector(imus_offsets);
         let packet = common::imus_generated::ImuPacket::create(
@@ -500,12 +553,15 @@ impl Encoder {
             },
         );
         builder.finish_size_prefixed(packet, Some(common::imus_generated::IMU_PACKET_IDENTIFIER));
-        self.compress_and_write(track_id, builder.finished_data())
+        self.compress_and_write(
+            builder.finished_data(),
+            Some(PacketInformation::new(track_id, count, start_t, end_t)?),
+        )
     }
 
     pub fn write_imus<ImuIterator>(
         &mut self,
-        track_id: u32,
+        track_id: i32,
         imus: ImuIterator,
     ) -> Result<(), PacketError>
     where
@@ -517,23 +573,34 @@ impl Encoder {
                 .expect("builder_buffer is not taken"),
         );
         let result = self.write_imus_with_builder(track_id, imus, &mut builder);
-        let (builder_buffer, _) = builder.collapse();
+        let (mut builder_buffer, _) = builder.collapse();
+        builder_buffer.fill(0);
         self.builder_buffer.replace(builder_buffer);
         result
     }
 
     fn write_triggers_with_builder<TriggerIterator>(
         &mut self,
-        track_id: u32,
+        track_id: i32,
         triggers: TriggerIterator,
         builder: &mut flatbuffers::FlatBufferBuilder,
     ) -> Result<(), PacketError>
     where
         TriggerIterator: ExactSizeIterator<Item = Trigger> + DoubleEndedIterator<Item = Trigger>,
     {
+        let count = triggers.len();
+        if count > MAXIMUM_TRIGGERS_PER_BUFFER {
+            return Err(PacketError::ElementsOverflow {
+                count,
+                maximum: MAXIMUM_TRIGGERS_PER_BUFFER,
+            });
+        }
+        if count == 0 {
+            return Ok(());
+        }
         self.buffer.clear();
         self.buffer.resize(
-            triggers.len()
+            count
                 * std::mem::size_of::<flatbuffers::WIPOffset<common::triggers_generated::Trigger>>(
                 ),
             0,
@@ -542,18 +609,23 @@ impl Encoder {
             std::slice::from_raw_parts_mut(
                 self.buffer.as_mut_ptr()
                     as *mut flatbuffers::WIPOffset<common::triggers_generated::Trigger>,
-                triggers.len(),
+                count,
             )
         };
+        let mut start_t = None;
+        let mut end_t = None;
         for (index, trigger) in triggers.enumerate() {
-            let offset = common::triggers_generated::Trigger::create(
+            if start_t.is_none() {
+                start_t = Some(trigger.t);
+            }
+            end_t = Some(trigger.t);
+            triggers_offsets[index] = common::triggers_generated::Trigger::create(
                 builder,
                 &common::triggers_generated::TriggerArgs {
                     t: trigger.t as i64,
                     source: common::triggers_generated::TriggerSource(trigger.source as i8),
                 },
             );
-            triggers_offsets[index] = offset;
         }
         let vector = builder.create_vector(triggers_offsets);
         let packet = common::triggers_generated::TriggerPacket::create(
@@ -566,12 +638,15 @@ impl Encoder {
             packet,
             Some(common::triggers_generated::TRIGGER_PACKET_IDENTIFIER),
         );
-        self.compress_and_write(track_id, builder.finished_data())
+        self.compress_and_write(
+            builder.finished_data(),
+            Some(PacketInformation::new(track_id, count, start_t, end_t)?),
+        )
     }
 
     pub fn write_triggers<TriggerIterator>(
         &mut self,
-        track_id: u32,
+        track_id: i32,
         triggers: TriggerIterator,
     ) -> Result<(), PacketError>
     where
@@ -583,8 +658,78 @@ impl Encoder {
                 .expect("builder_buffer is not taken"),
         );
         let result = self.write_triggers_with_builder(track_id, triggers, &mut builder);
-        let (builder_buffer, _) = builder.collapse();
+        let (mut builder_buffer, _) = builder.collapse();
+        builder_buffer.fill(0);
         self.builder_buffer.replace(builder_buffer);
         result
+    }
+
+    fn write_file_data_definitions_with_builder(
+        &mut self,
+        builder: &mut flatbuffers::FlatBufferBuilder,
+    ) -> Result<(), PacketError> {
+        self.buffer.clear();
+        self.buffer.resize(
+            self.file_data_definitions.len()
+                * std::mem::size_of::<
+                    flatbuffers::WIPOffset<common::file_data_table_generated::FileDataDefinition>,
+                >(),
+            0,
+        );
+        let file_data_definitions_offsets = unsafe {
+            std::slice::from_raw_parts_mut(
+                self.buffer.as_mut_ptr()
+                    as *mut flatbuffers::WIPOffset<
+                        common::file_data_table_generated::FileDataDefinition,
+                    >,
+                self.file_data_definitions.len(),
+            )
+        };
+        for (index, file_data_definition) in self.file_data_definitions.iter().enumerate() {
+            file_data_definitions_offsets[index] =
+                common::file_data_table_generated::FileDataDefinition::create(
+                    builder,
+                    &common::file_data_table_generated::FileDataDefinitionArgs {
+                        byte_offset: file_data_definition.byte_offset,
+                        packet_header: Some(&common::file_data_table_generated::PacketHeader::new(
+                            file_data_definition.track_id,
+                            file_data_definition.size,
+                        )),
+                        elements_count: file_data_definition.elements_count,
+                        start_t: file_data_definition.start_t,
+                        end_t: file_data_definition.end_t,
+                    },
+                );
+        }
+        let vector = builder.create_vector(file_data_definitions_offsets);
+        let packet = common::file_data_table_generated::FileDataTable::create(
+            builder,
+            &common::file_data_table_generated::FileDataTableArgs {
+                file_data_definitions: Some(vector),
+            },
+        );
+        builder.finish_size_prefixed(
+            packet,
+            Some(common::file_data_table_generated::FILE_DATA_TABLE_IDENTIFIER),
+        );
+        self.compress_and_write(builder.finished_data(), None)
+    }
+}
+
+impl Drop for Encoder {
+    fn drop(&mut self) {
+        let _ = self.write_file_data_position();
+        if self
+            .file
+            .seek(std::io::SeekFrom::Start(self.file_data_position))
+            .is_ok()
+        {
+            let mut builder = flatbuffers::FlatBufferBuilder::from_vec(
+                self.builder_buffer
+                    .take()
+                    .expect("builder_buffer is not taken"),
+            );
+            let _ = self.write_file_data_definitions_with_builder(&mut builder);
+        }
     }
 }

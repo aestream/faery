@@ -27,13 +27,11 @@ pub struct Decoder {
 impl Decoder {
     #[new]
     fn new(path: &pyo3::Bound<'_, pyo3::types::PyAny>, t0: u64) -> PyResult<Self> {
-        Python::with_gil(|python| -> PyResult<Self> {
-            Ok(Decoder {
-                inner: Some(decoder::Decoder::new(
-                    types::python_path_to_string(python, path)?,
-                    t0,
-                )?),
-            })
+        Ok(Decoder {
+            inner: Some(decoder::Decoder::new(
+                types::python_path_to_string(path)?,
+                t0,
+            )?),
         })
     }
 
@@ -236,14 +234,12 @@ impl Encoder {
         zero_t0: bool,
         dimensions: Option<(u16, u16)>,
     ) -> PyResult<Self> {
-        Python::with_gil(|python| -> PyResult<Self> {
-            Ok(Encoder {
-                inner: Some(encoder::Encoder::new(
-                    types::python_path_to_string(python, path)?,
-                    zero_t0,
-                    encoder::EncoderType::new(event_type, dimensions)?,
-                )?),
-            })
+        Ok(Encoder {
+            inner: Some(encoder::Encoder::new(
+                types::python_path_to_string(path)?,
+                zero_t0,
+                encoder::EncoderType::new(event_type, dimensions)?,
+            )?),
         })
     }
 

@@ -1,4 +1,5 @@
 import collections.abc
+import dataclasses
 import pathlib
 import typing
 
@@ -12,6 +13,8 @@ if typing.TYPE_CHECKING:
 else:
     from .extension import image, raster
 
+MINIMUM_RELATIVE_DELTA: float = 1e-5
+MINIMUM_ABSOLUTE_DELTA: float = 1e-5
 CHARACTER_TO_SUPERSCRIPT: dict[str, str] = {
     "0": "⁰",
     "1": "¹",
@@ -30,17 +33,67 @@ FONT_HEIGHT_RATIO: float = 1.318848
 FONT_OFFSET_RATIO: float = 1.0
 AXIS_THICKNESS: int = 4
 LINE_THICKNESS: int = 4
+MINIMUM_DISTANCE_BETWEEN_LABELS: float = 2.0  # lines
+MINIMUM_DISTANCE_BETWEEN_LABEL_AND_TITLE: float = 1.0  # lines
+MAXIMUM_SUBDECADES_TO_CONSIDER_LINEAR_LOG_LABELS: int = 2
 
 
-def superscript(number: int, use_tspan: bool, font_size: int) -> str:
+def superscript(number: int, use_tspan: bool, font_size: int) -> tuple[str, float]:
     number_as_string = str(number)
     if use_tspan:
-        length = len(number_as_string) * FONT_WIDTH_RATIO
-        return f'<tspan font-size="{int(round(font_size * 0.75))}px" baseline-shift="super" textLength="{length}px">{number_as_string}</tspan>'
-    else:
-        return "".join(
-            CHARACTER_TO_SUPERSCRIPT[character] for character in number_as_string
+        exponent_font_size = int(round(font_size * 0.75))
+        pixel_length = int(
+            numpy.ceil(len(number_as_string) * FONT_WIDTH_RATIO * exponent_font_size)
         )
+        return (
+            f'<tspan font-size="{exponent_font_size}px" baseline-shift="super" textLength="{pixel_length}px">{number_as_string}</tspan>',
+            pixel_length / (FONT_WIDTH_RATIO * font_size),
+        )
+    else:
+        return (
+            "".join(
+                CHARACTER_TO_SUPERSCRIPT[character] for character in number_as_string
+            ),
+            len(number_as_string),
+        )
+
+
+def log_nan(value: typing.Union[numpy.ndarray, float, int]):
+    if isinstance(value, numpy.ndarray):
+        value = value.copy()
+        value[value <= 0.0] = numpy.nan
+        return numpy.log(value)
+    return numpy.log(value) if value > 0 else numpy.nan
+
+
+@dataclasses.dataclass
+class Label:
+    text: str
+    length: float
+
+    @classmethod
+    def from_value(
+        cls,
+        mantissa_and_precision: typing.Optional[tuple[float, int]],
+        exponent: int,
+        use_tspan: bool,
+        font_size: int,
+    ) -> "Label":
+        exponent_text, exponent_length = superscript(
+            number=exponent, use_tspan=use_tspan, font_size=font_size
+        )
+        if mantissa_and_precision is None:
+            return cls(
+                text=f"10{exponent_text}",
+                length=len("10") + exponent_length,
+            )
+        else:
+            mantissa, precision = mantissa_and_precision
+            mantissa_string = f"{mantissa:.{precision}f}"
+            return cls(
+                text=f"{mantissa_string} × 10{exponent_text}",
+                length=len(mantissa_string) + len(f" x 10") + exponent_length,
+            )
 
 
 class EventRate:
@@ -172,17 +225,17 @@ class EventRate:
         # in "auto" mode (y_range[0] is None / y_range[1] is None),
         # the extrema are calculated from the data with a margin (y_range_padding_ratio)
         if y_range[0] is None or y_range[1] is None:
+            nonnull_series = [
+                filtered_samples[filtered_samples > 0.0] for filtered_samples in series
+            ]
+            all_zero = all(
+                len(nonnull_filtered_samples) == 0
+                for nonnull_filtered_samples in nonnull_series
+            )
             if y_range[0] is None:
                 if y_log_scale:
-                    nonnull_series = [
-                        filtered_samples[filtered_samples > 0.0]
-                        for filtered_samples in series
-                    ]
-                    if all(
-                        len(nonnull_filtered_samples) == 0
-                        for nonnull_filtered_samples in nonnull_series
-                    ):
-                        y_minimum = 1.0
+                    if all_zero:
+                        y_minimum = MINIMUM_ABSOLUTE_DELTA
                     else:
                         y_minimum = min(
                             *(
@@ -198,40 +251,62 @@ class EventRate:
             else:
                 y_minimum = y_range[0]
             if y_range[1] is None:
-                y_maximum = max(
-                    *(float(filtered_samples.max()) for filtered_samples in series)
-                )
+                if all_zero:
+                    y_maximum = y_minimum
+                else:
+                    y_maximum = max(
+                        *(float(filtered_samples.max()) for filtered_samples in series)
+                    )
             else:
                 y_maximum = y_range[1]
-            if y_log_scale:
-                if y_minimum == y_maximum:
-                    if y_range[0] is None and y_range[1] is None:
-                        y_minimum /= 1.0 + 1e-6
-                        y_maximum *= 1.0 + 1e-6
-                    elif y_range[0] is None:
-                        y_minimum = min(y_minimum, y_maximum) / (1.0 + 1e-6)
-                    else:
-                        y_maximum = max(y_minimum, y_maximum) * (1.0 + 1e-6)
+            if y_maximum < y_minimum:
+                if y_range[1] is None:
+                    y_maximum = y_minimum
+                elif y_range[0] is None:
+                    y_minimum = y_maximum
                 else:
+                    raise Exception(f"{y_range[0]} must be smaller than {y_range[1]}")
+            y_half = (y_maximum + y_minimum) / 2.0
+            if (y_maximum - y_minimum) < MINIMUM_ABSOLUTE_DELTA or (
+                y_maximum - y_minimum
+            ) / y_half < MINIMUM_RELATIVE_DELTA:
+                delta = (
+                    max(MINIMUM_ABSOLUTE_DELTA, y_half * MINIMUM_RELATIVE_DELTA) / 2.0
+                )
+                if y_log_scale:
+                    # log scale, short range
+                    if y_range[0] is None and y_range[1] is None:
+                        y_minimum = float(numpy.hypot(delta, y_half)) - delta
+                        y_maximum = float(numpy.hypot(delta, y_half)) + delta
+                    elif y_range[0] is None:
+                        y_minimum = min(y_maximum - delta, 0.0)
+                    else:
+                        y_maximum = y_minimum + delta
+                else:
+                    # linear scale, short range
+                    if y_range[0] is None and y_range[1] is None:
+                        y_minimum = y_half - delta
+                        y_maximum = y_half + delta
+                        if y_minimum < 0.0:
+                            y_maximum -= y_minimum
+                            y_minimum = 0.0
+                    elif y_range[0] is None:
+                        y_minimum = min(y_maximum - delta, 0.0)
+                    else:
+                        y_maximum = y_minimum + delta
+
+            else:
+                if y_log_scale:
+                    # log scale, large range
                     offset = (
                         numpy.log(y_maximum) - numpy.log(y_minimum)
                     ) * y_range_padding_ratio
                     if y_range[0] is None:
                         y_minimum = float(y_minimum * numpy.exp(-offset))
-                        for filtered_samples in series:
-                            filtered_samples[filtered_samples == 0.0] = y_minimum
                     if y_range[1] is None:
                         y_maximum = float(y_maximum * numpy.exp(offset))
-            else:
-                if y_minimum == y_maximum:
-                    if y_range[0] is None and y_range[1] is None:
-                        y_minimum = max(0.0, y_minimum - 1.0)
-                        y_maximum += 1.0
-                    elif y_range[0] is None:
-                        y_minimum = min(y_minimum, y_maximum) - 1.0
-                    else:
-                        y_maximum = max(y_minimum, y_maximum) + 1.0
                 else:
+                    # linear scale, large range
                     offset = (y_maximum - y_minimum) * y_range_padding_ratio
                     if y_range[0] is None:
                         y_minimum -= offset
@@ -239,6 +314,7 @@ class EventRate:
                             y_minimum = 0.0
                     if y_range[1] is None:
                         y_maximum += offset
+
         else:
             y_minimum = y_range[0]
             y_maximum = y_range[1]
@@ -247,41 +323,108 @@ class EventRate:
         padding = int(numpy.ceil(FONT_WIDTH_RATIO * font_size))
         if y_log_scale:
             y_to_position = lambda y: (
-                -(graph_height - LINE_THICKNESS)
-                / numpy.log10(y_maximum / y_minimum)
-                * (numpy.log10(y / y_minimum))
-                + (padding * 2 + graph_height - LINE_THICKNESS / 2)
+                -graph_height
+                / numpy.log(y_maximum / y_minimum)
+                * (log_nan(y / y_minimum))
+                + (padding * 2 + graph_height)
             )
         else:
-            # @DEV implement linear scale
-            y_to_position = lambda y: y
+            y_to_position = lambda y: (
+                -graph_height / (y_maximum - y_minimum) * y
+                + (padding * 2 + graph_height / (y_maximum - y_minimum) * y_maximum)
+            )
 
         # find visible y ticks
-        y_ticks_labels_maximum_length: int = 0
         if y_ticks is None:
             y_ticks_height = FONT_HEIGHT_RATIO * font_size
             if y_log_scale:
                 base_delta = y_to_position(y_minimum) - y_to_position(10.0 * y_minimum)
-                if False:  # base_delta >= 5 * y_ticks_height:
-                    # @DEV: implement sub-decade log labels (linear)
-                    y_ticks_values = []
-                    y_ticks_labels = []
+                exponent_step = int(
+                    numpy.ceil(
+                        ((MINIMUM_DISTANCE_BETWEEN_LABELS + 1.0) * y_ticks_height)
+                        / base_delta
+                    )
+                )
+                exponents = numpy.arange(
+                    start=numpy.ceil(numpy.log10(y_minimum)),
+                    stop=numpy.floor(numpy.log10(y_maximum)) + 1,
+                    step=exponent_step,
+                    dtype=numpy.int64,
+                )
+                y_ticks_values = (10.0 ** exponents.astype(numpy.float64)).tolist()
+                y_ticks_labels = []
+                for exponent in exponents.tolist():
+                    y_ticks_labels.append(
+                        Label.from_value(
+                            mantissa_and_precision=None,
+                            exponent=exponent,
+                            use_tspan=use_tspan_for_superscripts,
+                            font_size=font_size,
+                        )
+                    )
+                if len(exponents) < MAXIMUM_SUBDECADES_TO_CONSIDER_LINEAR_LOG_LABELS:
+                    subminimum_exponent = (
+                        int(exponents[0]) - 1
+                        if len(exponents) > 0
+                        else int(numpy.floor(numpy.log10(y_minimum)))
+                    )
+                    y_subgrid = []
+                    for subpower in range(-12, 12):
+                        found = False
+                        for multiplier in (1, 2, 5):
+                            step_exponent = subminimum_exponent + subpower
+                            step = multiplier * (10**step_exponent)
+                            substep = step / 10
+                            maximum_step_index = int(numpy.floor(y_maximum / step))
+                            if maximum_step_index > 1:
+                                minimum_delta = y_to_position(
+                                    (maximum_step_index - 1) * step
+                                ) - y_to_position(maximum_step_index * step)
+                                valid = bool(
+                                    minimum_delta
+                                    >= (MINIMUM_DISTANCE_BETWEEN_LABELS + 1.0)
+                                    * y_ticks_height
+                                )
+                            else:
+                                valid = True
+                            if valid:
+                                minimum_step_index = (
+                                    int(numpy.ceil(y_minimum / step)) - 1
+                                )
+                                for step_index in range(
+                                    minimum_step_index, maximum_step_index + 1
+                                ):
+                                    y_value = step_index * step
+                                    for substep_index in range(1, 10):
+                                        value = y_value + substep_index * substep
+                                        if value >= y_minimum and value <= y_maximum:
+                                            y_subgrid.append(value)
+                                    if step_index == minimum_step_index:
+                                        continue
+                                    log10_y_value = numpy.log10(y_value)
+                                    if (
+                                        abs(y_value - 10.0 ** round(log10_y_value))
+                                        < step / 10.0
+                                    ):
+                                        continue
+                                    y_ticks_values.append(y_value)
+                                    y_exponent = int(numpy.floor(numpy.log10(y_value)))
+                                    y_ticks_labels.append(
+                                        Label.from_value(
+                                            mantissa_and_precision=(
+                                                y_value / (10**y_exponent),
+                                                y_exponent - step_exponent,
+                                            ),
+                                            exponent=y_exponent,
+                                            use_tspan=use_tspan_for_superscripts,
+                                            font_size=font_size,
+                                        )
+                                    )
+                                found = True
+                                break
+                        if found:
+                            break
                 else:
-                    exponent_step = int(numpy.ceil((2 * y_ticks_height) / base_delta))
-                    exponents = numpy.arange(
-                        start=numpy.ceil(numpy.log10(y_minimum)),
-                        stop=numpy.floor(numpy.log10(y_maximum)) + 1,
-                        step=exponent_step,
-                        dtype=numpy.int64,
-                    )
-                    y_ticks_values = (10.0 ** exponents.astype(numpy.float64)).tolist()
-                    y_ticks_labels = [
-                        f"10{superscript(exponent, use_tspan=use_tspan_for_superscripts, font_size=font_size)}"
-                        for exponent in exponents.tolist()
-                    ]
-                    y_ticks_labels_maximum_length = max(
-                        len(f"10{exponent}") for exponent in exponents.tolist()
-                    )
                     if exponent_step == 1:
                         y_subgrid = []
                         for exponent in [exponents[0] - 1] + exponents.tolist():
@@ -289,7 +432,6 @@ class EventRate:
                                 value = multiplier * (10.0**exponent)
                                 if value >= y_minimum and value <= y_maximum:
                                     y_subgrid.append(value)
-
                     else:
                         subgrid_exponents = numpy.arange(
                             start=numpy.ceil(numpy.log10(y_minimum)),
@@ -301,10 +443,60 @@ class EventRate:
                             10.0 ** subgrid_exponents.astype(numpy.float64)
                         ).tolist()
             else:
-                # @DEV: implement linear scale
                 y_ticks_values = []
                 y_ticks_labels = []
                 y_subgrid = []
+                y_exponent = 12
+                y_multiplier = 5
+                for y_exponent in range(-12, 12):
+                    found = False
+                    for y_multiplier in (1, 2, 5):
+                        step = y_multiplier * (10.0**y_exponent)
+                        minimum_tick = int(numpy.ceil(y_minimum / step))
+                        maximum_tick = int(numpy.floor(y_maximum / step))
+                        tick_count = maximum_tick - minimum_tick + 1
+                        if (
+                            graph_height + y_ticks_height
+                            >= (MINIMUM_DISTANCE_BETWEEN_LABELS + 1.0)
+                            * tick_count
+                            * y_ticks_height
+                        ):
+                            found = True
+                            break
+                    if found:
+                        break
+                step = y_multiplier * (10.0**y_exponent)
+                minimum_tick = int(numpy.ceil(y_minimum / step))
+                maximum_tick = int(numpy.floor(y_maximum / step))
+                if maximum_tick < minimum_tick:
+                    maximum_tick = minimum_tick
+                power_offset = int(
+                    numpy.floor(numpy.log10(float(maximum_tick * y_multiplier)))
+                )
+                for tick_index in range(minimum_tick, maximum_tick + 1):
+                    if tick_index == 0:
+                        y_ticks_values.append(0)
+                        y_ticks_labels.append(Label(text="0", length=1))
+                    else:
+                        y_ticks_values.append(tick_index * step)
+                        y_ticks_labels.append(
+                            Label.from_value(
+                                mantissa_and_precision=(
+                                    tick_index * y_multiplier / (10.0**power_offset),
+                                    power_offset,
+                                ),
+                                exponent=y_exponent + power_offset,
+                                use_tspan=use_tspan_for_superscripts,
+                                font_size=font_size,
+                            )
+                        )
+                subgrid_step = step / 10.0
+                for subgrid_tick_index in range(
+                    int(numpy.ceil(y_minimum / subgrid_step)),
+                    int(numpy.floor(y_maximum / subgrid_step)) + 1,
+                ):
+                    if subgrid_tick_index % 10 != 0:
+                        y_subgrid.append(subgrid_tick_index * subgrid_step)
         else:
             y_ticks_values = [
                 value
@@ -312,16 +504,15 @@ class EventRate:
                 if value >= y_minimum and value <= y_maximum
             ]
             y_ticks_labels = [
-                label
+                Label(text=label, length=len(label))
                 for value, label in y_ticks
                 if value >= y_minimum and value <= y_maximum
             ]
-            y_ticks_labels_maximum_length = max(len(label) for label in y_ticks_labels)
             y_subgrid = []
 
         # calculate the width of the y labels
         y_ticks_labels_maximum_length = max(
-            y_ticks_labels_maximum_length, len("events/s")
+            max(label.length for label in y_ticks_labels), len("events/s")
         )
         y_ticks_labels_width = int(
             numpy.ceil(FONT_WIDTH_RATIO * font_size * y_ticks_labels_maximum_length)
@@ -341,7 +532,7 @@ class EventRate:
                 )
                 if self._time_range[1].to_microseconds() - 1
                 > self._time_range[0].to_microseconds()
-                else x * 0.0
+                else x * 0.0  # x can be a float or an array
             )
             + padding
             + y_ticks_labels_width
@@ -350,29 +541,27 @@ class EventRate:
         )
 
         # find visible x ticks
-        time_range = self.time_range()
-        x_ticks_labels_width = len("00:00:00.000000") * font_size * FONT_WIDTH_RATIO
+        x_ticks_labels_width = (
+            len(self._time_range[-1].to_timecode()) * font_size * FONT_WIDTH_RATIO
+        )
+        self._time_range[0].to_timecode()
         if x_ticks is None:
-            x_ticks_step: int = 1
-            increase_counter = 0
-            while True:
-                if (
-                    x_to_position(self._time_range[0].to_microseconds() + x_ticks_step)
-                    - x_to_position(self._time_range[0].to_microseconds())
-                    >= x_ticks_labels_width + 1.5 * font_size * FONT_WIDTH_RATIO
-                ):
+            x_ticks_step = 5 * (10**15)
+            for x_ticks_step_exponent in range(1, 15):
+                found = False
+                for x_ticks_step_multiplier in (1, 2, 5):
+                    x_ticks_step = x_ticks_step_multiplier * (10**x_ticks_step_exponent)
+                    if (
+                        x_to_position(
+                            self._time_range[0].to_microseconds() + x_ticks_step
+                        )
+                        - x_to_position(self._time_range[0].to_microseconds())
+                        >= x_ticks_labels_width + 1.5 * font_size * FONT_WIDTH_RATIO
+                    ):
+                        found = True
+                        break
+                if found:
                     break
-
-                if increase_counter == 0:
-                    x_ticks_step *= 2
-                    increase_counter = 1
-                elif increase_counter == 1:
-                    x_ticks_step //= 2
-                    x_ticks_step *= 5
-                    increase_counter = 2
-                else:
-                    x_ticks_step *= 2
-                    increase_counter = 0
             x_ticks_values = list(
                 range(
                     int(
@@ -468,8 +657,8 @@ class EventRate:
         data_x_positions = x_to_position(self.timestamps)
         x_position_minimum = padding + y_ticks_labels_width + padding + AXIS_THICKNESS
         x_position_maximum = x_position_minimum + graph_width
-        y_position_minimum = padding * 2 + LINE_THICKNESS / 2
-        y_position_maximum = y_position_minimum + graph_height - LINE_THICKNESS
+        y_position_minimum = padding * 2
+        y_position_maximum = y_position_minimum + graph_height
         for index, (window_size, filtered_samples) in enumerate(
             zip(hamming_windows_sizes, series)
         ):
@@ -480,6 +669,7 @@ class EventRate:
                 if (
                     x_position >= x_position_minimum
                     and x_position <= x_position_maximum
+                    and not numpy.isnan(y_position)
                     and y_position >= y_position_minimum
                     and y_position <= y_position_maximum
                 ):
@@ -535,6 +725,7 @@ class EventRate:
                         + FONT_OFFSET_RATIO * font_size,
                         "font-family": "Roboto Mono, monospace",
                         "font-size": f"{font_size}px",
+                        "font-weight": "normal",
                         "fill": color_module.color_to_hex_string(color_theme.labels),
                         "text-anchor": "middle",
                     },
@@ -550,6 +741,7 @@ class EventRate:
                 + FONT_OFFSET_RATIO * font_size,
                 "font-family": "Roboto Mono, monospace",
                 "font-size": f"{font_size}px",
+                "font-weight": "bold",
                 "fill": color_module.color_to_hex_string(color_theme.labels),
                 "text-anchor": "end",
             },
@@ -586,15 +778,17 @@ class EventRate:
         # y labels and grid
         group = figure.node("g", {"id": "y-labels"})
         y_title_position = padding + FONT_OFFSET_RATIO * font_size
-        y_title_minimum_distance = 1.5 * y_ticks_height
+        y_title_minimum_distance = (
+            MINIMUM_DISTANCE_BETWEEN_LABEL_AND_TITLE + 1.0
+        ) * y_ticks_height
         y_grid_positions: list[float] = []
         for value, label in zip(y_ticks_values, y_ticks_labels):
             position = float(numpy.floor(y_to_position(value))) + 0.5
             text_position = (
                 position + (FONT_OFFSET_RATIO - FONT_HEIGHT_RATIO / 2) * font_size
             )
+            y_grid_positions.append(position)
             if abs(y_title_position - text_position) >= y_title_minimum_distance:
-                y_grid_positions.append(position)
                 group.node(
                     "text",
                     {
@@ -602,10 +796,11 @@ class EventRate:
                         "y": text_position,
                         "font-family": "Roboto Mono, monospace",
                         "font-size": f"{font_size}px",
+                        "font-weight": "normal",
                         "fill": color_module.color_to_hex_string(color_theme.labels),
                         "text-anchor": "end",
                     },
-                ).text(label)
+                ).text(label.text)
         group.node(
             "text",
             {
@@ -613,6 +808,7 @@ class EventRate:
                 "y": padding + FONT_OFFSET_RATIO * font_size,
                 "font-family": "Roboto Mono, monospace",
                 "font-size": f"{font_size}px",
+                "font-weight": "bold",
                 "fill": color_module.color_to_hex_string(color_theme.labels),
                 "text-anchor": "end",
             },

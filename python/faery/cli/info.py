@@ -112,7 +112,7 @@ class Command(command.Command):
         }
         if file_type == "aedat":
             info["stream_compatible"] = True
-            with faery.aedat.Decoder(args.path) as decoder:
+            with faery.aedat.Decoder(path=args.path) as decoder:
                 info["metadata"] = {
                     "description": decoder.description(),
                     "tracks": [

@@ -1,4 +1,5 @@
 use std::io::Read;
+use std::io::Seek;
 
 use crate::aedat::common;
 
@@ -21,21 +22,25 @@ pub enum Error {
 
     #[error("empty description")]
     EmptyDescription,
+
+    #[error("unknown compression algorithm")]
+    CompressionAlgorithm,
 }
 
 pub struct Decoder {
-    pub id_to_track: std::collections::HashMap<u32, common::Track>,
+    pub description: common::Description,
+    pub id_to_track: std::collections::HashMap<i32, common::Track>,
+    pub file_data_definitions: Vec<common::FileDataDefinition>,
     file: std::io::BufReader<std::fs::File>,
-    description: String,
     position: i64,
-    compression: common::ioheader_generated::Compression,
+    compression: common::io_header_generated::Compression,
     file_data_position: i64,
     raw_buffer: Vec<u8>,
     buffer: Vec<u8>,
 }
 
 impl Decoder {
-    pub fn new<P: AsRef<std::path::Path>>(path: P) -> Result<Self, Error> {
+    pub fn new<Path: AsRef<std::path::Path>>(path: Path) -> Result<Self, Error> {
         let mut file = std::io::BufReader::new(std::fs::File::open(path)?);
         {
             let mut magic_number_buffer = [0; common::MAGIC_NUMBER.len()];
@@ -49,37 +54,85 @@ impl Decoder {
             let mut bytes = [0; 4];
             file.read_exact(&mut bytes)?;
             u32::from_le_bytes(bytes)
-        };
-        let mut buffer = std::vec![0; length as usize];
-        file.read_exact(&mut buffer)?;
-        let ioheader = unsafe { common::ioheader_generated::root_as_ioheader_unchecked(&buffer) };
-        let compression = ioheader.compression();
-        let file_data_position = ioheader.file_data_position();
-        let description = match ioheader.description() {
-            Some(content) => content.to_owned(),
+        } as usize;
+        let mut raw_buffer = std::vec![0; length as usize];
+        file.read_exact(&mut raw_buffer)?;
+        let io_header =
+            unsafe { common::io_header_generated::root_as_ioheader_unchecked(&raw_buffer) };
+        let compression = io_header.compression();
+        let file_data_position = io_header.file_data_position();
+        let description = common::Description::from_xml_string(match io_header.description() {
+            Some(content) => content,
             None => return Err(Error::EmptyDescription),
-        };
-        let id_to_track = common::description_to_id_to_tracks(&description)?;
+        })?;
+        let id_to_track = description.id_to_track()?;
+        let mut file_data_definitions = Vec::new();
+        let mut buffer = Vec::new();
+        if file_data_position > -1 {
+            file.seek(std::io::SeekFrom::Start(file_data_position as u64))?;
+            raw_buffer.clear();
+            file.read_to_end(&mut raw_buffer)?;
+            if !raw_buffer.is_empty() {
+                match compression {
+                    common::io_header_generated::Compression::None => {
+                        std::mem::swap(&mut raw_buffer, &mut buffer);
+                    }
+                    common::io_header_generated::Compression::Lz4
+                    | common::io_header_generated::Compression::Lz4High => {
+                        let mut decoder = lz4::Decoder::new(&raw_buffer[..])?;
+                        decoder.read_to_end(&mut buffer)?;
+                    }
+                    common::io_header_generated::Compression::Zstd
+                    | common::io_header_generated::Compression::ZstdHigh => {
+                        let mut decoder = zstd::Decoder::new(&raw_buffer[..])?;
+                        decoder.read_to_end(&mut buffer)?;
+                    }
+                    _ => return Err(Error::CompressionAlgorithm),
+                }
+                let file_data_table =
+                    common::file_data_table_generated::size_prefixed_root_as_file_data_table(
+                        &buffer,
+                    )?;
+                if let Some(raw_file_data_definitions) = file_data_table.file_data_definitions() {
+                    file_data_definitions.reserve_exact(raw_file_data_definitions.len());
+                    for raw_file_data_definition in raw_file_data_definitions {
+                        if let Some(packet_header) = raw_file_data_definition.packet_header() {
+                            let track_id = packet_header.track_id();
+                            if track_id >= 0 {
+                                file_data_definitions.push(common::FileDataDefinition {
+                                    byte_offset: raw_file_data_definition.byte_offset(),
+                                    track_id,
+                                    size: packet_header.size(),
+                                    elements_count: raw_file_data_definition.elements_count(),
+                                    start_t: raw_file_data_definition.start_t(),
+                                    end_t: raw_file_data_definition.end_t(),
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+            file.seek(std::io::SeekFrom::Start(
+                (common::MAGIC_NUMBER.len() + 4 + length) as u64,
+            ))?;
+        }
         Ok(Decoder {
-            id_to_track,
-            file,
             description,
-            position: (common::MAGIC_NUMBER.len() + 4 + length as usize) as i64,
+            id_to_track,
+            file_data_definitions,
+            file,
+            position: (common::MAGIC_NUMBER.len() + 4 + length) as i64,
             compression,
             file_data_position,
-            raw_buffer: Vec::new(),
+            raw_buffer,
             buffer,
         })
-    }
-
-    pub fn description(&self) -> &str {
-        self.description.as_str()
     }
 }
 
 pub struct Packet<'a> {
     pub buffer: &'a std::vec::Vec<u8>,
-    pub track_id: u32,
+    pub track_id: i32,
     pub track: &'a mut common::Track,
 }
 
@@ -95,11 +148,11 @@ pub enum ReadError {
     CompressionAlgorithm,
 
     #[error("unknown packet track ID {0}")]
-    UnknownPacketTrackId(u32),
+    UnknownPacketTrackId(i32),
 
-    #[error("bad packet prefix for track ID {id} (expected \"{expected}\", got \"{got}\")")]
+    #[error("bad packet prefix for track ID {track_id} (expected \"{expected}\", got \"{got}\")")]
     BadPacketPrefix {
-        id: u32,
+        track_id: i32,
         expected: String,
         got: String,
     },
@@ -137,7 +190,7 @@ impl Decoder {
                     Err(error.into())
                 };
             }
-            let track_id = u32::from_le_bytes(bytes[0..4].try_into().expect("four bytes"));
+            let track_id = i32::from_le_bytes(bytes[0..4].try_into().expect("four bytes"));
             let length = u32::from_le_bytes(bytes[4..8].try_into().expect("four bytes"));
             (track_id, length)
         };
@@ -145,17 +198,17 @@ impl Decoder {
         self.raw_buffer.resize(length as usize, 0u8);
         self.file.read_exact(&mut self.raw_buffer)?;
         match self.compression {
-            common::ioheader_generated::Compression::None => {
+            common::io_header_generated::Compression::None => {
                 std::mem::swap(&mut self.raw_buffer, &mut self.buffer);
             }
-            common::ioheader_generated::Compression::Lz4
-            | common::ioheader_generated::Compression::Lz4High => {
+            common::io_header_generated::Compression::Lz4
+            | common::io_header_generated::Compression::Lz4High => {
                 let mut decoder = lz4::Decoder::new(&self.raw_buffer[..])?;
                 self.buffer.clear();
                 decoder.read_to_end(&mut self.buffer)?;
             }
-            common::ioheader_generated::Compression::Zstd
-            | common::ioheader_generated::Compression::ZstdHigh => {
+            common::io_header_generated::Compression::Zstd
+            | common::io_header_generated::Compression::ZstdHigh => {
                 let mut decoder = zstd::Decoder::new(&self.raw_buffer[..])?;
                 self.buffer.clear();
                 decoder.read_to_end(&mut self.buffer)?;
@@ -171,7 +224,7 @@ impl Decoder {
             let expected_length = expected.len();
             let offset = flatbuffers::SIZE_SIZEPREFIX + flatbuffers::SIZE_UOFFSET;
             return Err(ReadError::BadPacketPrefix {
-                id: track_id,
+                track_id,
                 expected,
                 got: if self.buffer.len() >= offset {
                     String::from_utf8_lossy(

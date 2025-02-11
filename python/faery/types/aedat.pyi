@@ -41,17 +41,52 @@ class Track:
 
 class Frame:
     t: int
-    begin_t: int
+    start_t: int
     end_t: int
-    exposure_begin_t: int
+    exposure_start_t: int
     exposure_end_t: int
     format: typing.Literal["L", "RGB", "RGBA"]
     offset_x: int
     offset_y: int
     pixels: numpy.ndarray
 
+class FileDataDefinition:
+    byte_offset: int
+    track_id: int
+    size: int
+    elements_count: int
+    start_t: int
+    end_t: int
+
+class DescriptionAttribute:
+    attribute_type: typing.Literal["string", "int", "long"]
+    value: typing.Union[str, int]
+
+    def __init__(
+        self,
+        attribute_type: typing.Literal["string", "int", "long"],
+        value: typing.Union[str, int],
+    ): ...
+
+class DescriptionNode:
+    name: str
+    path: str
+    attributes: dict[str, DescriptionAttribute]
+    nodes: list["DescriptionNode"]
+
+    def __init__(
+        self,
+        name: str,
+        path: str,
+        attributes: dict[str, DescriptionAttribute],
+        nodes: list["DescriptionNode"],
+    ): ...
+
 class Decoder:
-    def __init__(self, path: typing.Union[pathlib.Path, str]): ...
+    def __init__(
+        self,
+        path: typing.Union[pathlib.Path, str],
+    ): ...
     def __enter__(self) -> Decoder: ...
     def __exit__(
         self,
@@ -67,13 +102,14 @@ class Decoder:
         typing.Union[numpy.ndarray, Frame],
     ]: ...
     def tracks(self) -> list[Track]: ...
-    def description(self) -> str: ...
+    def description(self) -> list[DescriptionNode]: ...
+    def file_data_definitions(self) -> list[FileDataDefinition]: ...
 
 class Encoder:
     def __init__(
         self,
         path: typing.Union[pathlib.Path, str],
-        description_or_tracks: typing.Union[str, list[Track]],
+        description: list[DescriptionNode],
         compression: typing.Optional[typing.Tuple[typing.Literal["lz4", "zstd"], int]],
     ): ...
     def __enter__(self) -> Encoder: ...

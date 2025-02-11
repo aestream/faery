@@ -16,6 +16,7 @@ Faery converts neuromorphic event-based data between formats. It can also genera
   - [Format and lint](#format-and-lint)
   - [Test](#test)
   - [Upload a new version](#upload-a-new-version)
+  - [Update flatbuffers definitions for AEDAT](#update-flatbuffers-definitions-for-aedat)
 - [Acknowledgements](#acknowledgements)
 
 ## Using Faery from the command line
@@ -33,8 +34,8 @@ Faery converts neuromorphic event-based data between formats. It can also genera
 ### Examples
 
 ```sh
-# Convert a Prophesee raw file (input.raw) to AEDAT (output.aedat)
-faery input file input.raw output file output.aedat
+# Convert a Prophesee raw file (input.raw) to AEDAT (output.aedat4)
+faery input file input.raw output file output.aedat4
 
 # Render an event file (input.es) as a real-time video (output.mp4)
 faery input file input.es filter regularize 60.0 filter render exponential 0.2 starry_night output file output.mp4
@@ -49,7 +50,7 @@ faery input file input.es filter regularize 600.0 filter render exponential 0.03
 faery input file input.es filter regularize 60.0 filter render exponential 0.2 starry_night output files 'frames/{index:04}.png'
 
 # Print ON events to the terminal
-faery input file input.aedat filter remove-off-events
+faery input file input.aedat4 filter remove-off-events
 
 # Read event data from UDP and write it to a CSV file (output.csv)
 faery input udp 0.0.0.0:3000 output file output.csv
@@ -189,7 +190,7 @@ python3 -m venv .venv
 source .venv/bin/activate
 # x86 platforms may need to install https://www.nasm.us
 pip install --upgrade pip
-pip install maturin
+pip install maturin==1.7.4
 maturin develop  # or maturin develop --release to build with optimizations
 ```
 
@@ -223,6 +224,16 @@ pytest tests
 2. Push the changes
 
 3. Create a new release on GitHub. GitHub actions should build wheels and push them to PyPI.
+
+### Update flatbuffers definitions for AEDAT
+
+After modifying any of the files in _src/aedat/flatbuffers_, re-generate the Rust interfaces.
+
+(Last run with flatc version 25.1.24)
+
+```sh
+flatc --rust -o src/aedat/ src/aedat/flatbuffers/*.fbs
+```
 
 ## Acknowledgements
 

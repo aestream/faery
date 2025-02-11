@@ -53,10 +53,10 @@ impl From<common::DescriptionError> for PyErr {
 }
 
 #[pyclass]
-#[derive(FromPyObject)]
+#[derive(Clone)]
 pub struct Track {
     #[pyo3(get, set)]
-    pub id: u32,
+    pub id: i32,
     #[pyo3(get, set)]
     pub data_type: String,
     #[pyo3(get, set)]
@@ -67,7 +67,7 @@ pub struct Track {
 impl Track {
     #[new]
     #[pyo3(signature = (id, data_type, dimensions))]
-    fn new(id: u32, data_type: String, dimensions: Option<(u16, u16)>) -> Self {
+    fn new(id: i32, data_type: String, dimensions: Option<(u16, u16)>) -> Self {
         Self {
             id,
             data_type,
@@ -93,11 +93,11 @@ pub struct Frame {
     #[pyo3(get)]
     t: u64,
     #[pyo3(get)]
-    begin_t: i64,
+    start_t: i64,
     #[pyo3(get)]
     end_t: i64,
     #[pyo3(get)]
-    exposure_begin_t: i64,
+    exposure_start_t: i64,
     #[pyo3(get)]
     exposure_end_t: i64,
     #[pyo3(get)]
@@ -115,11 +115,11 @@ impl Frame {
     fn __repr__(&self) -> String {
         Python::with_gil(|python| -> String {
             format!(
-                "faery.aedat.Frame(t={}, begin_t={}, end_t={}, exposure_begin_t={}, exposure_end_t={}, format=\"{}\", offset_x={}, offset_y={}, pixels={})",
+                "faery.aedat.Frame(t={}, start_t={}, end_t={}, exposure_start_t={}, exposure_end_t={}, format=\"{}\", offset_x={}, offset_y={}, pixels={})",
                 self.t,
-                self.begin_t,
+                self.start_t,
                 self.end_t,
-                self.exposure_begin_t,
+                self.exposure_start_t,
                 self.exposure_end_t,
                 self.format,
                 self.offset_x,
@@ -134,6 +134,207 @@ impl Frame {
 }
 
 #[pyclass]
+#[derive(Clone)]
+pub struct FileDataDefinition {
+    #[pyo3(get)]
+    pub byte_offset: i64,
+    #[pyo3(get)]
+    pub track_id: i32,
+    #[pyo3(get)]
+    pub size: i32,
+    #[pyo3(get)]
+    pub elements_count: i64,
+    #[pyo3(get)]
+    pub start_t: i64,
+    #[pyo3(get)]
+    pub end_t: i64,
+}
+
+#[pymethods]
+impl FileDataDefinition {
+    fn __repr__(&self) -> String {
+        format!(
+            "faery.aedat.FileDataDefinition(byte_offset={}, track_id={}, size={}, elements_count={}, start_t={}, end_t={})",
+            self.byte_offset,
+            self.track_id,
+            self.size,
+            self.elements_count,
+            self.start_t,
+            self.end_t,
+        )
+    }
+}
+
+#[pyclass(eq)]
+#[derive(Clone, PartialEq, Eq)]
+pub enum DescriptionAttribute {
+    #[pyo3(name = "string")]
+    String(String),
+    #[pyo3(name = "int")]
+    Int(i32),
+    #[pyo3(name = "long")]
+    Long(i64),
+}
+
+impl From<&common::DescriptionAttribute> for DescriptionAttribute {
+    fn from(attribute: &common::DescriptionAttribute) -> Self {
+        match attribute {
+            common::DescriptionAttribute::String(value) => Self::String(value.clone()),
+            common::DescriptionAttribute::Int(value) => Self::Int(*value),
+            common::DescriptionAttribute::Long(value) => Self::Long(*value),
+        }
+    }
+}
+
+impl From<DescriptionAttribute> for common::DescriptionAttribute {
+    fn from(attribute: DescriptionAttribute) -> Self {
+        match attribute {
+            DescriptionAttribute::String(value) => Self::String(value),
+            DescriptionAttribute::Int(value) => Self::Int(value),
+            DescriptionAttribute::Long(value) => Self::Long(value),
+        }
+    }
+}
+
+#[pymethods]
+impl DescriptionAttribute {
+    #[new]
+    fn new(attribute_type: &str, value: &pyo3::Bound<'_, pyo3::types::PyAny>) -> PyResult<Self> {
+        match attribute_type {
+            "string" => Ok(Self::String(value.downcast::<pyo3::types::PyString>()?.extract()?)),
+            "int" => Ok(Self::Int(value.downcast::<pyo3::types::PyInt>()?.extract()?)),
+            "long" => Ok(Self::Long(value.downcast::<pyo3::types::PyInt>()?.extract()?)),
+            attribute_type => Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+                "unexpected attribute type \"{attribute_type}\" (expected \"string\", \"int\", or \"long\")"
+            )))
+
+        }
+    }
+
+    #[getter]
+    fn attribute_type(&self) -> String {
+        match self {
+            DescriptionAttribute::String(_) => "string",
+            DescriptionAttribute::Int(_) => "int",
+            DescriptionAttribute::Long(_) => "long",
+        }
+        .to_owned()
+    }
+
+    #[getter]
+    fn value(&self) -> PyResult<PyObject> {
+        Python::with_gil(|python| -> PyResult<PyObject> {
+            Ok(match self {
+                DescriptionAttribute::String(value) => {
+                    value.into_pyobject(python)?.unbind().into_any()
+                }
+                DescriptionAttribute::Int(value) => {
+                    value.into_pyobject(python)?.unbind().into_any()
+                }
+                DescriptionAttribute::Long(value) => {
+                    value.into_pyobject(python)?.unbind().into_any()
+                }
+            })
+        })
+    }
+
+    fn __repr__(&self) -> String {
+        match self {
+            DescriptionAttribute::String(value) => {
+                format!("faery.aedat.DescriptionAttribute(attribute_type=\"string\", value=\"{value}\")")
+            }
+            DescriptionAttribute::Int(value) => {
+                format!("faery.aedat.DescriptionAttribute(attribute_type=\"int\", value={value})")
+            }
+            DescriptionAttribute::Long(value) => {
+                format!("faery.aedat.DescriptionAttribute(attribute_type=\"long\", value={value})")
+            }
+        }
+    }
+}
+
+#[pyclass(eq)]
+#[derive(Clone, PartialEq, Eq)]
+pub struct DescriptionNode {
+    #[pyo3(get, set)]
+    pub name: String,
+    #[pyo3(get, set)]
+    pub path: String,
+    #[pyo3(get, set)]
+    pub attributes: std::collections::HashMap<String, DescriptionAttribute>,
+    #[pyo3(get, set)]
+    pub nodes: Vec<DescriptionNode>,
+}
+
+impl From<&common::DescriptionNode> for DescriptionNode {
+    fn from(node: &common::DescriptionNode) -> Self {
+        Self {
+            name: node.name.clone(),
+            path: node.path.clone(),
+            attributes: node
+                .attributes
+                .iter()
+                .map(|(key, attribute)| (key.clone(), attribute.into()))
+                .collect(),
+            nodes: node.nodes.iter().map(|node| node.into()).collect(),
+        }
+    }
+}
+
+impl From<DescriptionNode> for common::DescriptionNode {
+    fn from(node: DescriptionNode) -> Self {
+        Self {
+            name: node.name,
+            path: node.path,
+            attributes: node
+                .attributes
+                .into_iter()
+                .map(|(key, attribute)| (key.clone(), attribute.into()))
+                .collect(),
+            nodes: node.nodes.into_iter().map(|node| node.into()).collect(),
+        }
+    }
+}
+
+#[pymethods]
+impl DescriptionNode {
+    #[new]
+    fn new(
+        name: String,
+        path: String,
+        attributes: std::collections::HashMap<String, DescriptionAttribute>,
+        nodes: Vec<DescriptionNode>,
+    ) -> Self {
+        Self {
+            name,
+            path,
+            attributes,
+            nodes,
+        }
+    }
+
+    fn __repr__(&self) -> String {
+        let mut key_and_attribute: Vec<_> = self.attributes.iter().collect();
+        key_and_attribute.sort_by(|a, b| a.0.cmp(b.0));
+        format!(
+            "faery.aedat.DescriptionNode(name=\"{}\", path=\"{}\", attributes={{{}}}, nodes=[{}])",
+            self.name,
+            self.path,
+            key_and_attribute
+                .iter()
+                .map(|(key, attribute)| format!("'{}': {}", key, attribute.__repr__()))
+                .collect::<Vec<_>>()
+                .join(", "),
+            self.nodes
+                .iter()
+                .map(|node| node.__repr__())
+                .collect::<Vec<_>>()
+                .join(", "),
+        )
+    }
+}
+
+#[pyclass]
 pub struct Decoder {
     inner: Option<decoder::Decoder>,
 }
@@ -142,12 +343,8 @@ pub struct Decoder {
 impl Decoder {
     #[new]
     fn new(path: &pyo3::Bound<'_, pyo3::types::PyAny>) -> PyResult<Self> {
-        Python::with_gil(|python| -> PyResult<Self> {
-            Ok(Decoder {
-                inner: Some(decoder::Decoder::new(types::python_path_to_string(
-                    python, path,
-                )?)?),
-            })
+        Ok(Decoder {
+            inner: Some(decoder::Decoder::new(types::python_path_to_string(path)?)?),
         })
     }
 
@@ -172,11 +369,36 @@ impl Decoder {
         }
     }
 
-    fn description(&self) -> PyResult<&str> {
+    fn description(&self) -> PyResult<Vec<DescriptionNode>> {
         match self.inner {
-            Some(ref decoder) => Ok(decoder.description()),
+            Some(ref decoder) => Ok(decoder
+                .description
+                .0
+                .iter()
+                .map(|description| description.into())
+                .collect()),
             None => Err(pyo3::exceptions::PyException::new_err(
-                "document called after __exit__",
+                "description called after __exit__",
+            )),
+        }
+    }
+
+    fn file_data_definitions(&self) -> PyResult<Vec<FileDataDefinition>> {
+        match self.inner {
+            Some(ref decoder) => Ok(decoder
+                .file_data_definitions
+                .iter()
+                .map(|file_data_definition| FileDataDefinition {
+                    byte_offset: file_data_definition.byte_offset,
+                    track_id: file_data_definition.track_id,
+                    size: file_data_definition.size,
+                    elements_count: file_data_definition.elements_count,
+                    start_t: file_data_definition.start_t,
+                    end_t: file_data_definition.end_t,
+                })
+                .collect()),
+            None => Err(pyo3::exceptions::PyException::new_err(
+                "file_data_definitions called after __exit__",
             )),
         }
     }
@@ -289,9 +511,9 @@ impl Decoder {
                     *previous_t = t;
                     Frame {
                         t,
-                        begin_t: frame.begin_t(),
+                        start_t: frame.start_t(),
                         end_t: frame.end_t(),
-                        exposure_begin_t: frame.exposure_begin_t(),
+                        exposure_start_t: frame.exposure_start_t(),
                         exposure_end_t: frame.exposure_end_t(),
                         format: match frame.format() {
                             common::frame_generated::FrameFormat::Gray => "L".to_owned(),
@@ -308,13 +530,15 @@ impl Decoder {
                                 match frame.pixels() {
                                     Some(result) => result
                                         .bytes()
-                                        .to_pyarray_bound(python)
+                                        .to_pyarray(python)
                                         .reshape(dimensions)?
-                                        .to_object(python),
-                                    None => numpy::array::PyArray2::<u8>::zeros_bound(
+                                        .unbind()
+                                        .into_any(),
+                                    None => numpy::array::PyArray2::<u8>::zeros(
                                         python, dimensions, false,
                                     )
-                                    .to_object(python),
+                                    .unbind()
+                                    .into_any(),
                                 }
                             }
                             common::frame_generated::FrameFormat::Bgr
@@ -336,20 +560,24 @@ impl Decoder {
                                             pixels.swap(index * channels, index * channels + 2);
                                         }
                                         pixels
-                                            .to_pyarray_bound(python)
+                                            .to_pyarray(python)
                                             .reshape(dimensions)?
-                                            .to_object(python)
+                                            .unbind()
+                                            .into_any()
                                     }
-                                    None => numpy::array::PyArray3::<u8>::zeros_bound(
+                                    None => numpy::array::PyArray3::<u8>::zeros(
                                         python, dimensions, false,
                                     )
-                                    .to_object(python),
+                                    .unbind()
+                                    .into_any(),
                                 }
                             }
                             _ => return Err(PyErr::from(decoder::ReadError::UnknownFrameFormat)),
                         },
                     }
-                    .into_py(python)
+                    .into_pyobject(python)?
+                    .unbind()
+                    .into_any()
                 }
                 common::Track::Imus { ref mut previous_t } => {
                     let imus = match common::imus_generated::size_prefixed_root_as_imu_packet(
@@ -462,52 +690,22 @@ pub struct Encoder {
     frame_buffer: Vec<u8>,
 }
 
-#[derive(FromPyObject)]
-enum DescriptionOrTracks {
-    Description(String),
-    Tracks(Vec<Track>),
-}
-
 #[pymethods]
 impl Encoder {
     #[new]
-    #[pyo3(signature = (path, description_or_tracks, compression))]
+    #[pyo3(signature = (path, description, compression))]
     fn new(
         path: &pyo3::Bound<'_, pyo3::types::PyAny>,
-        description_or_tracks: DescriptionOrTracks,
+        description: Vec<DescriptionNode>,
         compression: Option<(String, u8)>,
     ) -> PyResult<Self> {
-        Python::with_gil(|python| -> PyResult<Self> {
-            Ok(Encoder {
-                inner: Some(encoder::Encoder::new(
-                    types::python_path_to_string(python, path)?,
-                    match &description_or_tracks {
-                        DescriptionOrTracks::Description(description) => {
-                            encoder::DescriptionOrIdsAndTracks::Description(description.as_str())
-                        }
-                        DescriptionOrTracks::Tracks(tracks) => {
-                            encoder::DescriptionOrIdsAndTracks::IdsAndTracks({
-                                let ids_and_tracks: Result<
-                                    Vec<(u32, common::Track)>,
-                                    common::Error,
-                                > = tracks
-                                    .iter()
-                                    .map(|track| {
-                                        common::Track::from_data_type(
-                                            &track.data_type,
-                                            track.dimensions,
-                                        )
-                                        .map(|common_track| (track.id, common_track))
-                                    })
-                                    .collect();
-                                ids_and_tracks?
-                            })
-                        }
-                    },
-                    encoder::Compression::from_name_and_level(compression)?,
-                )?),
-                frame_buffer: Vec::new(),
-            })
+        Ok(Encoder {
+            inner: Some(encoder::Encoder::new(
+                types::python_path_to_string(path)?,
+                common::Description(description.into_iter().map(|node| node.into()).collect()),
+                encoder::Compression::from_name_and_level(compression)?,
+            )?),
+            frame_buffer: Vec::new(),
         })
     }
 
@@ -533,7 +731,7 @@ impl Encoder {
 
     fn write(
         &mut self,
-        track_id: u32,
+        track_id: i32,
         packet: &pyo3::Bound<'_, pyo3::types::PyAny>,
     ) -> PyResult<()> {
         Python::with_gil(|python| -> PyResult<()> {
@@ -579,12 +777,21 @@ impl Encoder {
                                         *previous_t = event.t;
                                     }
                                 }
-                                encoder.write_events(
-                                    track_id,
-                                    (0..length).into_iter().map(|index| unsafe {
-                                        *types::array_at(python, array, index)
-                                    }),
-                                )?;
+                                let mut offset = 0;
+                                while offset < length {
+                                    encoder.write_events(
+                                        track_id,
+                                        (offset
+                                            ..(offset
+                                                + encoder::MAXIMUM_EVENTS_PER_BUFFER as isize)
+                                                .min(length))
+                                            .into_iter()
+                                            .map(|index| unsafe {
+                                                *types::array_at(python, array, index)
+                                            }),
+                                    )?;
+                                    offset += encoder::MAXIMUM_EVENTS_PER_BUFFER as isize;
+                                }
                             }
                             common::Track::Frame {
                                 dimensions,
@@ -690,9 +897,9 @@ impl Encoder {
                                 encoder.write_frame(
                                     track_id,
                                     frame.t,
-                                    frame.begin_t,
+                                    frame.start_t,
                                     frame.end_t,
-                                    frame.exposure_begin_t,
+                                    frame.exposure_start_t,
                                     frame.exposure_end_t,
                                     frame_format,
                                     frame_dimensions.0 as i16,

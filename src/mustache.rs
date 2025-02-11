@@ -1,7 +1,7 @@
 use pyo3::prelude::*;
 
 #[pyclass]
-#[derive(serde::Serialize, FromPyObject)]
+#[derive(serde::Serialize, Clone)]
 pub struct Job {
     #[pyo3(get, set)]
     pub input: String,

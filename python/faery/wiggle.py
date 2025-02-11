@@ -27,7 +27,7 @@ class WiggleParameters:
         self,
         time_range: tuple[timestamp.Time, timestamp.Time],
         rewind: bool = True,
-        decay: enums.Decay = "exponential",
+        decay: enums.Decay = "cumulative",
         output_duration: timestamp.TimeOrTimecode = 3.0 * timestamp.s,
         tau_frames: float = 5.0,
         frame_rate: float = 30.0,
@@ -41,8 +41,12 @@ class WiggleParameters:
                 skip = int(numpy.ceil(3.0 * tau_frames))
             elif decay == "linear":
                 skip = int(numpy.ceil(2.0 * tau_frames))
-            else:
+            elif decay == "window":
                 skip = int(numpy.ceil(tau_frames))
+            elif decay == "cumulative":
+                skip = int(numpy.ceil(tau_frames))
+            else:
+                raise Exception(f'unknown decay "{decay}"')
         if rewind and output_frames >= 3:
             output_frames = int(numpy.ceil((output_frames + 2) / 2))
         output_frames += skip

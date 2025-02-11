@@ -115,15 +115,15 @@ impl<'a> flatbuffers::Verifiable for Compression {
 }
 
 impl flatbuffers::SimpleToVerifyInSlice for Compression {}
-pub enum IoheaderOffset {}
+pub enum IOHeaderOffset {}
 #[derive(Copy, Clone, PartialEq)]
 
-pub struct Ioheader<'a> {
+pub struct IOHeader<'a> {
     pub _tab: flatbuffers::Table<'a>,
 }
 
-impl<'a> flatbuffers::Follow<'a> for Ioheader<'a> {
-    type Inner = Ioheader<'a>;
+impl<'a> flatbuffers::Follow<'a> for IOHeader<'a> {
+    type Inner = IOHeader<'a>;
     #[inline]
     unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
         Self {
@@ -132,21 +132,21 @@ impl<'a> flatbuffers::Follow<'a> for Ioheader<'a> {
     }
 }
 
-impl<'a> Ioheader<'a> {
+impl<'a> IOHeader<'a> {
     pub const VT_COMPRESSION: flatbuffers::VOffsetT = 4;
     pub const VT_FILE_DATA_POSITION: flatbuffers::VOffsetT = 6;
     pub const VT_DESCRIPTION: flatbuffers::VOffsetT = 8;
 
     #[inline]
     pub unsafe fn init_from_table(table: flatbuffers::Table<'a>) -> Self {
-        Ioheader { _tab: table }
+        IOHeader { _tab: table }
     }
     #[allow(unused_mut)]
     pub fn create<'bldr: 'args, 'args: 'mut_bldr, 'mut_bldr, A: flatbuffers::Allocator + 'bldr>(
         _fbb: &'mut_bldr mut flatbuffers::FlatBufferBuilder<'bldr, A>,
-        args: &'args IoheaderArgs<'args>,
-    ) -> flatbuffers::WIPOffset<Ioheader<'bldr>> {
-        let mut builder = IoheaderBuilder::new(_fbb);
+        args: &'args IOHeaderArgs<'args>,
+    ) -> flatbuffers::WIPOffset<IOHeader<'bldr>> {
+        let mut builder = IOHeaderBuilder::new(_fbb);
         builder.add_file_data_position(args.file_data_position);
         if let Some(x) = args.description {
             builder.add_description(x);
@@ -162,7 +162,7 @@ impl<'a> Ioheader<'a> {
         // which contains a valid value in this slot
         unsafe {
             self._tab
-                .get::<Compression>(Ioheader::VT_COMPRESSION, Some(Compression::None))
+                .get::<Compression>(IOHeader::VT_COMPRESSION, Some(Compression::None))
                 .unwrap()
         }
     }
@@ -173,7 +173,7 @@ impl<'a> Ioheader<'a> {
         // which contains a valid value in this slot
         unsafe {
             self._tab
-                .get::<i64>(Ioheader::VT_FILE_DATA_POSITION, Some(-1))
+                .get::<i64>(IOHeader::VT_FILE_DATA_POSITION, Some(-1))
                 .unwrap()
         }
     }
@@ -184,12 +184,12 @@ impl<'a> Ioheader<'a> {
         // which contains a valid value in this slot
         unsafe {
             self._tab
-                .get::<flatbuffers::ForwardsUOffset<&str>>(Ioheader::VT_DESCRIPTION, None)
+                .get::<flatbuffers::ForwardsUOffset<&str>>(IOHeader::VT_DESCRIPTION, None)
         }
     }
 }
 
-impl flatbuffers::Verifiable for Ioheader<'_> {
+impl flatbuffers::Verifiable for IOHeader<'_> {
     #[inline]
     fn run_verifier(
         v: &mut flatbuffers::Verifier,
@@ -208,15 +208,15 @@ impl flatbuffers::Verifiable for Ioheader<'_> {
         Ok(())
     }
 }
-pub struct IoheaderArgs<'a> {
+pub struct IOHeaderArgs<'a> {
     pub compression: Compression,
     pub file_data_position: i64,
     pub description: Option<flatbuffers::WIPOffset<&'a str>>,
 }
-impl<'a> Default for IoheaderArgs<'a> {
+impl<'a> Default for IOHeaderArgs<'a> {
     #[inline]
     fn default() -> Self {
-        IoheaderArgs {
+        IOHeaderArgs {
             compression: Compression::None,
             file_data_position: -1,
             description: None,
@@ -224,15 +224,15 @@ impl<'a> Default for IoheaderArgs<'a> {
     }
 }
 
-pub struct IoheaderBuilder<'a: 'b, 'b, A: flatbuffers::Allocator + 'a> {
+pub struct IOHeaderBuilder<'a: 'b, 'b, A: flatbuffers::Allocator + 'a> {
     fbb_: &'b mut flatbuffers::FlatBufferBuilder<'a, A>,
     start_: flatbuffers::WIPOffset<flatbuffers::TableUnfinishedWIPOffset>,
 }
-impl<'a: 'b, 'b, A: flatbuffers::Allocator + 'a> IoheaderBuilder<'a, 'b, A> {
+impl<'a: 'b, 'b, A: flatbuffers::Allocator + 'a> IOHeaderBuilder<'a, 'b, A> {
     #[inline]
     pub fn add_compression(&mut self, compression: Compression) {
         self.fbb_.push_slot::<Compression>(
-            Ioheader::VT_COMPRESSION,
+            IOHeader::VT_COMPRESSION,
             compression,
             Compression::None,
         );
@@ -240,31 +240,31 @@ impl<'a: 'b, 'b, A: flatbuffers::Allocator + 'a> IoheaderBuilder<'a, 'b, A> {
     #[inline]
     pub fn add_file_data_position(&mut self, file_data_position: i64) {
         self.fbb_
-            .push_slot::<i64>(Ioheader::VT_FILE_DATA_POSITION, file_data_position, -1);
+            .push_slot::<i64>(IOHeader::VT_FILE_DATA_POSITION, file_data_position, -1);
     }
     #[inline]
     pub fn add_description(&mut self, description: flatbuffers::WIPOffset<&'b str>) {
         self.fbb_
-            .push_slot_always::<flatbuffers::WIPOffset<_>>(Ioheader::VT_DESCRIPTION, description);
+            .push_slot_always::<flatbuffers::WIPOffset<_>>(IOHeader::VT_DESCRIPTION, description);
     }
     #[inline]
-    pub fn new(_fbb: &'b mut flatbuffers::FlatBufferBuilder<'a, A>) -> IoheaderBuilder<'a, 'b, A> {
+    pub fn new(_fbb: &'b mut flatbuffers::FlatBufferBuilder<'a, A>) -> IOHeaderBuilder<'a, 'b, A> {
         let start = _fbb.start_table();
-        IoheaderBuilder {
+        IOHeaderBuilder {
             fbb_: _fbb,
             start_: start,
         }
     }
     #[inline]
-    pub fn finish(self) -> flatbuffers::WIPOffset<Ioheader<'a>> {
+    pub fn finish(self) -> flatbuffers::WIPOffset<IOHeader<'a>> {
         let o = self.fbb_.end_table(self.start_);
         flatbuffers::WIPOffset::new(o.value())
     }
 }
 
-impl core::fmt::Debug for Ioheader<'_> {
+impl core::fmt::Debug for IOHeader<'_> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        let mut ds = f.debug_struct("Ioheader");
+        let mut ds = f.debug_struct("IOHeader");
         ds.field("compression", &self.compression());
         ds.field("file_data_position", &self.file_data_position());
         ds.field("description", &self.description());
@@ -272,30 +272,30 @@ impl core::fmt::Debug for Ioheader<'_> {
     }
 }
 #[inline]
-/// Verifies that a buffer of bytes contains a `Ioheader`
+/// Verifies that a buffer of bytes contains a `IOHeader`
 /// and returns it.
 /// Note that verification is still experimental and may not
 /// catch every error, or be maximally performant. For the
 /// previous, unchecked, behavior use
 /// `root_as_ioheader_unchecked`.
-pub fn root_as_ioheader(buf: &[u8]) -> Result<Ioheader, flatbuffers::InvalidFlatbuffer> {
-    flatbuffers::root::<Ioheader>(buf)
+pub fn root_as_ioheader(buf: &[u8]) -> Result<IOHeader, flatbuffers::InvalidFlatbuffer> {
+    flatbuffers::root::<IOHeader>(buf)
 }
 #[inline]
 /// Verifies that a buffer of bytes contains a size prefixed
-/// `Ioheader` and returns it.
+/// `IOHeader` and returns it.
 /// Note that verification is still experimental and may not
 /// catch every error, or be maximally performant. For the
 /// previous, unchecked, behavior use
 /// `size_prefixed_root_as_ioheader_unchecked`.
 pub fn size_prefixed_root_as_ioheader(
     buf: &[u8],
-) -> Result<Ioheader, flatbuffers::InvalidFlatbuffer> {
-    flatbuffers::size_prefixed_root::<Ioheader>(buf)
+) -> Result<IOHeader, flatbuffers::InvalidFlatbuffer> {
+    flatbuffers::size_prefixed_root::<IOHeader>(buf)
 }
 #[inline]
 /// Verifies, with the given options, that a buffer of bytes
-/// contains a `Ioheader` and returns it.
+/// contains a `IOHeader` and returns it.
 /// Note that verification is still experimental and may not
 /// catch every error, or be maximally performant. For the
 /// previous, unchecked, behavior use
@@ -303,12 +303,12 @@ pub fn size_prefixed_root_as_ioheader(
 pub fn root_as_ioheader_with_opts<'b, 'o>(
     opts: &'o flatbuffers::VerifierOptions,
     buf: &'b [u8],
-) -> Result<Ioheader<'b>, flatbuffers::InvalidFlatbuffer> {
-    flatbuffers::root_with_opts::<Ioheader<'b>>(opts, buf)
+) -> Result<IOHeader<'b>, flatbuffers::InvalidFlatbuffer> {
+    flatbuffers::root_with_opts::<IOHeader<'b>>(opts, buf)
 }
 #[inline]
 /// Verifies, with the given verifier options, that a buffer of
-/// bytes contains a size prefixed `Ioheader` and returns
+/// bytes contains a size prefixed `IOHeader` and returns
 /// it. Note that verification is still experimental and may not
 /// catch every error, or be maximally performant. For the
 /// previous, unchecked, behavior use
@@ -316,22 +316,22 @@ pub fn root_as_ioheader_with_opts<'b, 'o>(
 pub fn size_prefixed_root_as_ioheader_with_opts<'b, 'o>(
     opts: &'o flatbuffers::VerifierOptions,
     buf: &'b [u8],
-) -> Result<Ioheader<'b>, flatbuffers::InvalidFlatbuffer> {
-    flatbuffers::size_prefixed_root_with_opts::<Ioheader<'b>>(opts, buf)
+) -> Result<IOHeader<'b>, flatbuffers::InvalidFlatbuffer> {
+    flatbuffers::size_prefixed_root_with_opts::<IOHeader<'b>>(opts, buf)
 }
 #[inline]
-/// Assumes, without verification, that a buffer of bytes contains a Ioheader and returns it.
+/// Assumes, without verification, that a buffer of bytes contains a IOHeader and returns it.
 /// # Safety
-/// Callers must trust the given bytes do indeed contain a valid `Ioheader`.
-pub unsafe fn root_as_ioheader_unchecked(buf: &[u8]) -> Ioheader {
-    flatbuffers::root_unchecked::<Ioheader>(buf)
+/// Callers must trust the given bytes do indeed contain a valid `IOHeader`.
+pub unsafe fn root_as_ioheader_unchecked(buf: &[u8]) -> IOHeader {
+    flatbuffers::root_unchecked::<IOHeader>(buf)
 }
 #[inline]
-/// Assumes, without verification, that a buffer of bytes contains a size prefixed Ioheader and returns it.
+/// Assumes, without verification, that a buffer of bytes contains a size prefixed IOHeader and returns it.
 /// # Safety
-/// Callers must trust the given bytes do indeed contain a valid size prefixed `Ioheader`.
-pub unsafe fn size_prefixed_root_as_ioheader_unchecked(buf: &[u8]) -> Ioheader {
-    flatbuffers::size_prefixed_root_unchecked::<Ioheader>(buf)
+/// Callers must trust the given bytes do indeed contain a valid size prefixed `IOHeader`.
+pub unsafe fn size_prefixed_root_as_ioheader_unchecked(buf: &[u8]) -> IOHeader {
+    flatbuffers::size_prefixed_root_unchecked::<IOHeader>(buf)
 }
 pub const IOHEADER_IDENTIFIER: &str = "IOHE";
 
@@ -348,7 +348,7 @@ pub fn ioheader_size_prefixed_buffer_has_identifier(buf: &[u8]) -> bool {
 #[inline]
 pub fn finish_ioheader_buffer<'a, 'b, A: flatbuffers::Allocator + 'a>(
     fbb: &'b mut flatbuffers::FlatBufferBuilder<'a, A>,
-    root: flatbuffers::WIPOffset<Ioheader<'a>>,
+    root: flatbuffers::WIPOffset<IOHeader<'a>>,
 ) {
     fbb.finish(root, Some(IOHEADER_IDENTIFIER));
 }
@@ -356,7 +356,7 @@ pub fn finish_ioheader_buffer<'a, 'b, A: flatbuffers::Allocator + 'a>(
 #[inline]
 pub fn finish_size_prefixed_ioheader_buffer<'a, 'b, A: flatbuffers::Allocator + 'a>(
     fbb: &'b mut flatbuffers::FlatBufferBuilder<'a, A>,
-    root: flatbuffers::WIPOffset<Ioheader<'a>>,
+    root: flatbuffers::WIPOffset<IOHeader<'a>>,
 ) {
     fbb.finish_size_prefixed(root, Some(IOHEADER_IDENTIFIER));
 }

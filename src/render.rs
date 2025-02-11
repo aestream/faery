@@ -55,6 +55,38 @@ enum Function {
         colors: (u32, u32, u32),
         ts_and_polarities: Vec<(u64, neuromorphic_types::DvsPolarity)>,
     },
+
+    // activity = activity * exp(-Δt / 𝜏) + 1
+    // min = sorted_activities[minimum_clip * len(sorted_activities)]
+    // max = sorted_activities[maximum_clip * len(sorted_activities)]
+    // ρ = γ < 0 ? 2 + γ² : -2 - γ²
+    // σ = √(ρ² - 4)
+    // χ = (activity.clip(min, max) - min) / (max - min) ∈ [0, 1]
+    // ψ = (χ * (σ + ρ) / (χ * 2σ + ρ - σ)) ∈ [0, 1]
+    // colormap @ (ψ * (len(colormap) - 1))
+    //
+    // (implementation)
+    // activity = activity * exp(Δt * υ) + 1
+    // χ = (activity.clip(min, max) - min) / (max - min)
+    // colormap[round(χ / (α * χ + β))]
+    Cumulative {
+        upsilon: f32,
+        alpha: f32,
+        beta: f32,
+        colormap: Vec<u32>,
+        ts_and_activities: Vec<(u64, f32)>,
+        minimum_clip: f32,
+        maximum_clip: f32,
+    },
+    CumulativeDiverging {
+        upsilon: f32,
+        alphas: (f32, f32),
+        betas: (f32, f32),
+        colormaps: (Vec<u32>, Vec<u32>),
+        ts_and_activities: (Vec<(u64, f32)>, Vec<(u64, f32)>),
+        minimum_clip: f32,
+        maximum_clip: f32,
+    },
 }
 
 struct Inner {
@@ -183,6 +215,42 @@ fn parse_diverging_colormap(
     Ok((off_colormap, on_colormap))
 }
 
+fn clipped_minimum_maximum(
+    mut sorted_unbounded_frame: Vec<f32>,
+    minimum_clip: f32,
+    maximum_clip: f32,
+) -> (f32, f32) {
+    if sorted_unbounded_frame.is_empty() {
+        (0.0f32, 1.0f32)
+    } else {
+        sorted_unbounded_frame
+            .sort_by(|a, b| a.partial_cmp(b).expect("activities are finite numbers"));
+        let mut minimum = if minimum_clip == 0.0 {
+            0.0
+        } else {
+            sorted_unbounded_frame
+                [((sorted_unbounded_frame.len() - 1) as f32 * minimum_clip).round() as usize]
+        };
+        let mut maximum = sorted_unbounded_frame
+            [((sorted_unbounded_frame.len() - 1) as f32 * maximum_clip).round() as usize];
+        if minimum < maximum {
+            (minimum, maximum)
+        } else {
+            minimum = if maximum_clip == 0.0 {
+                0.0
+            } else {
+                sorted_unbounded_frame[0]
+            };
+            maximum = sorted_unbounded_frame[sorted_unbounded_frame.len() - 1];
+            if minimum < maximum {
+                (minimum, maximum)
+            } else {
+                (minimum, minimum + 1.0)
+            }
+        }
+    }
+}
+
 #[pymethods]
 impl Renderer {
     #[new]
@@ -190,6 +258,9 @@ impl Renderer {
         dimensions: (u16, u16),
         decay: &str,
         tau: u64,
+        minimum_clip: f32,
+        maximum_clip: f32,
+        gamma: f32,
         colormap_type: &str,
         colormap_rgba: &pyo3::Bound<'_, numpy::PyArray2<f64>>,
     ) -> PyResult<Self> {
@@ -292,6 +363,59 @@ impl Renderer {
                         colormap_type => return Err(pyo3::exceptions::PyAttributeError::new_err(format!(
                             "unknown colormap type \"{colormap_type}\" (expected \"sequential\", \"diverging\", or \"cyclic\")"
                         ))),
+                    },
+                    "cumulative" => {
+                        if minimum_clip < 0.0 || minimum_clip >= maximum_clip || maximum_clip > 1.0 {
+                            return Err(pyo3::exceptions::PyAttributeError::new_err(format!(
+                                "minimum_clip must be smaller than maximum_clip and they must be in the range [0.0, 0.1] (got {} and {})",
+                                minimum_clip,
+                                maximum_clip,
+                            )));
+                        }
+                        let rho = if gamma < 0.0 {
+                            2.0 + gamma.powi(2)
+                        } else {
+                            -2.0 - gamma.powi(2)
+                        };
+                        let sigma = (rho.powi(2) - 4.0).sqrt();
+                        match colormap_type {
+                            "sequential" => {
+                                let colormap = parse_sequential_colormap(colormap_array)?;
+                                Function::Cumulative {
+                                    upsilon: (-1.0 / tau as f64) as f32,
+                                    alpha: 2.0 * sigma / ((colormap.len() - 1) as f32 * (rho + sigma)),
+                                    beta: (rho - sigma) / ((colormap.len() - 1) as f32 * (rho + sigma)),
+                                    colormap,
+                                    ts_and_activities: vec![(0, 0.0); dimensions.0 as usize * dimensions.1 as usize],
+                                    minimum_clip,
+                                    maximum_clip,
+                                }
+                            },
+                            "diverging" | "cyclic" => {
+                                let (off_colormap, on_colormap) = parse_diverging_colormap(colormap_array)?;
+                                Function::CumulativeDiverging {
+                                    upsilon: (-1.0 / tau as f64) as f32,
+                                    alphas: (
+                                        2.0 * sigma / ((off_colormap.len() - 1) as f32 * (rho + sigma)),
+                                        2.0 * sigma / ((on_colormap.len() - 1) as f32 * (rho + sigma)),
+                                    ),
+                                    betas: (
+                                        (rho - sigma) / ((off_colormap.len() - 1) as f32 * (rho + sigma)),
+                                        (rho - sigma) / ((on_colormap.len() - 1) as f32 * (rho + sigma)),
+                                    ),
+                                    colormaps: (off_colormap, on_colormap),
+                                    ts_and_activities: (
+                                        vec![(0, 0.0); dimensions.0 as usize * dimensions.1 as usize],
+                                        vec![(0, 0.0); dimensions.0 as usize * dimensions.1 as usize],
+                                    ),
+                                    minimum_clip,
+                                    maximum_clip,
+                                }
+                            },
+                            colormap_type => return Err(pyo3::exceptions::PyAttributeError::new_err(format!(
+                                "unknown colormap type \"{colormap_type}\" (expected \"sequential\", \"diverging\", or \"cyclic\")"
+                            ))),
+                        }
                     },
                     decay => return Err(pyo3::exceptions::PyAttributeError::new_err(format!(
                         "unknown decay \"{decay}\" (expected \"exponential\", \"linear\", or \"window\")"
@@ -418,6 +542,112 @@ impl Renderer {
                                     (t, polarity);
                             }
                         }
+                        Function::Cumulative {
+                            upsilon,
+                            ts_and_activities,
+                            ..
+                        } => {
+                            for index in 0..length {
+                                let (t, x, y) = unsafe {
+                                    let event_cell: *mut neuromorphic_types::DvsEvent<
+                                        u64,
+                                        u16,
+                                        u16,
+                                    > = types::array_at(python, array, index);
+                                    ((*event_cell).t, (*event_cell).x, (*event_cell).y)
+                                };
+                                if t < renderer.previous_t {
+                                    return Err(utilities::WriteError::NonMonotonic {
+                                        previous_t: renderer.previous_t,
+                                        t,
+                                    }
+                                    .into());
+                                }
+                                if x >= renderer.dimensions.0 {
+                                    return Err(utilities::WriteError::XOverflow {
+                                        x,
+                                        width: renderer.dimensions.0,
+                                    }
+                                    .into());
+                                }
+                                if y >= renderer.dimensions.1 {
+                                    return Err(utilities::WriteError::YOverflow {
+                                        y,
+                                        height: renderer.dimensions.1,
+                                    }
+                                    .into());
+                                }
+                                let (previous_t, activity) = &mut ts_and_activities
+                                    [(y as usize * renderer.dimensions.0 as usize) + x as usize];
+                                *activity =
+                                    *activity * ((t - *previous_t) as f32 * *upsilon).exp() + 1.0;
+                                *previous_t = t;
+                            }
+                        }
+                        Function::CumulativeDiverging {
+                            upsilon,
+                            ts_and_activities,
+                            ..
+                        } => {
+                            for index in 0..length {
+                                let (t, x, y, polarity) = unsafe {
+                                    let event_cell: *mut neuromorphic_types::DvsEvent<
+                                        u64,
+                                        u16,
+                                        u16,
+                                    > = types::array_at(python, array, index);
+                                    (
+                                        (*event_cell).t,
+                                        (*event_cell).x,
+                                        (*event_cell).y,
+                                        (*event_cell).polarity,
+                                    )
+                                };
+                                if t < renderer.previous_t {
+                                    return Err(utilities::WriteError::NonMonotonic {
+                                        previous_t: renderer.previous_t,
+                                        t,
+                                    }
+                                    .into());
+                                }
+                                if x >= renderer.dimensions.0 {
+                                    return Err(utilities::WriteError::XOverflow {
+                                        x,
+                                        width: renderer.dimensions.0,
+                                    }
+                                    .into());
+                                }
+                                if y >= renderer.dimensions.1 {
+                                    return Err(utilities::WriteError::YOverflow {
+                                        y,
+                                        height: renderer.dimensions.1,
+                                    }
+                                    .into());
+                                }
+                                match polarity {
+                                    neuromorphic_types::DvsPolarity::Off => {
+                                        let (previous_t, activity) = &mut ts_and_activities.0[(y
+                                            as usize
+                                            * renderer.dimensions.0 as usize)
+                                            + x as usize];
+                                        *activity = *activity
+                                            * ((t - *previous_t) as f32 * *upsilon).exp()
+                                            + 1.0;
+                                        *previous_t = t;
+                                    }
+                                    neuromorphic_types::DvsPolarity::On => {
+                                        let (previous_t, activity) = &mut ts_and_activities.1[(y
+                                            as usize
+                                            * renderer.dimensions.0 as usize)
+                                            + x as usize];
+                                        *activity = *activity
+                                            * ((t - *previous_t) as f32 * *upsilon).exp()
+                                            + 1.0;
+                                        *previous_t = t;
+                                    }
+                                }
+                            }
+                        }
                     }
                     if render_t < renderer.previous_t {
                         return Err(pyo3::exceptions::PyValueError::new_err(format!(
@@ -436,8 +666,7 @@ impl Renderer {
                             python,
                             3,
                             dimensions.as_mut_ptr(),
-                            u8::get_dtype_bound(python).into_ptr()
-                                as *mut numpy::npyffi::PyArray_Descr,
+                            u8::get_dtype(python).into_ptr() as *mut numpy::npyffi::PyArray_Descr,
                             0,
                         )
                     } as *mut numpy::npyffi::PyArrayObject;
@@ -567,6 +796,93 @@ impl Renderer {
                                     *color = colors.1;
                                 } else {
                                     *color = colors.2;
+                                }
+                            }
+                        }
+                        Function::Cumulative {
+                            upsilon,
+                            alpha,
+                            beta,
+                            colormap,
+                            ts_and_activities,
+                            minimum_clip,
+                            maximum_clip,
+                        } => {
+                            let mut unbounded_frame = vec![
+                                0.0;
+                                renderer.dimensions.0 as usize
+                                    * renderer.dimensions.1 as usize
+                            ];
+                            for ((t, activity), value) in
+                                ts_and_activities.iter().zip(unbounded_frame.iter_mut())
+                            {
+                                *value = ((render_t - t) as f32 * upsilon).exp() * activity;
+                            }
+                            let (minimum, maximum) = clipped_minimum_maximum(
+                                unbounded_frame
+                                    .iter()
+                                    .filter_map(
+                                        |value| if *value > 0.0 { Some(*value) } else { None },
+                                    )
+                                    .collect(),
+                                *minimum_clip,
+                                *maximum_clip,
+                            );
+                            let scale = 1.0 / (maximum - minimum);
+                            for (value, color) in unbounded_frame.iter().zip(slice.iter_mut()) {
+                                let chi = (value.clamp(minimum, maximum) - minimum) * scale;
+                                *color = colormap[(chi / (*alpha * chi + *beta)).round() as usize];
+                            }
+                        }
+                        Function::CumulativeDiverging {
+                            upsilon,
+                            alphas,
+                            betas,
+                            colormaps,
+                            ts_and_activities,
+                            minimum_clip,
+                            maximum_clip,
+                        } => {
+                            let mut unbounded_frame = vec![
+                                0.0;
+                                renderer.dimensions.0 as usize
+                                    * renderer.dimensions.1 as usize
+                            ];
+                            for pixel_index in 0..unbounded_frame.len() {
+                                let (off_t, mut off_activity) = ts_and_activities.0[pixel_index];
+                                off_activity *= ((render_t - off_t) as f32 * upsilon).exp();
+                                let (on_t, mut on_activity) = ts_and_activities.1[pixel_index];
+                                on_activity *= ((render_t - on_t) as f32 * upsilon).exp();
+                                unbounded_frame[pixel_index] = if on_activity > off_activity {
+                                    on_activity
+                                } else {
+                                    -off_activity
+                                };
+                            }
+                            let (minimum, maximum) = clipped_minimum_maximum(
+                                unbounded_frame
+                                    .iter()
+                                    .filter_map(|value| {
+                                        if *value != 0.0 {
+                                            Some(value.abs())
+                                        } else {
+                                            None
+                                        }
+                                    })
+                                    .collect(),
+                                *minimum_clip,
+                                *maximum_clip,
+                            );
+                            let scale = 1.0 / (maximum - minimum);
+                            for (value, color) in unbounded_frame.iter().zip(slice.iter_mut()) {
+                                if *value <= 0.0 {
+                                    let chi = ((-value).clamp(minimum, maximum) - minimum) * scale;
+                                    *color = colormaps.0
+                                        [(chi / (alphas.0 * chi + betas.0)).round() as usize];
+                                } else {
+                                    let chi = (value.clamp(minimum, maximum) - minimum) * scale;
+                                    *color = colormaps.1
+                                        [(chi / (alphas.1 * chi + betas.1)).round() as usize];
                                 }
                             }
                         }

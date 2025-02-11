@@ -27,9 +27,7 @@ impl Encoder {
         quality: u8,
         fast: bool,
     ) -> PyResult<Self> {
-        let path = Python::with_gil(|python| -> PyResult<String> {
-            types::python_path_to_string(python, path)
-        })?;
+        let path = types::python_path_to_string(path)?;
         let (collector, writer) = gifski::new(gifski::Settings {
             width: Some(dimensions.0 as u32),
             height: Some(dimensions.1 as u32),

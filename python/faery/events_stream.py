@@ -263,6 +263,11 @@ class EventsStream(
         filter_orientation: enums.FilterOrientation = "row",
     ) -> "EventsStream": ...
 
+    def filter_hot_pixels(
+        self,
+        maximum_relative_event_count: float,
+    ) -> "EventsStream": ...
+
     def map(
         self,
         function: collections.abc.Callable[[numpy.ndarray], numpy.ndarray],
@@ -278,6 +283,9 @@ class EventsStream(
         decay: enums.Decay,
         tau: timestamp.TimeOrTimecode,
         colormap: color.Colormap,
+        minimum_clip: float = 0.0,
+        maximum_clip: float = 0.99,
+        gamma: float = 0.0,
     ) -> frame_stream.FrameStream: ...
 
 
@@ -335,6 +343,11 @@ class FiniteEventsStream(
         filter_orientation: enums.FilterOrientation = "row",
     ) -> "FiniteEventsStream": ...
 
+    def filter_hot_pixels(
+        self,
+        maximum_relative_event_count: float,
+    ) -> "FiniteEventsStream": ...
+
     def map(
         self,
         function: collections.abc.Callable[[numpy.ndarray], numpy.ndarray],
@@ -368,6 +381,9 @@ class FiniteEventsStream(
         decay: enums.Decay,
         tau: timestamp.TimeOrTimecode,
         colormap: color.Colormap,
+        minimum_clip: float = 0.0,
+        maximum_clip: float = 0.99,
+        gamma: float = 0.0,
     ) -> frame_stream.FiniteFrameStream: ...
 
     def to_kinectograph(
@@ -464,6 +480,11 @@ class RegularEventsStream(
         filter_orientation: enums.FilterOrientation = "row",
     ) -> "EventsStream": ...
 
+    def filter_hot_pixels(
+        self,
+        maximum_relative_event_count: float,
+    ) -> "RegularEventsStream": ...
+
     def map(
         self,
         function: collections.abc.Callable[[numpy.ndarray], numpy.ndarray],
@@ -479,6 +500,9 @@ class RegularEventsStream(
         decay: enums.Decay,
         tau: timestamp.TimeOrTimecode,
         colormap: color.Colormap,
+        minimum_clip: float = 0.0,
+        maximum_clip: float = 0.99,
+        gamma: float = 0.0,
     ) -> frame_stream.RegularFrameStream: ...
 
 
@@ -532,6 +556,11 @@ class FiniteRegularEventsStream(
         filter_orientation: enums.FilterOrientation = "row",
     ) -> "FiniteEventsStream": ...
 
+    def filter_hot_pixels(
+        self,
+        maximum_relative_event_count: float,
+    ) -> "FiniteRegularEventsStream": ...
+
     def map(
         self,
         function: collections.abc.Callable[[numpy.ndarray], numpy.ndarray],
@@ -565,6 +594,9 @@ class FiniteRegularEventsStream(
         decay: enums.Decay,
         tau: timestamp.TimeOrTimecode,
         colormap: color.Colormap,
+        minimum_clip: float = 0.0,
+        maximum_clip: float = 0.99,
+        gamma: float = 0.0,
     ) -> frame_stream.FiniteRegularFrameStream: ...
 
     def to_kinectograph(
@@ -746,6 +778,17 @@ def bind(prefix: typing.Literal["", "Finite", "Regular", "FiniteRegular"]):
             filter_orientation=filter_orientation,
         )
 
+    def filter_hot_pixels(
+        self,
+        maximum_relative_event_count: float,
+    ):
+        from .events_filter import FILTERS
+
+        return FILTERS[f"{unregularize_prefix}FilterHotPixels"](
+            parent=self,
+            maximum_relative_event_count=maximum_relative_event_count,
+        )
+
     def map(
         self,
         function: collections.abc.Callable[[numpy.ndarray], numpy.ndarray],
@@ -762,11 +805,20 @@ def bind(prefix: typing.Literal["", "Finite", "Regular", "FiniteRegular"]):
         decay: enums.Decay,
         tau: timestamp.TimeOrTimecode,
         colormap: color.Colormap,
+        minimum_clip: float = 0.0,
+        maximum_clip: float = 0.99,
+        gamma: float = 0.0,
     ):
         from .events_render import FILTERS
 
         return FILTERS[f"{prefix}Render"](
-            parent=self, decay=decay, tau=tau, colormap=colormap
+            parent=self,
+            decay=decay,
+            tau=tau,
+            colormap=colormap,
+            minimum_clip=minimum_clip,
+            maximum_clip=maximum_clip,
+            gamma=gamma,
         )
 
     regularize.filter_return_annotation = f"{regularize_prefix}EventsStream"
@@ -780,6 +832,7 @@ def bind(prefix: typing.Literal["", "Finite", "Regular", "FiniteRegular"]):
     filter_arbiter_saturation_lines.filter_return_annotation = (
         f"{unregularize_prefix}EventsStream"
     )
+    filter_hot_pixels.filter_return_annotation = f"{prefix}EventsStream"
     map.filter_return_annotation = f"{prefix}EventsStream"
     render.filter_return_annotation = f"{prefix}FrameStream"
 
@@ -794,6 +847,7 @@ def bind(prefix: typing.Literal["", "Finite", "Regular", "FiniteRegular"]):
     globals()[
         f"{prefix}EventsStream"
     ].filter_arbiter_saturation_lines = filter_arbiter_saturation_lines
+    globals()[f"{prefix}EventsStream"].filter_hot_pixels = filter_hot_pixels
     globals()[f"{prefix}EventsStream"].map = map
     globals()[f"{prefix}EventsStream"].render = render
 

@@ -97,8 +97,52 @@ def events_to_file(
         assert enforce_monotonic_timestamps, "AEDAT files do not support non-monotonic timestamps, since timestamps may overflow"
         with aedat.Encoder(
             path=path if write_path is None else write_path,
-            description_or_tracks=[
-                aedat.Track(id=0, data_type="events", dimensions=dimensions),
+            description=[
+                aedat.DescriptionNode(
+                    name="outInfo",
+                    path="/mainloop/Recorder/outInfo/",
+                    attributes={},
+                    nodes=[
+                        aedat.DescriptionNode(
+                            name="0",
+                            path="/mainloop/Recorder/outInfo/0/",
+                            attributes={
+                                "compression": aedat.DescriptionAttribute(
+                                    attribute_type="string",
+                                    value=(
+                                        "NONE"
+                                        if compression is None
+                                        else compression[0].upper()
+                                    ),
+                                ),
+                                "originalOutputName": aedat.DescriptionAttribute(
+                                    attribute_type="string", value="events"
+                                ),
+                                "typeIdentifier": aedat.DescriptionAttribute(
+                                    attribute_type="string", value="EVTS"
+                                ),
+                            },
+                            nodes=[
+                                aedat.DescriptionNode(
+                                    name="info",
+                                    path="/mainloop/Recorder/outInfo/0/info/",
+                                    attributes={
+                                        "sizeX": aedat.DescriptionAttribute(
+                                            attribute_type="int", value=dimensions[0]
+                                        ),
+                                        "sizeY": aedat.DescriptionAttribute(
+                                            attribute_type="int", value=dimensions[1]
+                                        ),
+                                        "source": aedat.DescriptionAttribute(
+                                            attribute_type="string", value="faery"
+                                        ),
+                                    },
+                                    nodes=[],
+                                )
+                            ],
+                        )
+                    ],
+                )
             ],
             compression=compression,
         ) as encoder:

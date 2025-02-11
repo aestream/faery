@@ -52,16 +52,45 @@ def typed_render(
 
 @typed_render({"", "Finite", "Regular", "FiniteRegular"})
 class Render(frame_stream.FiniteRegularFrameStream):
+    """
+    Converts events to color frames.
+
+    Args:
+        parent: Input event stream.
+        decay: Function that converts timestamps to bounded values.
+            Exponential, linear, and window decays directly generate values in `[0, 1]`, compatible with colormaps.
+            Cumulative generates unbounded values that must be tone-mapped to `[0, 1]` before applying the colormap.
+            See `minimum_clip`, `maximum_clip`, and `gamma` for details on how to control the tone-mapping process.
+        tau: Decay temporal parameter.
+            The specific role of this parameter depends on the decay function.
+        minimum_clip: Only used if the decay is "cumulative". Must be smaller than `maximum_clip` and in the range `[0, 1]`.
+            Selects the tone-map minimum by computing `values[minimum_clip * len(values)]`,
+            where `values` is a sorted array of cumulative decays.
+            Values only contains non-zero decays.
+            Decays below `minimum_clip` are set to zero before applying the colormap.
+        maximum_clip: Only used if the decay is "cumulative". Must be larger than `minimum_clip` and in the range `[0, 1]`.
+            Identical to `minimum_clip`, but values above `maximum_clip` are set to 1 before applying the colormap.
+        gamma: Only used if the decay is "cumulative", can be positive or negative. Controls the gamma ramp shape.
+            0 is linear, positive values increase the available range for low values and flattens the range for high values,
+            negative does the opposite.
+    """
+
     def __init__(
         self,
         parent: stream.FiniteRegularStream[numpy.ndarray],
         decay: enums.Decay,
         tau: timestamp.TimeOrTimecode,
         colormap: color_module.Colormap,
+        minimum_clip: float = 0.0,
+        maximum_clip: float = 0.99,
+        gamma: float = 0.0,
     ):
         self.parent = parent
         self.decay: enums.Decay = enums.validate_decay(decay)
         self.tau = timestamp.parse_time(tau)
+        self.minimum_clip = minimum_clip
+        self.maximum_clip = maximum_clip
+        self.gamma = gamma
         self.colormap = colormap
 
     def dimensions(self) -> tuple[int, int]:
@@ -93,6 +122,9 @@ class Render(frame_stream.FiniteRegularFrameStream):
             dimensions=self.dimensions(),
             decay=self.decay,
             tau=self.tau.to_microseconds(),
+            minimum_clip=self.minimum_clip,
+            maximum_clip=self.maximum_clip,
+            gamma=self.gamma,
             colormap_type=self.colormap.type,
             colormap_rgba=self.colormap.rgba,
         ) as renderer:

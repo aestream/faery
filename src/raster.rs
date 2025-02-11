@@ -7,10 +7,16 @@ use crate::font;
 pub fn render(svg_string: &str) -> PyResult<PyObject> {
     let fontdb = std::sync::Arc::new({
         let mut fontdb = resvg::usvg::fontdb::Database::new();
-        let mut font = Vec::new();
-        font.resize(font::ROBOTO_MONO_REGULAR.len(), 0);
-        font.copy_from_slice(font::ROBOTO_MONO_REGULAR);
-        fontdb.load_font_data(font);
+        {
+            let mut font = Vec::with_capacity(font::ROBOTO_MONO_REGULAR.len());
+            font.extend_from_slice(font::ROBOTO_MONO_REGULAR);
+            fontdb.load_font_data(font);
+        }
+        {
+            let mut font = Vec::with_capacity(font::ROBOTO_MONO_BOLD.len());
+            font.extend_from_slice(font::ROBOTO_MONO_BOLD);
+            fontdb.load_font_data(font);
+        }
         fontdb
     });
     let tree = resvg::usvg::Tree::from_str(
@@ -68,7 +74,7 @@ pub fn render(svg_string: &str) -> PyResult<PyObject> {
                 python,
                 3,
                 dimensions.as_mut_ptr(),
-                u8::get_dtype_bound(python).into_ptr() as *mut numpy::npyffi::PyArray_Descr,
+                u8::get_dtype(python).into_ptr() as *mut numpy::npyffi::PyArray_Descr,
                 0,
             ) as *mut numpy::npyffi::PyArrayObject;
             std::ptr::copy_nonoverlapping(
