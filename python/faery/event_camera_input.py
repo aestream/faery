@@ -13,7 +13,7 @@ def has_event_camera_drivers():
 
 def has_inivation_camera_drivers():
     if has_event_camera_drivers():
-        import event_camera_drivers as evd
+        import event_camera_drivers as evd  # type: ignore
 
         return hasattr(evd, "InivationCamera")
     return False
@@ -37,7 +37,7 @@ class InivationCameraStream(events_stream.EventsStream):
         super().__init__()
 
         try:
-            import event_camera_drivers as evd
+            import event_camera_drivers as evd  # type: ignore
 
             self.camera = evd.InivationCamera(buffer_size=buffer_size)
         except ImportError as e:
