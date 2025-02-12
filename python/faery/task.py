@@ -82,28 +82,22 @@ def task(suffix: str, icon: str = "", name: typing.Optional[str] = None):
     ) -> Task:
         class DecoratedTask(Task):
 
-            @typing.override
             def suffix(self) -> str:
                 return suffix
 
-            @typing.override
             def icon(self) -> str:
                 return icon
 
-            @typing.override
             def name(self) -> str:
                 return function.__name__.replace("_", "-") if name is None else name
 
-            @typing.override
             def code(self) -> str:
                 return textwrap.dedent(inspect.getsource(function))
 
             @functools.cached_property
-            @typing.override
             def hash(self) -> str:
                 return hash(function=function)
 
-            @typing.override
             def __call__(
                 self,
                 input: pathlib.Path,

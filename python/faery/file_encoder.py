@@ -94,7 +94,9 @@ def events_to_file(
     )
     if file_type == "aedat":
         assert path is not None
-        assert enforce_monotonic_timestamps, "AEDAT files do not support non-monotonic timestamps, since timestamps may overflow"
+        assert (
+            enforce_monotonic_timestamps
+        ), "AEDAT files do not support non-monotonic timestamps, since timestamps may overflow"
         with aedat.Encoder(
             path=path if write_path is None else write_path,
             description=[
@@ -174,7 +176,9 @@ def events_to_file(
         t0 = 0
     elif file_type == "dat":
         assert path is not None
-        assert enforce_monotonic_timestamps, "DAT files do not support non-monotonic timestamps, since timestamps may overflow"
+        assert (
+            enforce_monotonic_timestamps
+        ), "DAT files do not support non-monotonic timestamps, since timestamps may overflow"
         with dat.Encoder(
             path=path if write_path is None else write_path,
             version="dat2" if version is None else version,  # type: ignore
@@ -208,7 +212,9 @@ def events_to_file(
         state_manager.end()
     elif file_type == "es":
         assert path is not None
-        assert enforce_monotonic_timestamps, "ES files do not support non-monotonic timestamps"
+        assert (
+            enforce_monotonic_timestamps
+        ), "ES files do not support non-monotonic timestamps"
         with event_stream.Encoder(
             path=path if write_path is None else write_path,
             event_type="dvs",

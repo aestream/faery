@@ -474,15 +474,12 @@ def class_to_name_to_filter() -> dict[typing.Any, dict[str, Filter]]:
 
 
 class Command(command.Command):
-    @typing.override
     def usage(self) -> tuple[list[str], str]:
         return (["faery list-filters"], "print available filters")
 
-    @typing.override
     def first_block_keywords(self) -> set[str]:
         return {"list-filters"}
 
-    @typing.override
     def run(self, arguments: list[str]):
         parser = self.parser()
         parser.parse_args(args=arguments)

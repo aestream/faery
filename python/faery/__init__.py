@@ -146,6 +146,7 @@ def name_to_colormaps() -> dict[str, Colormap]:
         )
     }
 
+
 from .event_camera_input import events_stream_from_camera
 
 

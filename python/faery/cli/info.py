@@ -9,15 +9,12 @@ from . import command, list_filters
 
 
 class Command(command.Command):
-    @typing.override
     def usage(self) -> tuple[list[str], str]:
         return (["faery info <input>"], "prints information about a file")
 
-    @typing.override
     def first_block_keywords(self) -> set[str]:
         return {"info"}
 
-    @typing.override
     def run(self, arguments: list[str]):
         parser = self.parser()
         parser.add_argument("path", help="path of the input file")

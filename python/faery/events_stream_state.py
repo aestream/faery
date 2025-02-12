@@ -110,6 +110,7 @@ class FiniteRegularEventsStreamState:
     Total number of packets in the stream.
     """
 
+
 class StateManager:
     """
     Keeps track of the number of frames processed by the stream and calls `on_progress`.

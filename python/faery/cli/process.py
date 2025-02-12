@@ -128,7 +128,12 @@ def input_parser() -> argparse.ArgumentParser:
     add_csv_properties(subparser)
     # Inivation subparser
     subparser = subparsers.add_parser("inivation")
-    subparser.add_argument("--buffer-size", type=int, default=1024, help="Array buffer size (default: %(default)s)")
+    subparser.add_argument(
+        "--buffer-size",
+        type=int,
+        default=1024,
+        help="Array buffer size (default: %(default)s)",
+    )
     # UDP subparser
     subparser = subparsers.add_parser("udp")
     subparser.add_argument("address", type=list_filters.parse_udp)
@@ -282,7 +287,8 @@ def output_parser(
         subparser.add_argument(
             "--enforce-monotonic-timestamps",
             action=argparse.BooleanOptionalAction,
-            help="Enforce non-monitonic timestamps. Defaults to True. Negate this with causion: some file formats do not support non-monotonic timestamps.")
+            help="Enforce non-monitonic timestamps. Defaults to True. Negate this with causion: some file formats do not support non-monotonic timestamps.",
+        )
         subparser.set_defaults(enforce_monotonic_timestamps=True)
         if stream_parent_class in {
             faery.FiniteEventsStream,
@@ -612,7 +618,6 @@ def split_on_keywords(arguments: list[str]) -> typing.Iterator[list[str]]:
 
 
 class Command(command.Command):
-    @typing.override
     def usage(self) -> tuple[list[str], str]:
         return (
             [
@@ -624,11 +629,9 @@ class Command(command.Command):
             "process data",
         )
 
-    @typing.override
     def first_block_keywords(self) -> set[str]:
         return KEYWORDS
 
-    @typing.override
     def run(self, arguments: list[str]):
         stream_wrapper = StreamWrapper()
         subcommands_arguments = list(split_on_keywords(arguments))
