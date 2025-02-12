@@ -89,7 +89,7 @@ def input_parser() -> argparse.ArgumentParser:
     subparser.add_argument(
         "--t0",
         type=list_filters.parse_time,
-        default=0,
+        default="00:00:00.000000",
         help="(default: %(default)s)",
     )
     add_csv_properties(subparser)
@@ -116,7 +116,7 @@ def input_parser() -> argparse.ArgumentParser:
     subparser.add_argument(
         "--t0",
         type=list_filters.parse_time,
-        default=0,
+        default="00:00:00.000000",
         help="(default: %(default)s)",
     )
     subparser.add_argument(
