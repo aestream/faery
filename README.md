@@ -5,6 +5,8 @@
 [![PyPI - Downloads](https://img.shields.io/pypi/dm/faery?logo=pypi)](https://pypi.org/project/faery/)
 [![GitHub Tag](https://img.shields.io/github/v/tag/aestream/faery?logo=github)](https://github.com/aestream/faery/releases)
 [![Discord](https://img.shields.io/discord/1044548629622439977)](https://discord.gg/C9bzWgNmqk)
+[![Neuromorphic Computing](https://img.shields.io/badge/Collaboration_Network-Open_Neuromorphic-blue)](https://open-neuromorphic.org/neuromorphic-computing/)
+
 
 Faery converts neuromorphic event-based data between formats. It can also generate videos, spectrograms, and event rate curves.
 
