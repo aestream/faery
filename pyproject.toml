@@ -15,6 +15,16 @@ version = "0.6.2"
 [project.optional-dependencies]
 tests = ["pytest==8.3.3"]
 
+[dependency-groups]
+dev = [
+  "maturin",
+  "pytest",
+  "isort",
+  "black",
+  "pyright",
+  "jupyter-book>=2.0.0a0",
+]
+
 [project.scripts]
 faery = "faery:__main__.main"
 
