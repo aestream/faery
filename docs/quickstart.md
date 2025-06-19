@@ -3,7 +3,7 @@
 Faery is a swiss army knife for neuromorphic event-based data. It can convert data between formats, stream event camera data, generate videos, and visualize spectrograms and event rate curves.
 
 It is accessible in two forms: as a command line tool and as a Python library. This quick start guide will help you get started with both.
-We assume you already installed Faery, see the [installation instructions](#installation) if you haven't done so.
+We assume you already installed Faery, see the [installation instructions](@installation) if you haven't done so.
 
 ## Using Faery from the command line
 
@@ -58,11 +58,42 @@ For example, to render an AEDAT4 event file as a real-time MP4 video, you can do
 import faery
 faery.events_stream_from_file("input.aedat4") \
     .regularize(frequency_hz=60.0) \
-    .render(decay="exponential", 
+    .render(decay="exponential",
            tau="00:00:00.002000",
            colormap=faery.colormaps.starry_night) \
     .to_file("output.mp4")
 ```
+:::{figure} mp4_example.mp4
+An example of a generated `.mp4` file from a an event-based input stream.
+:::
+
+Or, if you want to generate a sequence of PNG images from an event file, you can do:
+
+```python
+(
+    faery.events_stream_from_file(
+        faery.dirname.parent / "tests" / "data" / "dvs.es",
+    )
+    .regularize(frequency_hz=60.0)
+    .render(
+        decay="exponential",
+        tau="00:00:00.200000",
+        colormap=faery.colormaps.managua.flipped(),
+    )
+    .to_files(
+        faery.dirname.parent
+        / "tests"
+        / "data_generated"
+        / "dvs_frames"
+        / "{index:04}.png",
+    )
+)
+```
+
+:::{figure} frame_example.png
+One of the generated frames from the example above.
+Note the exponential decay of events over time.
+:::
 
 Or, if you want to generate the event rate curve and save it as a PNG image, you can do:
 ```python
@@ -73,4 +104,3 @@ faery.events_stream_from_file("input.es") \
 ```
 
 You can find more examples in @usage-python and the [examples directory](https://github.com/aestream/faery/tree/main/examples).
-

@@ -13,7 +13,7 @@ Note that we recommend the use of [a virtual environment](https://packaging.pyth
 ## Using `pipx` or `uv`
 
 Instead of `pip`, you can use alternatives like `pipx` or `uv`.
-The installation should be straight-forward
+The installation should be straight-forward:
 
 :::{note} Installation via `pipx`
 ```shell
@@ -39,3 +39,20 @@ pip install -e .
 ```
 
 More information about development setup is available in the page about [developing Faery](#development).
+
+## Installing event camera drivers
+To use Faery with event cameras, you need to install the [`event-camera-drivers` package](https://github.com/aestream/event-camera-drivers).
+This can be done with pip
+
+```sh
+pip install event-camera-drivers
+```
+
+or uv
+
+```sh
+uv add event-camera-drivers
+```
+
+More information is available in the [`event-camera-drivers` repository](https://github.com/aestream/event-camera-drivers).
+Please submit a ticket in the [`event-camera-drivers` issue tracker](https://github.com/aestream/event-camera-drivers/issues) if you encounter any problems related to camera drivers.
