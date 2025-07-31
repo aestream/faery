@@ -1,5 +1,7 @@
 ![faery logo](faery_logo.png)
 
+[![Neuromorphic Computing](https://img.shields.io/badge/Collaboration_Network-Open_Neuromorphic-blue)](https://open-neuromorphic.org/neuromorphic-computing/)
+
 Faery converts neuromorphic event-based data between formats. It can also generate videos, spectrograms, and event rate curves.
 
 - [Using Faery from the command line](#using-faery-from-the-command-line)
