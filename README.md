@@ -124,11 +124,11 @@ See _examples_ in this repository.
 
     Faery keeps track of completed renders, hence you do not need to delete past jobs before running the script again. For instance, if you run the default script once and find a time window of interest for which you wish to generate a slow motion video, we recommend proceeding as follows.
 
-    a. Add a slow motion video task to the script after `real_time_video`.
+    a. Add a slow motion video task to the script after `video`.
 
     ```py
     @faery.task(suffix=".mp4", icon="🎬")
-    def real_time_video(...):
+    def video(...):
         ...
 
     @faery.task(suffix=".mp4", icon="🎬")
