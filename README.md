@@ -155,7 +155,7 @@ See _examples_ in this repository.
     b. Add a new job at the end of the file, before `job_manager.run()`. You can use the same nickname as long as the time range is different.
 
     ```py
-    tasks: list[faery.Task] = [kinectograph, kinectograph_dense, real_time_video]
+    tasks: list[faery.Task] = [kinectograph, kinectograph_dense, video]
 
     # original job (stays in the script)
     job_manager.add(
