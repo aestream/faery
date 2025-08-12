@@ -108,7 +108,7 @@ if typing.TYPE_CHECKING:
         aedat,  # type: ignore
         csv,  # type: ignore
         dat,  # type: ignore
-        event_stream,  # type: ignore
+        es,  # type: ignore
         evt,  # type: ignore
         gif,  # type: ignore
         image,  # type: ignore
@@ -122,7 +122,7 @@ else:
         aedat,
         csv,
         dat,
-        event_stream,
+        es,
         evt,
         gif,
         image,
@@ -235,7 +235,7 @@ __all__ = [
     "aedat",
     "csv",
     "dat",
-    "event_stream",
+    "es",
     "evt",
     "gif",
     "image",

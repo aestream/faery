@@ -141,7 +141,7 @@ class Command(command.Command):
                 if not info["stream_compatible"]:
                     info["metadata"]["dimensions"] = decoder.dimensions  # type: ignore
         elif file_type == "es":
-            with faery.event_stream.Decoder(
+            with faery.es.Decoder(
                 path=args.path,
                 t0=args.t0,
             ) as decoder:

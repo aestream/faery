@@ -1,6 +1,6 @@
 use std::io::Read;
 
-use crate::event_stream::common;
+use crate::es::common;
 use crate::utilities;
 
 enum GenericState {
@@ -47,8 +47,8 @@ enum State {
     },
     Dvs {
         inner: DvsState,
-        event: neuromorphic_types::DvsEvent<u64, u16, u16>,
-        buffer: Vec<neuromorphic_types::DvsEvent<u64, u16, u16>>,
+        event: neuromorphic_types::PolarityEvent<u64, u16, u16>,
+        buffer: Vec<neuromorphic_types::PolarityEvent<u64, u16, u16>>,
         dimensions: (u16, u16),
     },
     Atis {
@@ -146,7 +146,7 @@ impl Decoder {
                 },
                 common::Type::Dvs => State::Dvs {
                     inner: DvsState::Idle,
-                    event: neuromorphic_types::DvsEvent::<u64, u16, u16> {
+                    event: neuromorphic_types::PolarityEvent::<u64, u16, u16> {
                         t: t0,
                         x: 0,
                         y: 0,
@@ -199,7 +199,7 @@ impl Decoder {
 
 pub enum Packet<'a> {
     Generic(&'a Vec<common::OwnedGenericEvent>),
-    Dvs(&'a Vec<neuromorphic_types::DvsEvent<u64, u16, u16>>),
+    Dvs(&'a Vec<neuromorphic_types::PolarityEvent<u64, u16, u16>>),
     Atis(&'a Vec<neuromorphic_types::AtisEvent<u64, u16, u16>>),
     Color(&'a Vec<common::ColorEvent>),
 }

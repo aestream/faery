@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use crate::event_stream::common;
+use crate::es::common;
 use crate::utilities;
 
 pub enum EncoderType {
@@ -199,7 +199,7 @@ impl DvsEncoder {
 
     pub fn write(
         &mut self,
-        event: neuromorphic_types::DvsEvent<u64, u16, u16>,
+        event: neuromorphic_types::PolarityEvent<u64, u16, u16>,
     ) -> Result<(), utilities::WriteError> {
         let t0 = match self.t0 {
             Some(t0) => t0,

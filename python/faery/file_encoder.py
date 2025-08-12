@@ -9,9 +9,9 @@ import numpy.typing
 from . import enums, events_stream_state, frame_stream, frame_stream_state, timestamp
 
 if typing.TYPE_CHECKING:
-    from .types import aedat, csv, dat, event_stream, evt, gif, mp4  # type: ignore
+    from .types import aedat, csv, dat, es, evt, gif, mp4  # type: ignore
 else:
-    from .extension import aedat, csv, dat, event_stream, evt, gif, mp4
+    from .extension import aedat, csv, dat, es, evt, gif, mp4
 
 
 def with_write_suffix(path: pathlib.Path) -> pathlib.Path:
@@ -215,7 +215,7 @@ def events_to_file(
         assert (
             enforce_monotonic_timestamps
         ), "ES files do not support non-monotonic timestamps"
-        with event_stream.Encoder(
+        with es.Encoder(
             path=path if write_path is None else write_path,
             event_type="dvs",
             zero_t0=zero_t0,

@@ -28,7 +28,7 @@ pub struct Decoder {
     pub dimensions: (u16, u16),
     file: std::fs::File,
     raw_buffer: Vec<u8>,
-    event_buffer: Vec<neuromorphic_types::DvsEvent<u64, u16, u16>>,
+    event_buffer: Vec<neuromorphic_types::PolarityEvent<u64, u16, u16>>,
     trigger_buffer: Vec<neuromorphic_types::TriggerEvent<u64, u8>>,
     state: State,
     polarity: neuromorphic_types::Polarity,
@@ -127,7 +127,7 @@ impl Decoder {
         &mut self,
     ) -> Result<
         Option<(
-            &Vec<neuromorphic_types::DvsEvent<u64, u16, u16>>,
+            &Vec<neuromorphic_types::PolarityEvent<u64, u16, u16>>,
             &Vec<neuromorphic_types::TriggerEvent<u64, u8>>,
         )>,
         utilities::ReadError,
@@ -171,7 +171,7 @@ impl Decoder {
                                     height: self.dimensions.1,
                                 });
                             }
-                            self.event_buffer.push(neuromorphic_types::DvsEvent {
+                            self.event_buffer.push(neuromorphic_types::PolarityEvent {
                                 t: *t + t0,
                                 x,
                                 y,
@@ -255,7 +255,7 @@ impl Decoder {
                             } else {
                                 neuromorphic_types::Polarity::Off
                             };
-                            self.event_buffer.push(neuromorphic_types::DvsEvent {
+                            self.event_buffer.push(neuromorphic_types::PolarityEvent {
                                 t: *t + t0,
                                 x: *x,
                                 y: *y,
@@ -282,7 +282,7 @@ impl Decoder {
                             let set = word & ((1 << std::cmp::min(12, self.dimensions.0 - *x)) - 1);
                             for bit in 0..12 {
                                 if (set & (1 << bit)) > 0 {
-                                    self.event_buffer.push(neuromorphic_types::DvsEvent {
+                                    self.event_buffer.push(neuromorphic_types::PolarityEvent {
                                         t: *t + t0,
                                         x: *x + bit,
                                         y: *y,
@@ -296,7 +296,7 @@ impl Decoder {
                             let set = word & ((1 << std::cmp::min(8, self.dimensions.0 - *x)) - 1);
                             for bit in 0..8 {
                                 if (set & (1 << bit)) > 0 {
-                                    self.event_buffer.push(neuromorphic_types::DvsEvent {
+                                    self.event_buffer.push(neuromorphic_types::PolarityEvent {
                                         t: *t + t0,
                                         x: *x + bit,
                                         y: *y,

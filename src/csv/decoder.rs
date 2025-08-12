@@ -98,7 +98,7 @@ pub struct Decoder {
     raw_buffer: Vec<u8>,
     raw_buffer_length: usize,
     eof: bool,
-    buffer: Vec<neuromorphic_types::DvsEvent<u64, u16, u16>>,
+    buffer: Vec<neuromorphic_types::PolarityEvent<u64, u16, u16>>,
     header_read: bool,
     t: u64,
     skip_errors: bool,
@@ -280,7 +280,7 @@ impl Decoder {
         properties: &Properties,
         t: u64,
         line: &[u8],
-        buffer: &mut Vec<neuromorphic_types::DvsEvent<u64, u16, u16>>,
+        buffer: &mut Vec<neuromorphic_types::PolarityEvent<u64, u16, u16>>,
     ) -> Result<u64, ReadError> {
         let mut word_index = 0;
         let mut word_start = 0;
@@ -334,7 +334,7 @@ impl Decoder {
                                     height: properties.dimensions.1,
                                 });
                             }
-                            buffer.push(neuromorphic_types::DvsEvent {
+                            buffer.push(neuromorphic_types::PolarityEvent {
                                 t: event_t,
                                 x: event_x,
                                 y: event_y,
@@ -370,7 +370,7 @@ impl Decoder {
 
     pub fn next(
         &mut self,
-    ) -> Result<Option<&'_ Vec<neuromorphic_types::DvsEvent<u64, u16, u16>>>, ReadError> {
+    ) -> Result<Option<&'_ Vec<neuromorphic_types::PolarityEvent<u64, u16, u16>>>, ReadError> {
         if self.eof {
             return Ok(None);
         }

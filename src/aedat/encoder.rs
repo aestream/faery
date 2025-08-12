@@ -338,8 +338,8 @@ impl Encoder {
         builder: &mut flatbuffers::FlatBufferBuilder,
     ) -> Result<(), PacketError>
     where
-        EventIterator: ExactSizeIterator<Item = neuromorphic_types::DvsEvent<u64, u16, u16>>
-            + DoubleEndedIterator<Item = neuromorphic_types::DvsEvent<u64, u16, u16>>,
+        EventIterator: ExactSizeIterator<Item = neuromorphic_types::PolarityEvent<u64, u16, u16>>
+            + DoubleEndedIterator<Item = neuromorphic_types::PolarityEvent<u64, u16, u16>>,
     {
         let count = events.len();
         if count > MAXIMUM_EVENTS_PER_BUFFER {
@@ -390,8 +390,8 @@ impl Encoder {
         events: EventIterator,
     ) -> Result<(), PacketError>
     where
-        EventIterator: ExactSizeIterator<Item = neuromorphic_types::DvsEvent<u64, u16, u16>>
-            + DoubleEndedIterator<Item = neuromorphic_types::DvsEvent<u64, u16, u16>>,
+        EventIterator: ExactSizeIterator<Item = neuromorphic_types::PolarityEvent<u64, u16, u16>>
+            + DoubleEndedIterator<Item = neuromorphic_types::PolarityEvent<u64, u16, u16>>,
     {
         let mut builder = flatbuffers::FlatBufferBuilder::from_vec(
             self.builder_buffer

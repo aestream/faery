@@ -19,7 +19,6 @@ def frame_stream_from_list(
 
 def frame_stream_from_function(
     start_t: timestamp.TimeOrTimecode,
-    end_t: timestamp.TimeOrTimecode,
     frequency_hz: float,
     dimensions: tuple[int, int],
     frame_count: int,

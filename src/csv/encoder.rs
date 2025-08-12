@@ -75,7 +75,7 @@ impl Encoder {
 
     pub fn write(
         &mut self,
-        event: neuromorphic_types::DvsEvent<u64, u16, u16>,
+        event: neuromorphic_types::PolarityEvent<u64, u16, u16>,
     ) -> Result<(), utilities::WriteError> {
         if self.enforce_monotonic && event.t < self.previous_t {
             return Err(utilities::WriteError::NonMonotonic {

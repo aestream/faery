@@ -166,7 +166,7 @@ impl Encoder {
 
     pub fn write_dvs_event(
         &mut self,
-        event: neuromorphic_types::DvsEvent<u64, u16, u16>,
+        event: neuromorphic_types::PolarityEvent<u64, u16, u16>,
     ) -> Result<(), utilities::WriteError> {
         match self {
             Encoder::Evt2Encoder(encoder) => encoder.write_dvs_event(event),
@@ -234,7 +234,7 @@ impl Evt2Encoder {
 
     pub fn write_dvs_event(
         &mut self,
-        event: neuromorphic_types::DvsEvent<u64, u16, u16>,
+        event: neuromorphic_types::PolarityEvent<u64, u16, u16>,
     ) -> Result<(), utilities::WriteError> {
         let t0 = match self.t0 {
             Some(t0) => t0,
@@ -365,7 +365,7 @@ impl Evt3Encoder {
 
     pub fn write_dvs_event(
         &mut self,
-        event: neuromorphic_types::DvsEvent<u64, u16, u16>,
+        event: neuromorphic_types::PolarityEvent<u64, u16, u16>,
     ) -> Result<(), utilities::WriteError> {
         let t0 = match self.t0 {
             Some(t0) => t0,

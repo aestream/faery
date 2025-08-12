@@ -18,7 +18,7 @@ events = numpy.fromfile(
 
 events["t"] -= events["t"][0]
 
-with faery.event_stream.Encoder(
+with faery.es.Encoder(
     path=output, event_type="dvs", zero_t0=False, dimensions=(1280, 720)
 ) as encoder:
     encoder.write(events)

@@ -170,7 +170,7 @@ impl EventSpectrogram {
                         | Function::Window { ts, .. } => {
                             for index in 0..length {
                                 let (t, x, y) = unsafe {
-                                    let event_cell: *mut neuromorphic_types::DvsEvent<
+                                    let event_cell: *mut neuromorphic_types::PolarityEvent<
                                         u64,
                                         u16,
                                         u16,
@@ -212,7 +212,7 @@ impl EventSpectrogram {
                         } => {
                             for index in 0..length {
                                 let (t, x, y, polarity) = unsafe {
-                                    let event_cell: *mut neuromorphic_types::DvsEvent<
+                                    let event_cell: *mut neuromorphic_types::PolarityEvent<
                                         u64,
                                         u16,
                                         u16,
