@@ -65,6 +65,10 @@ from .events_stream_state import (
     FiniteRegularEventsStreamState as FiniteRegularEventsStreamState,
     RegularEventsStreamState as RegularEventsStreamState,
 )
+from .frame_input import (
+    frame_stream_from_list as frame_stream_from_list,
+    frame_stream_from_function as frame_stream_from_function,
+)
 from .frame_stream import (
     FiniteRegularFrameFilter as FiniteRegularFrameFilter,
     FiniteRegularFrameStream as FiniteRegularFrameStream,
@@ -201,6 +205,8 @@ __all__ = [
     "FiniteEventsStreamState",
     "FiniteRegularEventsStreamState",
     "RegularEventsStreamState",
+    "frame_stream_from_list",
+    "frame_stream_from_function",
     "FiniteRegularFrameFilter",
     "FiniteRegularFrameStream",
     "FiniteFrameStream",
