@@ -67,7 +67,7 @@ impl EventSpectrogram {
                                 ),
                                 colormaps: (off_colormap, on_colormap),
                                 default,
-                                ts_and_polarities: vec![(u64::MAX, neuromorphic_types::DvsPolarity::Off); dimensions.0 as usize * dimensions.1 as usize],
+                                ts_and_polarities: vec![(u64::MAX, neuromorphic_types::Polarity::Off); dimensions.0 as usize * dimensions.1 as usize],
                             }
                         },
                         colormap_type => return Err(pyo3::exceptions::PyAttributeError::new_err(format!(
@@ -98,7 +98,7 @@ impl EventSpectrogram {
                             ), alphas: (
                                 off_colormap.len() - 1,
                                 on_colormap.len() - 1,
-                            ), reversed_colormaps: (off_colormap, on_colormap), default, ts_and_polarities: vec![(u64::MAX, neuromorphic_types::DvsPolarity::Off); dimensions.0 as usize * dimensions.1 as usize] }
+                            ), reversed_colormaps: (off_colormap, on_colormap), default, ts_and_polarities: vec![(u64::MAX, neuromorphic_types::Polarity::Off); dimensions.0 as usize * dimensions.1 as usize] }
                         },
                         colormap_type => return Err(pyo3::exceptions::PyAttributeError::new_err(format!(
                             "unknown colormap type \"{colormap_type}\" (expected \"sequential\", \"diverging\", or \"cyclic\")"
@@ -118,7 +118,7 @@ impl EventSpectrogram {
                             Function::WindowDiverging {
                                 tau,
                                 colors: (*off_colormap.first().expect("the colormap is not empty"), *off_colormap.last().expect("the colormap is not empty"), *on_colormap.last().expect("the colormap is not empty")),
-                                ts_and_polarities: vec![(u64::MAX, neuromorphic_types::DvsPolarity::Off); dimensions.0 as usize * dimensions.1 as usize],
+                                ts_and_polarities: vec![(u64::MAX, neuromorphic_types::Polarity::Off); dimensions.0 as usize * dimensions.1 as usize],
                             }
                         },
                         colormap_type => return Err(pyo3::exceptions::PyAttributeError::new_err(format!(
@@ -321,7 +321,7 @@ impl EventSpectrogram {
                             {
                                 if *t == u64::MAX {
                                     *color = *default;
-                                } else if matches!(polarity, neuromorphic_types::DvsPolarity::Off) {
+                                } else if matches!(polarity, neuromorphic_types::Polarity::Off) {
                                     *color = colormaps.0[(alphas.0
                                         * ((render_t - t) as f32 * upsilon).exp())
                                     .round()
@@ -362,7 +362,7 @@ impl EventSpectrogram {
                             {
                                 if *t == u64::MAX {
                                     *color = *default;
-                                } else if matches!(polarity, neuromorphic_types::DvsPolarity::Off) {
+                                } else if matches!(polarity, neuromorphic_types::Polarity::Off) {
                                     *color = reversed_colormaps.0[(((render_t - t) as f32
                                         * upsilons.0)
                                         as usize)
@@ -395,7 +395,7 @@ impl EventSpectrogram {
                             {
                                 if *t == u64::MAX || render_t - t > *tau {
                                     *color = colors.0;
-                                } else if matches!(polarity, neuromorphic_types::DvsPolarity::Off) {
+                                } else if matches!(polarity, neuromorphic_types::Polarity::Off) {
                                     *color = colors.1;
                                 } else {
                                     *color = colors.2;

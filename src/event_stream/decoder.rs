@@ -150,7 +150,7 @@ impl Decoder {
                         t: t0,
                         x: 0,
                         y: 0,
-                        polarity: neuromorphic_types::DvsPolarity::Off,
+                        polarity: neuromorphic_types::Polarity::Off,
                     },
                     buffer: Vec::new(),
                     dimensions: dimensions.expect("a dvs stream has dimensions"),
@@ -288,9 +288,9 @@ impl Decoder {
                             } else if *byte != 0b11111110 {
                                 event.t += (byte >> 1) as u64;
                                 event.polarity = if (byte & 1) == 1 {
-                                    neuromorphic_types::DvsPolarity::On
+                                    neuromorphic_types::Polarity::On
                                 } else {
-                                    neuromorphic_types::DvsPolarity::Off
+                                    neuromorphic_types::Polarity::Off
                                 };
                                 DvsState::Byte0
                             } else {

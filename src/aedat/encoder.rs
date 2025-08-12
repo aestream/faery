@@ -365,7 +365,7 @@ impl Encoder {
                 event.t as i64,
                 event.x as i16,
                 event.y as i16,
-                matches!(event.polarity, neuromorphic_types::DvsPolarity::On),
+                matches!(event.polarity, neuromorphic_types::Polarity::On),
             )
         }));
         let packet = common::events_generated::EventPacket::create(

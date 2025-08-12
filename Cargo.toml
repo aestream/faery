@@ -1,11 +1,11 @@
 [package]
-edition = "2021"
 name = "python"
+edition = "2021"
 resolver = "2"
 
 [lib]
-crate-type = ["cdylib"]
 name = "faery"
+crate-type = ["cdylib"]
 
 [dependencies]
 flatbuffers = "25.1.24"
@@ -15,7 +15,7 @@ image = {version = "0.25.1", default-features = false, features = ["png"]}
 lz4 = "1.28.0"
 mp4 = "0.14.0"
 mustache = "0.9.0"
-neuromorphic-types = "0.4.0"
+neuromorphic-types = "0.6.0"
 numpy = {version = "0.23.0"}
 pyo3 = {version = "0.23.4", features = ["extension-module"]}
 resvg = "0.44.0"

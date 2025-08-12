@@ -31,7 +31,7 @@ pub struct Decoder {
     event_buffer: Vec<neuromorphic_types::DvsEvent<u64, u16, u16>>,
     trigger_buffer: Vec<neuromorphic_types::TriggerEvent<u64, u8>>,
     state: State,
-    polarity: neuromorphic_types::DvsPolarity,
+    polarity: neuromorphic_types::Polarity,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -110,7 +110,7 @@ impl Decoder {
                     t0: header.t0,
                 },
             },
-            polarity: neuromorphic_types::DvsPolarity::Off,
+            polarity: neuromorphic_types::Polarity::Off,
         })
     }
 
@@ -176,9 +176,9 @@ impl Decoder {
                                 x,
                                 y,
                                 polarity: if (word >> 28) & 0b1 > 0 {
-                                    neuromorphic_types::DvsPolarity::On
+                                    neuromorphic_types::Polarity::On
                                 } else {
-                                    neuromorphic_types::DvsPolarity::Off
+                                    neuromorphic_types::Polarity::Off
                                 },
                             });
                         }
@@ -251,9 +251,9 @@ impl Decoder {
                                 });
                             }
                             self.polarity = if (word & (1 << 11)) > 0 {
-                                neuromorphic_types::DvsPolarity::On
+                                neuromorphic_types::Polarity::On
                             } else {
-                                neuromorphic_types::DvsPolarity::Off
+                                neuromorphic_types::Polarity::Off
                             };
                             self.event_buffer.push(neuromorphic_types::DvsEvent {
                                 t: *t + t0,
@@ -273,9 +273,9 @@ impl Decoder {
                                 });
                             }
                             self.polarity = if (word & (1 << 11)) > 0 {
-                                neuromorphic_types::DvsPolarity::On
+                                neuromorphic_types::Polarity::On
                             } else {
-                                neuromorphic_types::DvsPolarity::Off
+                                neuromorphic_types::Polarity::Off
                             };
                         }
                         0b0100 => {

@@ -286,6 +286,11 @@ class Kinectograph:
             time_range=time_range,
             normalized_times_and_opacities=normalized_times_and_opacities,
             legend=normalized_times_gamma(
-                numpy.linspace(0.0, 1.0, LEGEND_MAXIMUM_RESOLUTION)
+                numpy.linspace(
+                    0.0,
+                    1.0,
+                    LEGEND_MAXIMUM_RESOLUTION,
+                    dtype=numpy.float64,
+                )
             ),
         )

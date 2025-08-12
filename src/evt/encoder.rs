@@ -153,7 +153,7 @@ impl Encoder {
                         previous_x_and_polarity: None,
                         x: 0,
                         y: 0,
-                        polarity: neuromorphic_types::DvsPolarity::Off,
+                        polarity: neuromorphic_types::Polarity::Off,
                         bits: 0,
                         index: 0,
                     },
@@ -267,8 +267,8 @@ impl Evt2Encoder {
         self.update_t(t)?;
         self.file.write_all(
             &((match event.polarity {
-                neuromorphic_types::DvsPolarity::Off => 0b0000_u32,
-                neuromorphic_types::DvsPolarity::On => 0b0001_u32,
+                neuromorphic_types::Polarity::Off => 0b0000_u32,
+                neuromorphic_types::Polarity::On => 0b0001_u32,
             } << 28)
                 | ((((t - self.t_high) & 0b111111) as u32) << 22)
                 | ((event.x as u32) << 11)
@@ -311,8 +311,9 @@ impl Evt2Encoder {
                 | ((((t - self.t_high) & 0b111111) as u32) << 22)
                 | ((event.id as u32) << 8)
                 | match event.polarity {
-                    neuromorphic_types::TriggerPolarity::Falling => 0b0,
-                    neuromorphic_types::TriggerPolarity::Rising => 0b1,
+                    neuromorphic_types::TriggerPolarity::Falling => 0b00,
+                    neuromorphic_types::TriggerPolarity::Rising => 0b01,
+                    neuromorphic_types::TriggerPolarity::Pulse => 0b10,
                 })
             .to_le_bytes(),
         )?;
@@ -435,8 +436,9 @@ impl Evt3Encoder {
             &(((0b1010 << 12)
                 | (((event.id & 0b1111) as u16) << 8)
                 | match event.polarity {
-                    neuromorphic_types::TriggerPolarity::Falling => 0,
-                    neuromorphic_types::TriggerPolarity::Rising => 1,
+                    neuromorphic_types::TriggerPolarity::Falling => 0b00,
+                    neuromorphic_types::TriggerPolarity::Rising => 0b01,
+                    neuromorphic_types::TriggerPolarity::Pulse => 0b10,
                 }) as u16)
                 .to_le_bytes(),
         )?;
@@ -455,10 +457,10 @@ impl Drop for Evt3Encoder {
 
 struct Vector {
     previous_y: Option<u16>,
-    previous_x_and_polarity: Option<(u16, neuromorphic_types::DvsPolarity)>,
+    previous_x_and_polarity: Option<(u16, neuromorphic_types::Polarity)>,
     x: u16,
     y: u16,
-    polarity: neuromorphic_types::DvsPolarity,
+    polarity: neuromorphic_types::Polarity,
     bits: u16,
     index: u8,
 }
@@ -477,8 +479,8 @@ impl Vector {
             output.write_all(
                 &((0b0010 << 12)
                     | match self.polarity {
-                        neuromorphic_types::DvsPolarity::Off => 0b0000_00000000,
-                        neuromorphic_types::DvsPolarity::On => 0b1000_00000000,
+                        neuromorphic_types::Polarity::Off => 0b0000_00000000,
+                        neuromorphic_types::Polarity::On => 0b1000_00000000,
                     }
                     | self.x)
                     .to_le_bytes(),
@@ -495,8 +497,8 @@ impl Vector {
                 output.write_all(
                     &((0b0011 << 12)
                         | match self.polarity {
-                            neuromorphic_types::DvsPolarity::Off => 0b0000_00000000,
-                            neuromorphic_types::DvsPolarity::On => 0b1000_00000000,
+                            neuromorphic_types::Polarity::Off => 0b0000_00000000,
+                            neuromorphic_types::Polarity::On => 0b1000_00000000,
                         }
                         | self.x)
                         .to_le_bytes(),
@@ -519,7 +521,7 @@ impl Vector {
         &mut self,
         x: u16,
         y: u16,
-        polarity: neuromorphic_types::DvsPolarity,
+        polarity: neuromorphic_types::Polarity,
         mut output: W,
     ) -> Result<(), std::io::Error> {
         if self.index == 0 {

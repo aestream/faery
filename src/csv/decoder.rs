@@ -202,7 +202,7 @@ impl Decoder {
         t: &mut Option<u64>,
         x: &mut Option<u16>,
         y: &mut Option<u16>,
-        polarity: &mut Option<neuromorphic_types::DvsPolarity>,
+        polarity: &mut Option<neuromorphic_types::Polarity>,
     ) -> Result<(), ReadError> {
         if word_index == properties.t_index {
             let word = std::str::from_utf8(word)?;
@@ -259,9 +259,9 @@ impl Decoder {
             });
         } else if word_index == properties.on_index {
             if word == properties.on_value {
-                let _ = polarity.replace(neuromorphic_types::DvsPolarity::On);
+                let _ = polarity.replace(neuromorphic_types::Polarity::On);
             } else if word == properties.off_value {
-                let _ = polarity.replace(neuromorphic_types::DvsPolarity::Off);
+                let _ = polarity.replace(neuromorphic_types::Polarity::Off);
             } else {
                 return Err(ReadError::UnknownOn {
                     value: std::str::from_utf8(word)?.to_owned(),
@@ -287,7 +287,7 @@ impl Decoder {
         let mut event_t: Option<u64> = None;
         let mut event_x: Option<u16> = None;
         let mut event_y: Option<u16> = None;
-        let mut event_polarity: Option<neuromorphic_types::DvsPolarity> = None;
+        let mut event_polarity: Option<neuromorphic_types::Polarity> = None;
         for (character_index, character) in line.iter().enumerate() {
             if *character == properties.separator {
                 Self::parse_word(

@@ -140,6 +140,7 @@ impl Decoder {
                         trigger_array[9] = match trigger.polarity {
                             neuromorphic_types::TriggerPolarity::Falling => 0,
                             neuromorphic_types::TriggerPolarity::Rising => 1,
+                            neuromorphic_types::TriggerPolarity::Pulse => 2,
                         };
                         std::ptr::copy(trigger_array.as_ptr(), trigger_cell, trigger_array.len());
                     }
@@ -172,7 +173,7 @@ impl Encoder {
                 common::Version::from_string(version)?,
                 zero_t0,
                 dimensions,
-                enforce_monotonic
+                enforce_monotonic,
             )?),
         })
     }
