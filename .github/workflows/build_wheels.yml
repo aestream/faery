@@ -8,7 +8,7 @@ on:
       - published
 
 env:
-  CIBW_SKIP: cp38-* pp* *i686 *win32
+  CIBW_SKIP: cp38-* cp314-* cp31?t-* pp* *i686 *win32
 
   # cibuildhweel macOS configuration
   CIBW_ARCHS_MACOS: native
@@ -37,6 +37,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-python@v5
+        with:
+          python-version: 3.13
       - run: python -m pip install cibuildwheel==3.1.1
       - run: echo "MACOSX_DEPLOYMENT_TARGET=$(sw_vers -productVersion | cut -d '.' -f 1-2)" >> $GITHUB_ENV
         if: startsWith(matrix.os, 'macos')
@@ -48,10 +51,14 @@ jobs:
         if: startsWith(matrix.os, 'macos-latest')
       - run: python -m cibuildwheel
         if: startsWith(matrix.os, 'ubuntu-latest')
+      - run: python -m cibuildwheel
+        if: startsWith(matrix.os, 'ubuntu-24.04-arm')
       - run: |
           choco install nasm
           set "PATH=C:\Program Files\NASM;%PATH%"
           call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+          set "FAERY_BUILD_BASH=C:\Program Files\Git\bin\bash.exe"
+          set "FAERY_BUILD_MAKE=C:\mingw64\bin\make.exe"
           python -m cibuildwheel
         shell: cmd
         if: startsWith(matrix.os, 'windows')
