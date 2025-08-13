@@ -160,6 +160,13 @@ class FrameStream(
         scale_filter: enums.ImageResizeSamplingFilter = "nearest",
     ) -> "FrameStream": ...
 
+    def map(
+        self,
+        function: collections.abc.Callable[
+            [numpy.typing.NDArray[numpy.uint8]], numpy.typing.NDArray[numpy.uint8]
+        ],
+    ) -> "FrameStream": ...
+
 
 class FiniteFrameStream(
     stream.FiniteStream[Frame],
@@ -195,6 +202,13 @@ class FiniteFrameStream(
         y: int = 0,
         scale_factor: float = 1.0,
         scale_filter: enums.ImageResizeSamplingFilter = "nearest",
+    ) -> "FiniteFrameStream": ...
+
+    def map(
+        self,
+        function: collections.abc.Callable[
+            [numpy.typing.NDArray[numpy.uint8]], numpy.typing.NDArray[numpy.uint8]
+        ],
     ) -> "FiniteFrameStream": ...
 
 
@@ -235,6 +249,13 @@ class RegularFrameStream(
         scale_filter: enums.ImageResizeSamplingFilter = "nearest",
     ) -> "RegularFrameStream": ...
 
+    def map(
+        self,
+        function: collections.abc.Callable[
+            [numpy.typing.NDArray[numpy.uint8]], numpy.typing.NDArray[numpy.uint8]
+        ],
+    ) -> "RegularFrameStream": ...
+
 
 class FiniteRegularFrameStream(
     stream.FiniteRegularStream[Frame],
@@ -271,6 +292,13 @@ class FiniteRegularFrameStream(
         y: int = 0,
         scale_factor: float = 1.0,
         scale_filter: enums.ImageResizeSamplingFilter = "nearest",
+    ) -> "FiniteRegularFrameStream": ...
+
+    def map(
+        self,
+        function: collections.abc.Callable[
+            [numpy.typing.NDArray[numpy.uint8]], numpy.typing.NDArray[numpy.uint8]
+        ],
     ) -> "FiniteRegularFrameStream": ...
 
 
