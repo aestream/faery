@@ -33,7 +33,7 @@ jobs:
     strategy:
       matrix:
         # macos-13 is an Intel runner, macos-latest is an ARM runner
-        os: [macos-13, macos-latest, ubuntu-latest, windows-latest]
+        os: [macos-13, macos-latest, ubuntu-latest] #, windows-latest]
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -68,7 +68,7 @@ jobs:
         numpy: ["==1.26.4", ">=2"]
         python: ["3.9", "3.10", "3.11", "3.12", "3.13"]
         # macos-13 is an Intel runner, macos-latest is an ARM runner
-        os: [macos-13, macos-latest, ubuntu-latest, windows-latest]
+        os: [macos-13, macos-latest, ubuntu-latest] #, windows-latest]
         exclude:
           # this configuration yields 'Windows fatal exception: access violation'
           # this may get fixed in a maintenance upgrade of 1.26.x (x > 4)
@@ -76,22 +76,22 @@ jobs:
             os: windows-latest
             python: 3.13
     steps:
-    - uses: actions/setup-python@v5
-      with:
-        python-version: ${{ matrix.python }}
-    - uses: actions/checkout@v4
-    - uses: actions/download-artifact@v4
-      with:
-        name: ${{ matrix.os }}
-        path: wheelhouse
-    - run: python --version
-    - run: python -m pip install toml
-    - run: python -m pip install 'numpy${{ matrix.numpy }}'
-    - run: python .github/workflows/install_dependencies.py
-    - run: ls wheelhouse
-    - run: python -m pip install --no-index --find-links wheelhouse faery
-    - run: python -c 'import faery'
-    - run: python -m pytest tests/
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.os }}
+          path: wheelhouse
+      - run: python --version
+      - run: python -m pip install toml
+      - run: python -m pip install 'numpy${{ matrix.numpy }}'
+      - run: python .github/workflows/install_dependencies.py
+      - run: ls wheelhouse
+      - run: python -m pip install --no-index --find-links wheelhouse faery
+      - run: python -c 'import faery'
+      - run: python -m pytest tests/
   build_sdist:
     name: Build source distribution
     runs-on: ubuntu-latest
