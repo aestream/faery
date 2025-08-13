@@ -25,13 +25,15 @@
               pkgs.libgcc
               pkgs.libz
               pkgs.nasm
+              pkgs.nodejs
             ];
             venvDir = "./.venv";
             propagatedBuildInputs = [
               pkgs.stdenv.cc.cc.lib
             ];
             postVenvCreation = ''
-              pip install -U pip maturin pytest isort black pyright
+              pip install -U pip
+              pip install --group dev .
             '';
             postShellHook = ''
               rustup default stable

@@ -1,0 +1,32 @@
+# See docs at: https://mystmd.org/guide/frontmatter
+version: 1
+project:
+  id: 77c1c18d-b695-4b5e-b14c-f19249a73342
+  title: Faery docs
+  description: Converts between event-based data formats and devices
+  keywords:
+    [event-based, data formats, neuromorphic, machine learning, data processing]
+  authors: [Alexandre Marcireau, Jens Egholm Pedersen]
+  github: https://github.com/aestream/faery
+  toc:
+    - file: ../README.md
+      numbering: false
+      title: Faery
+    - file: install.md
+    - file: quickstart.md
+    - file: cli.md
+    - file: python.md
+    - file: batch.md
+    - file: stream_types.md
+    - file: dev.md
+  numbering:
+    title:
+      enabled: true
+      continue: true
+    headings: true
+site:
+  template: book-theme
+  options:
+    #   favicon: favicon.ico
+    logo: ../faery_logo.png
+    logo_text: Faery - Where event streams get their fairytale ending
