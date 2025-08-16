@@ -10,7 +10,7 @@ authors = [
 ]
 requires-python = ">=3.9"
 dependencies = ["numpy>=1.26"]
-version = "0.6.2"
+version = "0.7.0"
 
 [project.optional-dependencies]
 tests = ["pytest==8.3.3"]
@@ -34,7 +34,7 @@ repository = "https://github.com/aestream/faery/"
 documentation = "https://github.com/aestream/faery/"
 
 [build-system]
-requires = ["maturin==1.7.4"]
+requires = ["maturin==1.9.3"]
 build-backend = "maturin"
 
 [tool.maturin]

@@ -325,7 +325,7 @@ class Colormap:
 
     def flipped(self) -> "Colormap":
         return Colormap(
-            name=self.name,
+            name=f"{self.name}_flipped",
             type=self.type,
             rgba=numpy.flip(self.rgba, axis=0).copy(),
         )

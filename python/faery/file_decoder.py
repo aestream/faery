@@ -9,9 +9,9 @@ import numpy.lib.recfunctions
 from . import enums, events_stream, timestamp
 
 if typing.TYPE_CHECKING:
-    from .types import aedat, csv, dat, event_stream, evt  # type: ignore
+    from .types import aedat, csv, dat, es, evt  # type: ignore
 else:
-    from .extension import aedat, csv, dat, event_stream, evt
+    from .extension import aedat, csv, dat, es, evt
 
 
 @dataclasses.dataclass
@@ -186,7 +186,7 @@ class Decoder(events_stream.FiniteEventsStream):
                 self.inner_dimensions = decoder.dimensions
         elif self.file_type == "es":
             assert self.path is not None
-            with event_stream.Decoder(
+            with es.Decoder(
                 path=self.path,
                 t0=self.t0.to_microseconds(),
             ) as decoder:
@@ -296,7 +296,7 @@ class Decoder(events_stream.FiniteEventsStream):
                     )
         elif self.file_type == "es":
             assert self.path is not None
-            with event_stream.Decoder(
+            with es.Decoder(
                 path=self.path, t0=self.t0.to_microseconds()
             ) as decoder:
                 if self.event_type == "atis":

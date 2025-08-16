@@ -118,10 +118,10 @@ impl Decoder {
                         let event_cell = types::array_at(python, array, index);
                         std::ptr::copy(
                             &packet.0[index as usize]
-                                as *const neuromorphic_types::DvsEvent<u64, u16, u16>
+                                as *const neuromorphic_types::PolarityEvent<u64, u16, u16>
                                 as *const u8,
                             event_cell,
-                            std::mem::size_of::<neuromorphic_types::DvsEvent<u64, u16, u16>>(),
+                            std::mem::size_of::<neuromorphic_types::PolarityEvent<u64, u16, u16>>(),
                         );
                     }
                     PyObject::from_owned_ptr(python, array as *mut pyo3::ffi::PyObject)
@@ -140,6 +140,7 @@ impl Decoder {
                         trigger_array[9] = match trigger.polarity {
                             neuromorphic_types::TriggerPolarity::Falling => 0,
                             neuromorphic_types::TriggerPolarity::Rising => 1,
+                            neuromorphic_types::TriggerPolarity::Pulse => 2,
                         };
                         std::ptr::copy(trigger_array.as_ptr(), trigger_cell, trigger_array.len());
                     }
@@ -172,7 +173,7 @@ impl Encoder {
                 common::Version::from_string(version)?,
                 zero_t0,
                 dimensions,
-                enforce_monotonic
+                enforce_monotonic,
             )?),
         })
     }
@@ -244,7 +245,7 @@ impl Encoder {
                         let mut event_index = 0;
                         let mut trigger_index = 0;
                         unsafe {
-                            let mut event_cell: *mut neuromorphic_types::DvsEvent<u64, u16, u16> =
+                            let mut event_cell: *mut neuromorphic_types::PolarityEvent<u64, u16, u16> =
                                 types::array_at(python, events, event_index);
                             let mut trigger_cell: *mut neuromorphic_types::TriggerEvent<u64, u8> =
                                 types::array_at(python, triggers, trigger_index);

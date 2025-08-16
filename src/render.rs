@@ -21,7 +21,7 @@ enum Function {
         alphas: (f32, f32),
         colormaps: (Vec<u32>, Vec<u32>),
         default: u32,
-        ts_and_polarities: Vec<(u64, neuromorphic_types::DvsPolarity)>,
+        ts_and_polarities: Vec<(u64, neuromorphic_types::Polarity)>,
     },
     // colormap @ (1 - Δt / (2𝜏))
     // (implementation) reversed_colormap[min(round(Δt * υ), α)]
@@ -42,7 +42,7 @@ enum Function {
         alphas: (usize, usize),
         reversed_colormaps: (Vec<u32>, Vec<u32>),
         default: u32,
-        ts_and_polarities: Vec<(u64, neuromorphic_types::DvsPolarity)>,
+        ts_and_polarities: Vec<(u64, neuromorphic_types::Polarity)>,
     },
     // Δt ≤ 𝜏 ? colormap @ 1.0 : colormap @ 0.0
     Window {
@@ -53,7 +53,7 @@ enum Function {
     WindowDiverging {
         tau: u64,
         colors: (u32, u32, u32),
-        ts_and_polarities: Vec<(u64, neuromorphic_types::DvsPolarity)>,
+        ts_and_polarities: Vec<(u64, neuromorphic_types::Polarity)>,
     },
 
     // activity = activity * exp(-Δt / 𝜏) + 1
@@ -306,7 +306,7 @@ impl Renderer {
                                 ),
                                 colormaps: (off_colormap, on_colormap),
                                 default,
-                                ts_and_polarities: vec![(u64::MAX, neuromorphic_types::DvsPolarity::Off); dimensions.0 as usize * dimensions.1 as usize],
+                                ts_and_polarities: vec![(u64::MAX, neuromorphic_types::Polarity::Off); dimensions.0 as usize * dimensions.1 as usize],
                             }
                         },
                         colormap_type => return Err(pyo3::exceptions::PyAttributeError::new_err(format!(
@@ -337,7 +337,7 @@ impl Renderer {
                             ), alphas: (
                                 off_colormap.len() - 1,
                                 on_colormap.len() - 1,
-                            ), reversed_colormaps: (off_colormap, on_colormap), default, ts_and_polarities: vec![(u64::MAX, neuromorphic_types::DvsPolarity::Off); dimensions.0 as usize * dimensions.1 as usize] }
+                            ), reversed_colormaps: (off_colormap, on_colormap), default, ts_and_polarities: vec![(u64::MAX, neuromorphic_types::Polarity::Off); dimensions.0 as usize * dimensions.1 as usize] }
                         },
                         colormap_type => return Err(pyo3::exceptions::PyAttributeError::new_err(format!(
                             "unknown colormap type \"{colormap_type}\" (expected \"sequential\", \"diverging\", or \"cyclic\")"
@@ -357,7 +357,7 @@ impl Renderer {
                             Function::WindowDiverging {
                                 tau,
                                 colors: (*off_colormap.first().expect("the colormap is not empty"), *off_colormap.last().expect("the colormap is not empty"), *on_colormap.last().expect("the colormap is not empty")),
-                                ts_and_polarities: vec![(u64::MAX, neuromorphic_types::DvsPolarity::Off); dimensions.0 as usize * dimensions.1 as usize],
+                                ts_and_polarities: vec![(u64::MAX, neuromorphic_types::Polarity::Off); dimensions.0 as usize * dimensions.1 as usize],
                             }
                         },
                         colormap_type => return Err(pyo3::exceptions::PyAttributeError::new_err(format!(
@@ -462,7 +462,7 @@ impl Renderer {
                         | Function::Window { ts, .. } => {
                             for index in 0..length {
                                 let (t, x, y) = unsafe {
-                                    let event_cell: *mut neuromorphic_types::DvsEvent<
+                                    let event_cell: *mut neuromorphic_types::PolarityEvent<
                                         u64,
                                         u16,
                                         u16,
@@ -504,7 +504,7 @@ impl Renderer {
                         } => {
                             for index in 0..length {
                                 let (t, x, y, polarity) = unsafe {
-                                    let event_cell: *mut neuromorphic_types::DvsEvent<
+                                    let event_cell: *mut neuromorphic_types::PolarityEvent<
                                         u64,
                                         u16,
                                         u16,
@@ -549,7 +549,7 @@ impl Renderer {
                         } => {
                             for index in 0..length {
                                 let (t, x, y) = unsafe {
-                                    let event_cell: *mut neuromorphic_types::DvsEvent<
+                                    let event_cell: *mut neuromorphic_types::PolarityEvent<
                                         u64,
                                         u16,
                                         u16,
@@ -591,7 +591,7 @@ impl Renderer {
                         } => {
                             for index in 0..length {
                                 let (t, x, y, polarity) = unsafe {
-                                    let event_cell: *mut neuromorphic_types::DvsEvent<
+                                    let event_cell: *mut neuromorphic_types::PolarityEvent<
                                         u64,
                                         u16,
                                         u16,
@@ -625,7 +625,7 @@ impl Renderer {
                                     .into());
                                 }
                                 match polarity {
-                                    neuromorphic_types::DvsPolarity::Off => {
+                                    neuromorphic_types::Polarity::Off => {
                                         let (previous_t, activity) = &mut ts_and_activities.0[(y
                                             as usize
                                             * renderer.dimensions.0 as usize)
@@ -635,7 +635,7 @@ impl Renderer {
                                             + 1.0;
                                         *previous_t = t;
                                     }
-                                    neuromorphic_types::DvsPolarity::On => {
+                                    neuromorphic_types::Polarity::On => {
                                         let (previous_t, activity) = &mut ts_and_activities.1[(y
                                             as usize
                                             * renderer.dimensions.0 as usize)
@@ -718,7 +718,7 @@ impl Renderer {
                             {
                                 if *t == u64::MAX {
                                     *color = *default;
-                                } else if matches!(polarity, neuromorphic_types::DvsPolarity::Off) {
+                                } else if matches!(polarity, neuromorphic_types::Polarity::Off) {
                                     *color = colormaps.0[(alphas.0
                                         * ((render_t - t) as f32 * upsilon).exp())
                                     .round()
@@ -759,7 +759,7 @@ impl Renderer {
                             {
                                 if *t == u64::MAX {
                                     *color = *default;
-                                } else if matches!(polarity, neuromorphic_types::DvsPolarity::Off) {
+                                } else if matches!(polarity, neuromorphic_types::Polarity::Off) {
                                     *color = reversed_colormaps.0[(((render_t - t) as f32
                                         * upsilons.0)
                                         as usize)
@@ -792,7 +792,7 @@ impl Renderer {
                             {
                                 if *t == u64::MAX || render_t - t > *tau {
                                     *color = colors.0;
-                                } else if matches!(polarity, neuromorphic_types::DvsPolarity::Off) {
+                                } else if matches!(polarity, neuromorphic_types::Polarity::Off) {
                                     *color = colors.1;
                                 } else {
                                     *color = colors.2;

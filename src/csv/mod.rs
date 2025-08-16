@@ -121,10 +121,10 @@ impl Decoder {
                     let event_cell = types::array_at(python, array, index);
                     std::ptr::copy(
                         &events[index as usize]
-                            as *const neuromorphic_types::DvsEvent<u64, u16, u16>
+                            as *const neuromorphic_types::PolarityEvent<u64, u16, u16>
                             as *const u8,
                         event_cell,
-                        std::mem::size_of::<neuromorphic_types::DvsEvent<u64, u16, u16>>(),
+                        std::mem::size_of::<neuromorphic_types::PolarityEvent<u64, u16, u16>>(),
                     );
                 }
                 Ok(Some(PyObject::from_owned_ptr(

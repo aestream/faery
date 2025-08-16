@@ -74,14 +74,14 @@ def test_low_level_decoder_encoder(file: assets.File):
                     encoder.write(packet)
     elif file.format == "es-atis":
         print(
-            f"faery.event_stream.Decoder + faery.event_stream.Encoder ({file.path.name})"
+            f"faery.es.Decoder + faery.es.Encoder ({file.path.name})"
         )
-        with faery.event_stream.Decoder(
+        with faery.es.Decoder(
             path=file.path,
             t0=0,
         ) as decoder:
             assert decoder.dimensions is not None
-            with faery.event_stream.Encoder(
+            with faery.es.Encoder(
                 path=output,
                 event_type="atis",
                 zero_t0=True,
@@ -91,14 +91,14 @@ def test_low_level_decoder_encoder(file: assets.File):
                     encoder.write(packet)
     elif file.format == "es-color":
         print(
-            f"faery.event_stream.Decoder + faery.event_stream.Encoder ({file.path.name})"
+            f"faery.es.Decoder + faery.es.Encoder ({file.path.name})"
         )
-        with faery.event_stream.Decoder(
+        with faery.es.Decoder(
             path=file.path,
             t0=0,
         ) as decoder:
             assert decoder.dimensions is not None
-            with faery.event_stream.Encoder(
+            with faery.es.Encoder(
                 path=output,
                 event_type="color",
                 zero_t0=True,
@@ -108,14 +108,14 @@ def test_low_level_decoder_encoder(file: assets.File):
                     encoder.write(packet)
     elif file.format == "es-dvs":
         print(
-            f"faery.event_stream.Decoder + faery.event_stream.Encoder ({file.path.name})"
+            f"faery.es.Decoder + faery.es.Encoder ({file.path.name})"
         )
-        with faery.event_stream.Decoder(
+        with faery.es.Decoder(
             path=file.path,
             t0=0,
         ) as decoder:
             assert decoder.dimensions is not None
-            with faery.event_stream.Encoder(
+            with faery.es.Encoder(
                 path=output,
                 event_type="dvs",
                 zero_t0=True,
@@ -125,13 +125,13 @@ def test_low_level_decoder_encoder(file: assets.File):
                     encoder.write(packet)
     elif file.format == "es-generic":
         print(
-            f"faery.event_stream.Decoder + faery.event_stream.Encoder ({file.path.name})"
+            f"faery.es.Decoder + faery.es.Encoder ({file.path.name})"
         )
-        with faery.event_stream.Decoder(
+        with faery.es.Decoder(
             path=file.path,
             t0=0,
         ) as decoder:
-            with faery.event_stream.Encoder(
+            with faery.es.Encoder(
                 path=output,
                 event_type="generic",
                 zero_t0=True,

@@ -106,9 +106,9 @@ def test_low_level_decoder(file: assets.File):
                     hasher.hexdigest() == file.field_to_digest[field]
                 ), f"{file=}, {field=}"
     elif file.format == "es-atis":
-        print(f"faery.event_stream.Decoder ({file.path.name})")
+        print(f"faery.es.Decoder ({file.path.name})")
         assert file.t0 is not None
-        with faery.event_stream.Decoder(
+        with faery.es.Decoder(
             path=file.path,
             t0=faery.parse_time(file.t0).to_microseconds(),
         ) as decoder:
@@ -140,9 +140,9 @@ def test_low_level_decoder(file: assets.File):
                     hasher.hexdigest() == file.field_to_digest[field]
                 ), f"{file=}, {field=}"
     elif file.format == "es-color":
-        print(f"faery.event_stream.Decoder ({file.path.name})")
+        print(f"faery.es.Decoder ({file.path.name})")
         assert file.t0 is not None
-        with faery.event_stream.Decoder(
+        with faery.es.Decoder(
             path=file.path,
             t0=faery.parse_time(file.t0).to_microseconds(),
         ) as decoder:
@@ -166,9 +166,9 @@ def test_low_level_decoder(file: assets.File):
                     hasher.hexdigest() == file.field_to_digest[field]
                 ), f"{file=}, {field=}"
     elif file.format == "es-dvs":
-        print(f"faery.event_stream.Decoder ({file.path.name})")
+        print(f"faery.es.Decoder ({file.path.name})")
         assert file.t0 is not None
-        with faery.event_stream.Decoder(
+        with faery.es.Decoder(
             path=file.path,
             t0=faery.parse_time(file.t0).to_microseconds(),
         ) as decoder:
@@ -191,9 +191,9 @@ def test_low_level_decoder(file: assets.File):
                     hasher.hexdigest() == file.field_to_digest[field]
                 ), f"{file=}, {field=}"
     elif file.format == "es-generic":
-        print(f"faery.event_stream.Decoder ({file.path.name})")
+        print(f"faery.es.Decoder ({file.path.name})")
         assert file.t0 is not None
-        with faery.event_stream.Decoder(
+        with faery.es.Decoder(
             path=file.path,
             t0=faery.parse_time(file.t0).to_microseconds(),
         ) as decoder:

@@ -47,7 +47,7 @@ FILTERS: dict[str, typing.Any] = {}
 
 
 def typed_filter(
-    prefixes: set[typing.Literal["", "Finite", "Regular", "FiniteRegular"]]
+    prefixes: set[typing.Literal["", "Finite", "Regular", "FiniteRegular"]],
 ):
     def decorator(filter_class):
         attributes = [
@@ -282,3 +282,23 @@ class AddOverlay(frame_stream.FiniteRegularFrameFilter):
                 sampling_filter=self.scale_sampling_filter,
             )
             yield frame
+
+
+@typed_filter({"", "Finite", "Regular", "FiniteRegular"})
+class Map(frame_stream.FiniteRegularFrameFilter):
+    def __init__(
+        self,
+        parent: frame_stream.FiniteRegularFrameStream,
+        function: collections.abc.Callable[
+            [numpy.typing.NDArray[numpy.uint8]], numpy.typing.NDArray[numpy.uint8]
+        ],
+    ):
+        self.init(parent=parent)
+        self.function = function
+
+    def __iter__(self) -> collections.abc.Iterator[frame_stream.Frame]:
+        for frame in self.parent:
+            yield frame_stream.Frame(
+                pixels=self.function(frame.pixels),
+                t=frame.t,
+            )

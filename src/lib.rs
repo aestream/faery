@@ -3,7 +3,7 @@ use pyo3::prelude::*;
 mod aedat;
 mod csv;
 mod dat;
-mod event_stream;
+mod es;
 mod evt;
 mod font;
 mod gif;
@@ -49,9 +49,9 @@ fn faery(python: Python<'_>, module: &pyo3::Bound<'_, pyo3::types::PyModule>) ->
         module.add_submodule(&submodule)?;
     }
     {
-        let submodule = PyModule::new(python, "event_stream")?;
-        submodule.add_class::<event_stream::Decoder>()?;
-        submodule.add_class::<event_stream::Encoder>()?;
+        let submodule = PyModule::new(python, "es")?;
+        submodule.add_class::<es::Decoder>()?;
+        submodule.add_class::<es::Encoder>()?;
         module.add_submodule(&submodule)?;
     }
     //{
