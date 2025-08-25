@@ -426,7 +426,7 @@ for prefix in ("", "Finite", "Regular", "FiniteRegular"):
     bind(prefix=prefix)
 
 
-class List(FiniteRegularFrameStream):
+class FrameList(FiniteRegularFrameStream):
     def __init__(
         self,
         start_t: timestamp.TimeOrTimecode,
@@ -472,7 +472,7 @@ class List(FiniteRegularFrameStream):
         return self.inner_frequency_hz
 
 
-class Function(FiniteRegularFrameStream):
+class FrameFunction(FiniteRegularFrameStream):
     def __init__(
         self,
         start_t: timestamp.TimeOrTimecode,
