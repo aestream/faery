@@ -2739,9 +2739,9 @@ dependencies = [
 
 [[package]]
 name = "neuromorphic-types"
-version = "0.4.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2ae9a302788a6d1758106d19192a20e4e65366545c34892b7e0bacc26009a84e"
+checksum = "8ba7c9f18cdc800a16d47977472c5c75e96965eef57dbf39d37e937f390d6fef"
 
 [[package]]
 name = "nix"

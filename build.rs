@@ -18,22 +18,30 @@ fn copy_directory(
 fn bash() -> std::process::Command {
     match std::env::var("CARGO_CFG_TARGET_OS").unwrap().as_str() {
         "windows" => {
-            let mut command = std::process::Command::new("bash");
+            let mut command = std::process::Command::new(
+                std::env::var("FAERY_BUILD_BASH").unwrap_or("bash".to_owned()),
+            );
             command.env("CC", "cl");
             command
         }
-        _ => std::process::Command::new("bash"),
+        _ => std::process::Command::new(
+            std::env::var("FAERY_BUILD_BASH").unwrap_or("bash".to_owned()),
+        ),
     }
 }
 
 fn make() -> std::process::Command {
     match std::env::var("CARGO_CFG_TARGET_OS").unwrap().as_str() {
         "windows" => {
-            let mut command = std::process::Command::new("make");
+            let mut command = std::process::Command::new(
+                std::env::var("FAERY_BUILD_MAKE").unwrap_or("make".to_owned()),
+            );
             command.env("CC", "cl");
             command
         }
-        _ => std::process::Command::new("make"),
+        _ => std::process::Command::new(
+            std::env::var("FAERY_BUILD_MAKE").unwrap_or("make".to_owned()),
+        ),
     }
 }
 

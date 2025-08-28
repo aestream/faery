@@ -28,10 +28,10 @@ pub struct Decoder {
     pub dimensions: (u16, u16),
     file: std::fs::File,
     raw_buffer: Vec<u8>,
-    event_buffer: Vec<neuromorphic_types::DvsEvent<u64, u16, u16>>,
+    event_buffer: Vec<neuromorphic_types::PolarityEvent<u64, u16, u16>>,
     trigger_buffer: Vec<neuromorphic_types::TriggerEvent<u64, u8>>,
     state: State,
-    polarity: neuromorphic_types::DvsPolarity,
+    polarity: neuromorphic_types::Polarity,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -110,7 +110,7 @@ impl Decoder {
                     t0: header.t0,
                 },
             },
-            polarity: neuromorphic_types::DvsPolarity::Off,
+            polarity: neuromorphic_types::Polarity::Off,
         })
     }
 
@@ -127,7 +127,7 @@ impl Decoder {
         &mut self,
     ) -> Result<
         Option<(
-            &Vec<neuromorphic_types::DvsEvent<u64, u16, u16>>,
+            &Vec<neuromorphic_types::PolarityEvent<u64, u16, u16>>,
             &Vec<neuromorphic_types::TriggerEvent<u64, u8>>,
         )>,
         utilities::ReadError,
@@ -171,14 +171,14 @@ impl Decoder {
                                     height: self.dimensions.1,
                                 });
                             }
-                            self.event_buffer.push(neuromorphic_types::DvsEvent {
+                            self.event_buffer.push(neuromorphic_types::PolarityEvent {
                                 t: *t + t0,
                                 x,
                                 y,
                                 polarity: if (word >> 28) & 0b1 > 0 {
-                                    neuromorphic_types::DvsPolarity::On
+                                    neuromorphic_types::Polarity::On
                                 } else {
-                                    neuromorphic_types::DvsPolarity::Off
+                                    neuromorphic_types::Polarity::Off
                                 },
                             });
                         }
@@ -251,11 +251,11 @@ impl Decoder {
                                 });
                             }
                             self.polarity = if (word & (1 << 11)) > 0 {
-                                neuromorphic_types::DvsPolarity::On
+                                neuromorphic_types::Polarity::On
                             } else {
-                                neuromorphic_types::DvsPolarity::Off
+                                neuromorphic_types::Polarity::Off
                             };
-                            self.event_buffer.push(neuromorphic_types::DvsEvent {
+                            self.event_buffer.push(neuromorphic_types::PolarityEvent {
                                 t: *t + t0,
                                 x: *x,
                                 y: *y,
@@ -273,16 +273,16 @@ impl Decoder {
                                 });
                             }
                             self.polarity = if (word & (1 << 11)) > 0 {
-                                neuromorphic_types::DvsPolarity::On
+                                neuromorphic_types::Polarity::On
                             } else {
-                                neuromorphic_types::DvsPolarity::Off
+                                neuromorphic_types::Polarity::Off
                             };
                         }
                         0b0100 => {
                             let set = word & ((1 << std::cmp::min(12, self.dimensions.0 - *x)) - 1);
                             for bit in 0..12 {
                                 if (set & (1 << bit)) > 0 {
-                                    self.event_buffer.push(neuromorphic_types::DvsEvent {
+                                    self.event_buffer.push(neuromorphic_types::PolarityEvent {
                                         t: *t + t0,
                                         x: *x + bit,
                                         y: *y,
@@ -296,7 +296,7 @@ impl Decoder {
                             let set = word & ((1 << std::cmp::min(8, self.dimensions.0 - *x)) - 1);
                             for bit in 0..8 {
                                 if (set & (1 << bit)) > 0 {
-                                    self.event_buffer.push(neuromorphic_types::DvsEvent {
+                                    self.event_buffer.push(neuromorphic_types::PolarityEvent {
                                         t: *t + t0,
                                         x: *x + bit,
                                         y: *y,

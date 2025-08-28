@@ -8,13 +8,13 @@ on:
       - published
 
 env:
-  CIBW_SKIP: cp36-* cp37-* cp38-* pp* *i686 *win32
+  CIBW_SKIP: cp38-* cp314-* cp31?t-* pp* *i686 *win32
 
   # cibuildhweel macOS configuration
   CIBW_ARCHS_MACOS: native
 
   # cibuildhweel linux configuration
-  CIBW_ARCHS_LINUX: x86_64
+  CIBW_ARCHS_LINUX: native
   CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28
   CIBW_MUSLLINUX_X86_64_IMAGE: musllinux_1_2
   # On Linux, wheels are built inside a container on the GitHub runner (unlike macOS and Windows which use the GitHub runner directly)
@@ -24,7 +24,7 @@ env:
   CIBW_ENVIRONMENT_LINUX: 'PATH="$HOME/.cargo/bin:$PATH"'
 
   # cibuildhweel Windows configuration
-  CIBW_ARCHS_WINDOWS: AMD64
+  CIBW_ARCHS_WINDOWS: native
 
 jobs:
   build_wheels:
@@ -33,11 +33,14 @@ jobs:
     strategy:
       matrix:
         # macos-13 is an Intel runner, macos-latest is an ARM runner
-        os: [macos-13, macos-latest, ubuntu-latest] #, windows-latest]
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest, macos-13, windows-latest]
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - run: python -m pip install cibuildwheel==2.21.3
+      - uses: actions/setup-python@v5
+        with:
+          python-version: 3.13
+      - run: python -m pip install cibuildwheel==3.1.1
       - run: echo "MACOSX_DEPLOYMENT_TARGET=$(sw_vers -productVersion | cut -d '.' -f 1-2)" >> $GITHUB_ENV
         if: startsWith(matrix.os, 'macos')
       - run: |
@@ -48,10 +51,14 @@ jobs:
         if: startsWith(matrix.os, 'macos-latest')
       - run: python -m cibuildwheel
         if: startsWith(matrix.os, 'ubuntu-latest')
+      - run: python -m cibuildwheel
+        if: startsWith(matrix.os, 'ubuntu-24.04-arm')
       - run: |
           choco install nasm
           set "PATH=C:\Program Files\NASM;%PATH%"
           call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+          set "FAERY_BUILD_BASH=C:\Program Files\Git\bin\bash.exe"
+          set "FAERY_BUILD_MAKE=C:\mingw64\bin\make.exe"
           python -m cibuildwheel
         shell: cmd
         if: startsWith(matrix.os, 'windows')
@@ -68,7 +75,7 @@ jobs:
         numpy: ["==1.26.4", ">=2"]
         python: ["3.9", "3.10", "3.11", "3.12", "3.13"]
         # macos-13 is an Intel runner, macos-latest is an ARM runner
-        os: [macos-13, macos-latest, ubuntu-latest] #, windows-latest]
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest, macos-13, windows-latest]
         exclude:
           # this configuration yields 'Windows fatal exception: access violation'
           # this may get fixed in a maintenance upgrade of 1.26.x (x > 4)
@@ -118,6 +125,6 @@ jobs:
           name: dist
           path: dist
       - run: mv wheelhouse/* dist/
-      - uses: pypa/gh-action-pypi-publish@v1.8.14
+      - uses: pypa/gh-action-pypi-publish@v1.12.4
         with:
           password: ${{ secrets.PYPI_API_TOKEN }}

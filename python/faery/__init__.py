@@ -65,6 +65,10 @@ from .events_stream_state import (
     FiniteRegularEventsStreamState as FiniteRegularEventsStreamState,
     RegularEventsStreamState as RegularEventsStreamState,
 )
+from .frame_input import (
+    frame_stream_from_list as frame_stream_from_list,
+    frame_stream_from_function as frame_stream_from_function,
+)
 from .frame_stream import (
     FiniteRegularFrameFilter as FiniteRegularFrameFilter,
     FiniteRegularFrameStream as FiniteRegularFrameStream,
@@ -104,7 +108,7 @@ if typing.TYPE_CHECKING:
         aedat,  # type: ignore
         csv,  # type: ignore
         dat,  # type: ignore
-        event_stream,  # type: ignore
+        es,  # type: ignore
         evt,  # type: ignore
         gif,  # type: ignore
         image,  # type: ignore
@@ -118,7 +122,7 @@ else:
         aedat,
         csv,
         dat,
-        event_stream,
+        es,
         evt,
         gif,
         image,
@@ -201,6 +205,8 @@ __all__ = [
     "FiniteEventsStreamState",
     "FiniteRegularEventsStreamState",
     "RegularEventsStreamState",
+    "frame_stream_from_list",
+    "frame_stream_from_function",
     "FiniteRegularFrameFilter",
     "FiniteRegularFrameStream",
     "FiniteFrameStream",
@@ -229,7 +235,7 @@ __all__ = [
     "aedat",
     "csv",
     "dat",
-    "event_stream",
+    "es",
     "evt",
     "gif",
     "image",

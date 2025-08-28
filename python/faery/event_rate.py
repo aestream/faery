@@ -173,7 +173,7 @@ class EventRate:
         )
 
     def filtered_samples(
-        self, window: numpy.typing.NDArray[numpy.float64]
+        self, window: numpy.typing.NDArray[numpy.floating]
     ) -> numpy.typing.NDArray[numpy.float64]:
         assert len(window) > 0
         window = window / numpy.sum(window)

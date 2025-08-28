@@ -1,6 +1,6 @@
 use std::io::Read;
 
-use crate::event_stream::common;
+use crate::es::common;
 use crate::utilities;
 
 enum GenericState {
@@ -47,8 +47,8 @@ enum State {
     },
     Dvs {
         inner: DvsState,
-        event: neuromorphic_types::DvsEvent<u64, u16, u16>,
-        buffer: Vec<neuromorphic_types::DvsEvent<u64, u16, u16>>,
+        event: neuromorphic_types::PolarityEvent<u64, u16, u16>,
+        buffer: Vec<neuromorphic_types::PolarityEvent<u64, u16, u16>>,
         dimensions: (u16, u16),
     },
     Atis {
@@ -146,11 +146,11 @@ impl Decoder {
                 },
                 common::Type::Dvs => State::Dvs {
                     inner: DvsState::Idle,
-                    event: neuromorphic_types::DvsEvent::<u64, u16, u16> {
+                    event: neuromorphic_types::PolarityEvent::<u64, u16, u16> {
                         t: t0,
                         x: 0,
                         y: 0,
-                        polarity: neuromorphic_types::DvsPolarity::Off,
+                        polarity: neuromorphic_types::Polarity::Off,
                     },
                     buffer: Vec::new(),
                     dimensions: dimensions.expect("a dvs stream has dimensions"),
@@ -199,7 +199,7 @@ impl Decoder {
 
 pub enum Packet<'a> {
     Generic(&'a Vec<common::OwnedGenericEvent>),
-    Dvs(&'a Vec<neuromorphic_types::DvsEvent<u64, u16, u16>>),
+    Dvs(&'a Vec<neuromorphic_types::PolarityEvent<u64, u16, u16>>),
     Atis(&'a Vec<neuromorphic_types::AtisEvent<u64, u16, u16>>),
     Color(&'a Vec<common::ColorEvent>),
 }
@@ -288,9 +288,9 @@ impl Decoder {
                             } else if *byte != 0b11111110 {
                                 event.t += (byte >> 1) as u64;
                                 event.polarity = if (byte & 1) == 1 {
-                                    neuromorphic_types::DvsPolarity::On
+                                    neuromorphic_types::Polarity::On
                                 } else {
-                                    neuromorphic_types::DvsPolarity::Off
+                                    neuromorphic_types::Polarity::Off
                                 };
                                 DvsState::Byte0
                             } else {

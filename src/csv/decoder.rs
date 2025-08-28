@@ -98,7 +98,7 @@ pub struct Decoder {
     raw_buffer: Vec<u8>,
     raw_buffer_length: usize,
     eof: bool,
-    buffer: Vec<neuromorphic_types::DvsEvent<u64, u16, u16>>,
+    buffer: Vec<neuromorphic_types::PolarityEvent<u64, u16, u16>>,
     header_read: bool,
     t: u64,
     skip_errors: bool,
@@ -202,7 +202,7 @@ impl Decoder {
         t: &mut Option<u64>,
         x: &mut Option<u16>,
         y: &mut Option<u16>,
-        polarity: &mut Option<neuromorphic_types::DvsPolarity>,
+        polarity: &mut Option<neuromorphic_types::Polarity>,
     ) -> Result<(), ReadError> {
         if word_index == properties.t_index {
             let word = std::str::from_utf8(word)?;
@@ -259,9 +259,9 @@ impl Decoder {
             });
         } else if word_index == properties.on_index {
             if word == properties.on_value {
-                let _ = polarity.replace(neuromorphic_types::DvsPolarity::On);
+                let _ = polarity.replace(neuromorphic_types::Polarity::On);
             } else if word == properties.off_value {
-                let _ = polarity.replace(neuromorphic_types::DvsPolarity::Off);
+                let _ = polarity.replace(neuromorphic_types::Polarity::Off);
             } else {
                 return Err(ReadError::UnknownOn {
                     value: std::str::from_utf8(word)?.to_owned(),
@@ -280,14 +280,14 @@ impl Decoder {
         properties: &Properties,
         t: u64,
         line: &[u8],
-        buffer: &mut Vec<neuromorphic_types::DvsEvent<u64, u16, u16>>,
+        buffer: &mut Vec<neuromorphic_types::PolarityEvent<u64, u16, u16>>,
     ) -> Result<u64, ReadError> {
         let mut word_index = 0;
         let mut word_start = 0;
         let mut event_t: Option<u64> = None;
         let mut event_x: Option<u16> = None;
         let mut event_y: Option<u16> = None;
-        let mut event_polarity: Option<neuromorphic_types::DvsPolarity> = None;
+        let mut event_polarity: Option<neuromorphic_types::Polarity> = None;
         for (character_index, character) in line.iter().enumerate() {
             if *character == properties.separator {
                 Self::parse_word(
@@ -334,7 +334,7 @@ impl Decoder {
                                     height: properties.dimensions.1,
                                 });
                             }
-                            buffer.push(neuromorphic_types::DvsEvent {
+                            buffer.push(neuromorphic_types::PolarityEvent {
                                 t: event_t,
                                 x: event_x,
                                 y: event_y,
@@ -370,7 +370,7 @@ impl Decoder {
 
     pub fn next(
         &mut self,
-    ) -> Result<Option<&'_ Vec<neuromorphic_types::DvsEvent<u64, u16, u16>>>, ReadError> {
+    ) -> Result<Option<&'_ Vec<neuromorphic_types::PolarityEvent<u64, u16, u16>>>, ReadError> {
         if self.eof {
             return Ok(None);
         }

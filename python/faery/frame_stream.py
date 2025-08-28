@@ -160,6 +160,13 @@ class FrameStream(
         scale_filter: enums.ImageResizeSamplingFilter = "nearest",
     ) -> "FrameStream": ...
 
+    def map(
+        self,
+        function: collections.abc.Callable[
+            [numpy.typing.NDArray[numpy.uint8]], numpy.typing.NDArray[numpy.uint8]
+        ],
+    ) -> "FrameStream": ...
+
 
 class FiniteFrameStream(
     stream.FiniteStream[Frame],
@@ -195,6 +202,13 @@ class FiniteFrameStream(
         y: int = 0,
         scale_factor: float = 1.0,
         scale_filter: enums.ImageResizeSamplingFilter = "nearest",
+    ) -> "FiniteFrameStream": ...
+
+    def map(
+        self,
+        function: collections.abc.Callable[
+            [numpy.typing.NDArray[numpy.uint8]], numpy.typing.NDArray[numpy.uint8]
+        ],
     ) -> "FiniteFrameStream": ...
 
 
@@ -235,6 +249,13 @@ class RegularFrameStream(
         scale_filter: enums.ImageResizeSamplingFilter = "nearest",
     ) -> "RegularFrameStream": ...
 
+    def map(
+        self,
+        function: collections.abc.Callable[
+            [numpy.typing.NDArray[numpy.uint8]], numpy.typing.NDArray[numpy.uint8]
+        ],
+    ) -> "RegularFrameStream": ...
+
 
 class FiniteRegularFrameStream(
     stream.FiniteRegularStream[Frame],
@@ -271,6 +292,13 @@ class FiniteRegularFrameStream(
         y: int = 0,
         scale_factor: float = 1.0,
         scale_filter: enums.ImageResizeSamplingFilter = "nearest",
+    ) -> "FiniteRegularFrameStream": ...
+
+    def map(
+        self,
+        function: collections.abc.Callable[
+            [numpy.typing.NDArray[numpy.uint8]], numpy.typing.NDArray[numpy.uint8]
+        ],
     ) -> "FiniteRegularFrameStream": ...
 
 
@@ -372,16 +400,125 @@ def bind(prefix: typing.Literal["", "Finite", "Regular", "FiniteRegular"]):
             scale_filter=scale_filter,
         )
 
+    def map(
+        self,
+        function: collections.abc.Callable[
+            [numpy.typing.NDArray[numpy.uint8]], numpy.typing.NDArray[numpy.uint8]
+        ],
+    ):
+        from .frame_filter import FILTERS
+
+        return FILTERS[f"{prefix}Map"](
+            parent=self,
+            function=function,
+        )
+
     scale.filter_return_annotation = f"{prefix}FrameStream"
     annotate.filter_return_annotation = f"{prefix}FrameStream"
 
     globals()[f"{prefix}FrameStream"].scale = scale
     globals()[f"{prefix}FrameStream"].annotate = annotate
     globals()[f"{prefix}FrameStream"].add_overlay = add_overlay
+    globals()[f"{prefix}FrameStream"].map = map
 
 
 for prefix in ("", "Finite", "Regular", "FiniteRegular"):
     bind(prefix=prefix)
+
+
+class FrameList(FiniteRegularFrameStream):
+    def __init__(
+        self,
+        start_t: timestamp.TimeOrTimecode,
+        frequency_hz: float,
+        frames: list[numpy.typing.NDArray[numpy.uint8]],
+    ):
+        super().__init__()
+        self.start_t = timestamp.parse_time(start_t)
+        self.inner_frequency_hz = frequency_hz
+        assert len(self.frames) > 0
+        assert frames[0].shape[2] == 4
+        dimensions = (frames[0].shape[1], frames[0].shape[0])
+        for frame in frames[1:]:
+            assert frame.shape[1] == dimensions[0]
+            assert frame.shape[0] == dimensions[1]
+            assert frame.shape[2] == 4
+        self.frames = frames
+
+    def __iter__(self) -> collections.abc.Iterator[Frame]:
+        for index, frame in enumerate(self.frames):
+            yield Frame(
+                t=round(
+                    self.start_t.microseconds + index * 1e6 / self.inner_frequency_hz
+                )
+                * timestamp.us,
+                pixels=frame.copy(),
+            )
+
+    def dimensions(self) -> tuple[int, int]:
+        return (self.frames[0].shape[1], self.frames[0].shape[0])
+
+    def time_range(self) -> tuple[timestamp.Time, timestamp.Time]:
+        return (
+            self.start_t,
+            round(
+                self.start_t.microseconds
+                + len(self.frames) * 1e6 / self.inner_frequency_hz
+            )
+            * timestamp.us,
+        )
+
+    def frequency_hz(self) -> float:
+        return self.inner_frequency_hz
+
+
+class FrameFunction(FiniteRegularFrameStream):
+    def __init__(
+        self,
+        start_t: timestamp.TimeOrTimecode,
+        frequency_hz: float,
+        dimensions: tuple[int, int],
+        frame_count: int,
+        get_frame: typing.Callable[[timestamp.Time], numpy.typing.NDArray[numpy.uint8]],
+    ):
+        self.inner_dimensions = dimensions
+        self.start_t = timestamp.parse_time(start_t)
+        self.end_t = timestamp.parse_time(start_t)
+        self.inner_frequency_hz = frequency_hz
+        self.frame_count = frame_count
+        self.get_frame = get_frame
+
+    def __iter__(self) -> collections.abc.Iterator[Frame]:
+        for index in range(0, self.frame_count):
+            # this formula uses "index + 1" to match the convention used by events
+            # specifically, for a time range [t0, t1) and a frequency f,
+            # rendered event frames have labels in [t0 + 1e6 / f, t1)
+            # where the frame with label t is made from events in [t - 1/f, t)
+            t = (
+                round(
+                    self.start_t.microseconds
+                    + (index + 1) * 1e6 / self.inner_frequency_hz
+                )
+                * timestamp.us
+            )
+            pixels = self.get_frame(t)
+            yield Frame(pixels=pixels.copy(), t=t)
+
+    def dimensions(self) -> tuple[int, int]:
+        return self.inner_dimensions
+
+    def time_range(self) -> tuple[timestamp.Time, timestamp.Time]:
+        return (
+            self.start_t,
+            round(
+                self.start_t.microseconds
+                + self.frame_count * 1e6 / self.inner_frequency_hz
+            )
+            * timestamp.us,
+        )
+
+    def frequency_hz(self) -> float:
+        return self.inner_frequency_hz
 
 
 class FrameFilter(

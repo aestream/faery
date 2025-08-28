@@ -747,7 +747,7 @@ impl Encoder {
                                     types::check_array(python, types::ArrayType::Dvs, packet)?;
                                 unsafe {
                                     for index in 0..length {
-                                        let event_cell: *mut neuromorphic_types::DvsEvent<
+                                        let event_cell: *mut neuromorphic_types::PolarityEvent<
                                             u64,
                                             u16,
                                             u16,
