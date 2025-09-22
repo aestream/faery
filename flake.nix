@@ -20,27 +20,36 @@
               pypkgs.venvShellHook
               pkgs.autoPatchelfHook
               pkgs.bash
-              pkgs.rustup
+              pkgs.cargo
+              pkgs.rustc
               pkgs.rustPlatform.bindgenHook
               pkgs.libgcc
               pkgs.libz
               pkgs.nasm
               pkgs.nodejs
+              pkgs.uv
+              # GUI libraries
+              pkgs.fontconfig
+              pkgs.libGL
+              pkgs.libxkbcommon
+              pkgs.wayland
             ];
             venvDir = "./.venv";
             propagatedBuildInputs = [
               pkgs.stdenv.cc.cc.lib
             ];
             postVenvCreation = ''
-              pip install -U pip
-              pip install --group dev .
+              uv pip install --group dev .
+              autoPatchelf ./.venv
             '';
             postShellHook = ''
-              rustup default stable
               export AS="nasm" # build assembly optimizations in x264
               export CC="gcc" # use gcc to compile x264
+              export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath [
+                pkgs.libGL pkgs.libxkbcommon pkgs.wayland pkgs.fontconfig
+              ]}:$LD_LIBRARY_PATH"
+              source .venv/bin/activate
               maturin develop --release
-              autoPatchelf ./.venv
             '';
           };
       in
