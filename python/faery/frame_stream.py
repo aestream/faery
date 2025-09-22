@@ -1,6 +1,7 @@
 import collections.abc
 import dataclasses
 import pathlib
+import time
 import typing
 
 import numpy
@@ -81,6 +82,15 @@ class FrameOutput(typing.Generic[OutputState]):
             use_write_suffix=True,
             on_progress=on_progress,
         )
+
+    def view(self):
+        """
+        Display frames in a GUI viewer using Slint
+        """
+        from . import extension
+
+        # Pass the frame stream directly to Rust
+        extension.gui.run_frame_viewer_from_iterator(self)
 
     def to_file(
         self,

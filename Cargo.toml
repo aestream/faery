@@ -5,7 +5,7 @@ resolver = "2"
 
 [lib]
 name = "faery"
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 flatbuffers = "25.1.24"

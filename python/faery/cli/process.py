@@ -415,6 +415,9 @@ def output_parser(
         else:
             subparser.add_argument("--progress", action="store_true")
 
+        # Output frame viewer (GUI)
+        subparser = subparsers.add_parser("view")
+        
         # Output frame files (frame collection)
         subparser = subparsers.add_parser("files")
         subparser.add_argument("path_pattern", metavar="path-pattern")
@@ -589,6 +592,8 @@ class StreamWrapper:
                     None if args["file_type"] == "none" else args["file_type"]
                 )
                 self.stream.to_files(**args)
+            elif output == "view":
+                self.stream.to_viewer()
             else:
                 raise Exception(f'unknown output type "{output}"')
         else:
