@@ -7,6 +7,7 @@ mod es;
 mod evt;
 mod font;
 mod gif;
+pub mod gui;
 mod image;
 mod job_metadata;
 mod mp4;
@@ -68,6 +69,11 @@ fn faery(python: Python<'_>, module: &pyo3::Bound<'_, pyo3::types::PyModule>) ->
     {
         let submodule = PyModule::new(python, "gif")?;
         submodule.add_class::<gif::Encoder>()?;
+        module.add_submodule(&submodule)?;
+    }
+    {
+        let submodule = PyModule::new(python, "gui")?;
+        submodule.add_function(wrap_pyfunction!(gui::run_frame_viewer_from_iterator, &submodule)?)?;
         module.add_submodule(&submodule)?;
     }
     {
