@@ -24,6 +24,10 @@ dev = [
   "pyright",
   "jupyter-book>=2.0.0a0",
 ]
+camera = [
+  "neuromorphic-drivers",
+  "event-camera-drivers"
+]
 
 [project.scripts]
 faery = "faery:__main__.main"
