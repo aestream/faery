@@ -176,7 +176,7 @@ class Output(typing.Generic[OutputState]):
             csv_header=csv_header,
             file_type="csv",
             on_progress=on_progress,  # type: ignore
-            enforce_monotonic_timestamps=False
+            enforce_monotonic_timestamps=False,
         )
 
     def to_udp(

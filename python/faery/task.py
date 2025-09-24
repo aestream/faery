@@ -78,7 +78,7 @@ def task(suffix: str, icon: str = "", name: typing.Optional[str] = None):
                 timestamp.TimeOrTimecode,
             ],
             None,
-        ]
+        ],
     ) -> Task:
         class DecoratedTask(Task):
 
