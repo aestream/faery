@@ -49,6 +49,7 @@ class EventCameraDriverStream(events_stream.EventsStream):
             raise e
 
     def __iter__(self) -> typing.Iterator[np.ndarray]:
+        logging.info(f"Starting streaming from event_camera_drivers: {self.camera}")
         while self.camera.is_running():
             v = next(self.camera)
             yield v
@@ -76,6 +77,9 @@ class NeuromorphicCameraStream(events_stream.EventsStream):
             raise e
 
     def __iter__(self) -> typing.Iterator[np.ndarray]:
+        logging.info(
+            f"Starting streaming from neuromorphic_drivers: {self.device_list[0]}"
+        )
         with self.nd.open() as device:
             for status, packet in device:
                 # TODO: Check status

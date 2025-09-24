@@ -91,7 +91,7 @@ def input_parser() -> argparse.ArgumentParser:
         type=str,
         choices=["Auto", "NeuromorphicDrivers", "EventCameraDrivers"],
         default="Auto",
-        help="The driver to detect the camera, defaults to Auto which tries both the NeuromorphicDrivers and EventCameraDrivers libraries"
+        help="The driver to detect the camera, defaults to Auto which tries both the NeuromorphicDrivers and EventCameraDrivers libraries",
     )
     # Stdin subparser
     subparser = subparsers.add_parser("stdin")
@@ -514,7 +514,9 @@ class StreamWrapper:
                 ),
             )
         elif args.input == "camera":
-            self.stream = faery.events_stream_from_camera(driver=args.driver, buffer_size=args.buffer_size)
+            self.stream = faery.events_stream_from_camera(
+                driver=args.driver, buffer_size=args.buffer_size
+            )
         elif args.input == "udp":
             self.stream = faery.events_stream_from_udp(
                 dimensions=args.dimensions,

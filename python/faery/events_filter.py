@@ -197,11 +197,11 @@ class OffsetT(events_stream.FiniteRegularEventsFilter):
 """
 
 
-@typed_filter({"Finite"})
-class TimeSlice(events_stream.FiniteEventsFilter):  # type: ignore
+@typed_filter({"", "Finite"})
+class TimeSlice(events_stream.EventsFilter):  # type: ignore
     def __init__(
         self,
-        parent: stream.FiniteStream[numpy.ndarray],
+        parent: stream.Stream[numpy.ndarray],
         start: timestamp.TimeOrTimecode,
         end: timestamp.TimeOrTimecode,
         zero: bool,
@@ -212,12 +212,22 @@ class TimeSlice(events_stream.FiniteEventsFilter):  # type: ignore
         assert self.start < self.end, f"{start=} must be strictly smaller than {end=}"
         self.zero = zero
 
+    @restrict({"Finite"})
     def time_range(self) -> tuple[timestamp.Time, timestamp.Time]:
-        parent_time_range = self.parent.time_range()
+        try:
+            parent_time_range = self.parent.time_range()
+            # If parent has time_range, intersect with slice bounds
+            actual_start = max(parent_time_range[0], self.start)
+            actual_end = min(parent_time_range[1], self.end)
+        except (AttributeError, NotImplementedError):
+            # Parent is infinite, use slice bounds
+            actual_start = self.start
+            actual_end = self.end
+
         if self.zero:
-            return (timestamp.Time(microseconds=0), self.end - self.start)
+            return (timestamp.Time(microseconds=0), actual_end - actual_start)
         else:
-            return (self.start, self.end)
+            return (actual_start, actual_end)
 
     def __iter__(self) -> collections.abc.Iterator[numpy.ndarray]:
         for events in self.parent:
