@@ -376,6 +376,15 @@ def frames_to_file(
     state_manager = frame_stream_state.StateManager(
         stream=stream, on_progress=on_progress
     )
+
+    # Video files require finite streams (must have known duration)
+    if state_manager.time_range is None:
+        raise ValueError(
+            f"Cannot create video file '{path}' from infinite stream. "
+            "Use .time_slice() or .event_slice() to make the stream finite first. "
+            "Example: stream.time_slice(0 * faery.s, 10 * faery.s).to_file('video.mp4')"
+        )
+
     frames: list[frame_stream.Frame] = []
     if file_type == "mp4":
         video_encoder = mp4.Encoder(

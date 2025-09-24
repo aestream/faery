@@ -78,6 +78,21 @@ def add_csv_properties(parser: argparse.ArgumentParser):
 def input_parser() -> argparse.ArgumentParser:
     parser = base_parser("input")
     subparsers = parser.add_subparsers(required=True, dest="input")
+    # Camera subparser
+    subparser = subparsers.add_parser("camera")
+    subparser.add_argument(
+        "--buffer-size",
+        type=int,
+        default=1024,
+        help="Array buffer size (default: %(default)s)",
+    )
+    subparser.add_argument(
+        "--driver",
+        type=str,
+        choices=["Auto", "NeuromorphicDrivers", "EventCameraDrivers"],
+        default="Auto",
+        help="The driver to detect the camera, defaults to Auto which tries both the NeuromorphicDrivers and EventCameraDrivers libraries",
+    )
     # Stdin subparser
     subparser = subparsers.add_parser("stdin")
     subparser.add_argument(
@@ -126,14 +141,6 @@ def input_parser() -> argparse.ArgumentParser:
         help="(default: %(default)s)",
     )
     add_csv_properties(subparser)
-    # Inivation subparser
-    subparser = subparsers.add_parser("inivation")
-    subparser.add_argument(
-        "--buffer-size",
-        type=int,
-        default=1024,
-        help="Array buffer size (default: %(default)s)",
-    )
     # UDP subparser
     subparser = subparsers.add_parser("udp")
     subparser.add_argument("address", type=list_filters.parse_udp)
@@ -506,8 +513,10 @@ class StreamWrapper:
                     skip_errors=args.csv_skip_errors,
                 ),
             )
-        elif args.input == "inivation":
-            self.stream = faery.events_stream_from_camera("Inivation")
+        elif args.input == "camera":
+            self.stream = faery.events_stream_from_camera(
+                driver=args.driver, buffer_size=args.buffer_size
+            )
         elif args.input == "udp":
             self.stream = faery.events_stream_from_udp(
                 dimensions=args.dimensions,

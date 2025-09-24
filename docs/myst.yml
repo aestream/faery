@@ -14,10 +14,23 @@ project:
       title: Faery
     - file: install.md
     - file: quickstart.md
+    - file: concepts.md
+    - title: Input Sources
+      file: inputs/overview.md
+      children:
+        - file: inputs/files.md
+          title: Files
+        - file: inputs/cameras.md
+          title: Event Cameras
+        - file: inputs/udp.md
+          title: UDP Streams
+        - file: inputs/array.md
+          title: Synthetic Data
+        - file: inputs/stdin.md
+          title: Standard Input
     - file: cli.md
     - file: python.md
     - file: batch.md
-    - file: stream_types.md
     - file: dev.md
   numbering:
     title:

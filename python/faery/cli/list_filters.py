@@ -29,8 +29,10 @@ FLOAT_COLOR_PATTERN = re.compile(
     r"^\s*\(?\s*(\d+\.?\d*)\s*[,\s]\s*(\d+\.?\d*)\s*[,\s]\s*((?:\d+\.?\d*)\s*[,\s]\s*)?(\d+\.?\d*)\s*\)?\s*$"
 )
 HEX_COLOR_PATTERN = re.compile(r"^\s*(#?[0-9A-Fa-f]{6}(?:[0-9A-Fa-f]{2})?)\s*$")
-DIMENSIONS_PATTERN = re.compile(r"^\s*\(?\s*(\d+)\s*[,\s]\s*(\d+)\s*\)?\s*$")
-UDP_PATTERN = re.compile(r"^\s*(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}):(\d{1,5})\s*$")
+DIMENSIONS_TUPLE_PATTERN = re.compile(r"^\s*\(?\s*(\d+)\s*[,\s]\s*(\d+)\s*\)?\s*$")
+DIMENSIONS_X_PATTERN = re.compile(r"^\s*(\d+)x(\d+)\s*$")
+UDP_IPV4_PATTERN = re.compile(r"^\s*(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}):(\d{1,5})\s*$")
+UDP_HOSTNAME_PATTERN = re.compile(r"^\s*([a-zA-Z0-9\-\.]+):(\d{1,5})\s*$")
 
 
 @dataclasses.dataclass
@@ -106,20 +108,34 @@ def parse_color(string: str) -> faery.Color:
 
 
 def parse_dimensions(string: str) -> tuple[int, int]:
-    dimensions_match = DIMENSIONS_PATTERN.match(string)
+    # Try WIDTHxHEIGHT format first
+    dimensions_match = DIMENSIONS_X_PATTERN.match(string)
     if dimensions_match is not None:
         return (int(dimensions_match[1]), int(dimensions_match[2]))
+
+    # Fall back to (width, height) tuple format
+    dimensions_match = DIMENSIONS_TUPLE_PATTERN.match(string)
+    if dimensions_match is not None:
+        return (int(dimensions_match[1]), int(dimensions_match[2]))
+
     raise argparse.ArgumentTypeError(
-        f'parsing "{string}" failed (expected "(width, height)")'
+        f'parsing "{string}" failed (expected "WIDTHxHEIGHT" like "640x480" or "(width, height)" like "(640, 480)")'
     )
 
 
 def parse_factor_or_minimum_dimensions(
     string: str,
 ) -> typing.Union[float, tuple[int, int]]:
-    dimensions_match = DIMENSIONS_PATTERN.match(string)
+    # Try WIDTHxHEIGHT format first
+    dimensions_match = DIMENSIONS_X_PATTERN.match(string)
     if dimensions_match is not None:
         return (int(dimensions_match[1]), int(dimensions_match[2]))
+
+    # Fall back to (width, height) tuple format
+    dimensions_match = DIMENSIONS_TUPLE_PATTERN.match(string)
+    if dimensions_match is not None:
+        return (int(dimensions_match[1]), int(dimensions_match[2]))
+
     return float(string)
 
 
@@ -146,11 +162,18 @@ def parse_udp(
 ) -> typing.Union[
     tuple[str, int], tuple[str, int, typing.Optional[int], typing.Optional[str]]
 ]:
-    match = UDP_PATTERN.match(string)
+    # Try IPv4 address pattern first
+    match = UDP_IPV4_PATTERN.match(string)
     if match is not None:
         return (match[1], int(match[2]))
+
+    # Try hostname pattern
+    match = UDP_HOSTNAME_PATTERN.match(string)
+    if match is not None:
+        return (match[1], int(match[2]))
+
     raise argparse.ArgumentTypeError(
-        f'parsing "{string}" failed (expected "a.b.c.d:port")'
+        f'parsing "{string}" failed (expected "host:port" where host can be an IP address like "192.168.1.1:7777" or hostname like "localhost:7777")'
     )
 
 

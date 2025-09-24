@@ -41,7 +41,7 @@ faery input file events.aedat4 filter temporal --window-size 1000us output mp4 o
 3. Stream data from an [Inivation camera](https://inivation.com/) to a UDP socket (note: [requires event camera drivers](https://aestream.github.io/faery/install)):
 
 ```sh
-faery input inivation camera output udp localhost 7777
+faery input inivation camera output udp localhost:7777
 ```
 
 **Python library**: Faery provides a set of input functions to read event data from files, UDP streams, or other sources. You can chain methods to filter, render, or analyze the data. For example, to render an AEDAT4 event file as a real-time MP4 video:
@@ -50,8 +50,8 @@ faery input inivation camera output udp localhost 7777
 import faery
 faery.events_stream_from_file("input.aedat4") \
     .regularize(frequency_hz=60.0) \
-    .render(exponential_decay=0.2, style="starry_night") \
-    .to_mp4("output.mp4")
+    .render(decay="exponential", tau="00:00:00.200000", colormap=faery.colormaps.starry_night) \
+    .to_file("output.mp4")
 ```
 
 More information is available in the [command line usage documentation](https://aestream.github.io/faery/cli), the [Python library documentation](https://aestream.github.io/faery/python), and the [examples directory](https://github.com/aestream/faery/tree/main/examples).

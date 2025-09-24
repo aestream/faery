@@ -19,10 +19,14 @@ tests = ["pytest==8.3.3"]
 dev = [
   "maturin",
   "pytest",
-  "isort",
-  "black",
-  "pyright",
-  "jupyter-book>=2.0.0a0",
+  "isort==6.0.1",
+  "black==25.1.0",
+  "pyright==1.1.405",
+  "jupyter-book>=2.0.0b3",
+]
+camera = [
+  "neuromorphic-drivers",
+  "event-camera-drivers"
 ]
 
 [project.scripts]

@@ -25,7 +25,7 @@ FILTERS: dict[str, typing.Any] = {}
 
 
 def typed_render(
-    prefixes: set[typing.Literal["", "Finite", "Regular", "FiniteRegular"]]
+    prefixes: set[typing.Literal["", "Finite", "Regular", "FiniteRegular"]],
 ):
     def decorator(render_class):
         attributes = [
