@@ -10,13 +10,16 @@ import faery.events_stream as events_stream
 def has_event_camera_drivers():
     return importlib.util.find_spec("event_camera_drivers") is not None
 
+
 def has_neuromorphic_drivers():
     return importlib.util.find_spec("neuromorphic_drivers") is not None
 
+
 class EventCameraDriverStream(events_stream.EventsStream):
-    def __init__(self,
+    def __init__(
+        self,
         manufacturer: typing.Optional[typing.Literal["Prophesee", "Inivation"]] = None,
-        buffer_size: int = 1024
+        buffer_size: int = 1024,
     ):
         """Create an events stream using the event-camera-drivers library
 
@@ -32,8 +35,6 @@ class EventCameraDriverStream(events_stream.EventsStream):
             >>> stream = EventCameraStream() # Open camera (will fail if no camera is connected)
             >>> stream.map(...)              # Use the stream as any other (infinite) event stream
         """
-
-        super().__init__()
         try:
             import event_camera_drivers as evd  # type: ignore
 
@@ -44,16 +45,13 @@ class EventCameraDriverStream(events_stream.EventsStream):
             )
             raise e
         except ValueError as e:
-            logging.warning("No camera found using libcaer")
+            logging.info("No camera found using libcaer")
             raise e
 
-    def is_running(self):
-        return self.camera.is_running()
-
     def __iter__(self) -> typing.Iterator[np.ndarray]:
-            while self.is_running():
-                v = next(self.camera)
-                yield v
+        while self.camera.is_running():
+            v = next(self.camera)
+            yield v
 
     def dimensions(self):
         return self.camera.resolution()
@@ -62,11 +60,14 @@ class EventCameraDriverStream(events_stream.EventsStream):
 class NeuromorphicCameraStream(events_stream.EventsStream):
     def __init__(self):
         try:
-           import neuromorphic_drivers as nd
-           self.nd = nd
-           self.device_list = nd.list_devices()
-           if len(self.device_list) == 0:
-              raise RuntimeError("No event camera found, did you plug it in and install the udev rules?")
+            import neuromorphic_drivers as nd
+
+            self.nd = nd
+            self.device_list = nd.list_devices()
+            if len(self.device_list) == 0:
+                raise RuntimeError(
+                    "No event camera found, did you plug it in and install the udev rules?"
+                )
         except ImportError as e:
             logging.error(
                 "The neuromorphic_drivers library is not available, please install"
@@ -78,29 +79,43 @@ class NeuromorphicCameraStream(events_stream.EventsStream):
         with self.nd.open() as device:
             for status, packet in device:
                 # TODO: Check status
-                yield packet
+                events = packet.polarity_events
+                if events is not None:
+                    # Neuromorphic drivers use similar dtype, so we can safely cast
+                    yield events.astype(events_stream.EVENTS_DTYPE)
 
     def dimensions(self):
         # TODO: Use the current camera, rather than device_list[0]
         if self.device_list[0].name == self.nd.generated.enums.Name.INIVATION_DVXPLORER:
             return (640, 480)
-        elif self.device_list[0].name == self.nd.generated.enums.Name.PROPHESEE_EVK4 or self.device_list[0].name == self.nd.generated.enums.Name.PROPHESEE_EVK3_HD:
+        elif (
+            self.device_list[0].name == self.nd.generated.enums.Name.PROPHESEE_EVK4
+            or self.device_list[0].name
+            == self.nd.generated.enums.Name.PROPHESEE_EVK3_HD
+        ):
             return (1280, 720)
-        elif self.device_list[0].name == self.nd.generated.enums.Name.INIVATION_DAVIS346:
+        elif (
+            self.device_list[0].name == self.nd.generated.enums.Name.INIVATION_DAVIS346
+        ):
             return (346, 260)
         else:
             raise ValueError("Unknown Camera", self.device_list[0].name)
 
+
 def events_stream_from_camera(
-    driver: typing.Optional[typing.Literal["EventCameraDrivers", "NeuromorphicDrivers", "Auto"]] = None,
+    driver: typing.Optional[
+        typing.Literal["EventCameraDrivers", "NeuromorphicDrivers", "Auto"]
+    ] = None,
     manufacturer: typing.Optional[typing.Literal["Inivation", "Prophesee"]] = None,
-    buffer_size: int = 1024
+    buffer_size: int = 1024,
 ):
     stream = None
     error = None
     if driver is None or driver == "EventCameraDrivers":
         try:
-            stream = EventCameraDriverStream(manufacturer=manufacturer, buffer_size=buffer_size)
+            stream = EventCameraDriverStream(
+                manufacturer=manufacturer, buffer_size=buffer_size
+            )
         except Exception as e:
             error = e
     if driver is None or driver == "NeuromorphicDrivers":
