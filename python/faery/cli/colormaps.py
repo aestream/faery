@@ -105,7 +105,7 @@ class Command(command.Command):
             type_to_names_and_colormaps.keys(),
             key=lambda colormap_type: (
                 # show cyclic maps last
-                "\U0010FFFD"
+                "\U0010fffd"
                 if colormap_type == "cyclic"
                 else colormap_type
             ),
