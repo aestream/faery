@@ -111,14 +111,14 @@ def events_stream_from_camera(
 ):
     stream = None
     error = None
-    if driver is None or driver == "EventCameraDrivers":
+    if driver is None or driver == "EventCameraDrivers" or driver == "Auto":
         try:
             stream = EventCameraDriverStream(
                 manufacturer=manufacturer, buffer_size=buffer_size
             )
         except Exception as e:
             error = e
-    if driver is None or driver == "NeuromorphicDrivers":
+    if driver is None or driver == "NeuromorphicDrivers" or driver == "Auto":
         try:
             stream = NeuromorphicCameraStream()
         except Exception as e:
