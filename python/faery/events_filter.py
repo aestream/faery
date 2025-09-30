@@ -34,7 +34,7 @@ FILTERS: dict[str, typing.Any] = {}
 
 
 def typed_filter(
-    prefixes: set[typing.Literal["", "Finite", "Regular", "FiniteRegular"]]
+    prefixes: set[typing.Literal["", "Finite", "Regular", "FiniteRegular"]],
 ):
     def decorator(filter_class):
         attributes = [
