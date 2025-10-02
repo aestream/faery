@@ -156,7 +156,7 @@ class StateManager:
             if self.frequency_hz is None:
                 self.on_progress(FrameStreamState(frame="start"))
             else:
-                assert self.frame_count is not None
+                # For infinite regular streams, frame_count can be None
                 self.on_progress(
                     RegularFrameStreamState(
                         frame="start",

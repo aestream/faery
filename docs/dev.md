@@ -28,7 +28,7 @@ maturin develop  # or maturin develop --release to build with optimizations
 ```sh
 cargo fmt
 cargo clippy
-pip install isort black pyright
+pip install --group dev
 isort .; black .; pyright .
 ```
 
