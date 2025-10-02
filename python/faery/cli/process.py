@@ -1,4 +1,5 @@
 import argparse
+import collections.abc
 import functools
 import sys
 import typing
@@ -616,7 +617,7 @@ class StreamWrapper:
             raise Exception(f'unexpected parent class "{parent_class}"')
 
 
-def split_on_keywords(arguments: list[str]) -> typing.Iterator[list[str]]:
+def split_on_keywords(arguments: list[str]) -> collections.abc.Iterator[list[str]]:
     subcommand_start_index = 0
     for index, argument in enumerate(arguments):
         if index > 0:

@@ -1,3 +1,4 @@
+import collections.abc
 import importlib.util
 import logging
 import typing
@@ -48,7 +49,7 @@ class EventCameraDriverStream(events_stream.EventsStream):
             logging.info("No camera found using libcaer")
             raise e
 
-    def __iter__(self) -> typing.Iterator[np.ndarray]:
+    def __iter__(self) -> collections.abc.Iterator[np.ndarray]:
         logging.info(f"Starting streaming from event_camera_drivers: {self.camera}")
         while self.camera.is_running():
             v = next(self.camera)
@@ -61,7 +62,7 @@ class EventCameraDriverStream(events_stream.EventsStream):
 class NeuromorphicCameraStream(events_stream.EventsStream):
     def __init__(self):
         try:
-            import neuromorphic_drivers as nd
+            import neuromorphic_drivers as nd  # type: ignore
 
             self.nd = nd
             self.device_list = nd.list_devices()
@@ -76,7 +77,7 @@ class NeuromorphicCameraStream(events_stream.EventsStream):
         except Exception as e:
             raise e
 
-    def __iter__(self) -> typing.Iterator[np.ndarray]:
+    def __iter__(self) -> collections.abc.Iterator[np.ndarray]:
         logging.info(
             f"Starting streaming from neuromorphic_drivers: {self.device_list[0]}"
         )
