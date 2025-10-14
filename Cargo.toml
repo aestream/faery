@@ -19,6 +19,7 @@ neuromorphic-types = "0.6.0"
 numpy = {version = "0.23.0"}
 pyo3 = {version = "0.23.4", features = ["extension-module"]}
 resvg = "0.44.0"
+rosbag = "0.6.3"
 roxmltree = "0.20.0"
 serde = {version = "1.0", features = ["derive"]}
 serde_json = "1.0"

@@ -13,6 +13,7 @@ mod mp4;
 mod mustache;
 mod raster;
 mod render;
+mod rosbag;
 //mod event_spectrogram;
 mod types;
 mod utilities;
@@ -105,6 +106,11 @@ fn faery(python: Python<'_>, module: &pyo3::Bound<'_, pyo3::types::PyModule>) ->
     {
         let submodule = PyModule::new(python, "render")?;
         submodule.add_class::<render::Renderer>()?;
+        module.add_submodule(&submodule)?;
+    }
+    {
+        let submodule = PyModule::new(python, "rosbag")?;
+        submodule.add_class::<rosbag::Decoder>()?;
         module.add_submodule(&submodule)?;
     }
     Ok(())
