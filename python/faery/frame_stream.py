@@ -1,6 +1,7 @@
 import collections.abc
 import dataclasses
 import pathlib
+import time
 import typing
 
 import numpy
@@ -10,9 +11,9 @@ from . import color as color_module
 from . import enums, frame_stream_state, stream, timestamp
 
 if typing.TYPE_CHECKING:
-    from .types import image  # type: ignore
+    from .types import gui, image  # type: ignore
 else:
-    from .extension import image
+    from .extension import gui, image
 
 
 @dataclasses.dataclass
@@ -81,6 +82,18 @@ class FrameOutput(typing.Generic[OutputState]):
             use_write_suffix=True,
             on_progress=on_progress,
         )
+
+    def view(self, frame_rate: typing.Optional[float] = 30.0):
+        """
+        Display frames in a GUI viewer using Slint
+
+        Args:
+            frame_rate: Maximum frame rate (Hz) for display. Note that this is independent of
+                the rate with which the frames has been generated (typically using
+                EventsStream.regularize). If not set, displays as fast as possible.
+        """
+        # Pass the frame stream and frame rate to Rust
+        gui.run_frame_viewer_from_iterator(self, frame_rate)
 
     def to_file(
         self,
