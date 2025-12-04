@@ -7,13 +7,13 @@ import faery
 
 
 @pytest.mark.parametrize(
-    "format_type,payload_length,num_events,port",
+    "format_type,events_per_packet,num_events,port",
     [
-        ("t64_x16_y16_on8", 1209, 500, 29999),
-        ("t32_x16_y15_on1", 1208, 500, 29998),
+        ("t64_x16_y16_on8", 99, 500, 29999),
+        ("t32_x16_y15_on1", 101, 500, 29998),
     ],
 )
-def test_udp_encoder_decoder(format_type, payload_length, num_events, port):
+def test_udp_encoder_decoder(format_type, events_per_packet, num_events, port):
     """Test UDP encoder/decoder with random events."""
 
     dimensions = (640, 480)
@@ -53,7 +53,7 @@ def test_udp_encoder_decoder(format_type, payload_length, num_events, port):
         stream.to_udp(
             address,
             format=format_type,
-            payload_length=payload_length
+            events_per_packet=events_per_packet
         )
         time.sleep(0.1)  # Give receiver time to collect all packets
         stop_receiver.set()

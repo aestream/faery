@@ -184,7 +184,7 @@ class Output(typing.Generic[OutputState]):
         address: typing.Union[
             tuple[str, int], tuple[str, int, typing.Optional[int], typing.Optional[str]]
         ],
-        payload_length: typing.Optional[int] = None,
+        events_per_packet: typing.Optional[int] = None,
         format: enums.UdpFormat = "t64_x16_y16_on8",
         on_progress: typing.Callable[[OutputState], None] = lambda _: None,
     ) -> None:
@@ -192,28 +192,24 @@ class Output(typing.Generic[OutputState]):
         Sends the stream to the given UDP address and port.
 
         The address format defines whether IPv4 or IPv6 is used. If it has two items (host, port),
-        IPv4 is used. It it has four items (host, port, flowinfo, scope_id), IPv6 is used.
-        To force IPv6 but ommit scope_id and/or flowinfo, set them to None.
+        IPv4 is used. It has four items (host, port, flowinfo, scope_id), IPv6 is used.
+        To force IPv6 but omit scope_id and/or flowinfo, set them to None.
         See https://docs.python.org/3/library/socket.html for details.
 
-        To maximize throughput, consider re-arranging the stream in packets of exactly `payload_length / format_size` events
-        with `.chunks(payload_length / format_size)`. By default:
-        - for format "t64_x16_y16_on8", payload_length is 1209 and payload size is 13.
-        - for format "t32_x16_y15_on1", payload_length is 1208 and payload size is 8.
+        To maximize throughput, consider re-arranging the stream in packets of exactly `events_per_packet` events
+        with `.chunks(events_per_packet)`.
 
         Args:
             address: the UDP address as (host, port) for IPv4 and (host, port, flowinfo, scope_id) for IPv6.
-            payload_length: maximum payload size in bytes. It must be a multiple of the event size
-            (13 for format="t64_x16_y16_on8" and 8 for format="t64_x16_y16_on8"). Defaults to 1209 if format is "t64_x16_y16_on8"
-            and 1208 if format is "t32_x16_y15_on1".
-            format: Event encoding format. Defaults to "t64_x16_y16_on8".
+            events_per_packet: number of events per UDP packet. Defaults to 100 for both formats.
+            format: Event encoding format, either "t64_x16_y16_on8" or "t32_x16_y15_on1". Defaults to "t64_x16_y16_on8".
         """
         from . import udp_encoder
 
         return udp_encoder.encode(
             stream=self,
             address=address,
-            payload_length=payload_length,
+            events_per_packet=events_per_packet,
             format=format,
             on_progress=on_progress,  # type: ignore
         )

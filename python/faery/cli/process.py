@@ -316,9 +316,10 @@ def output_parser(
         subparser = subparsers.add_parser("udp")
         subparser.add_argument("address", type=list_filters.parse_udp)
         subparser.add_argument(
-            "--payload-length",
+            "--events-per-packet",
             type=list_filters.parse_optional_int,
             default="none",
+            dest="events_per_packet",
             help="(default: %(default)s)",
         )
         subparser.add_argument(
