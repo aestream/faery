@@ -418,7 +418,20 @@ def output_parser(
 
         # Output frame viewer (GUI)
         subparser = subparsers.add_parser("view")
-        
+        if stream_parent_class in {
+            faery.FiniteFrameStream,
+            faery.FiniteRegularFrameStream,
+        }:
+            subparser.add_argument(
+                "--no-progress",
+                action="store_const",
+                const=False,
+                default=True,
+                dest="progress",
+            )
+        else:
+            subparser.add_argument("--progress", action="store_true")
+
         # Output frame files (frame collection)
         subparser = subparsers.add_parser("files")
         subparser.add_argument("path_pattern", metavar="path-pattern")
@@ -594,7 +607,8 @@ class StreamWrapper:
                 )
                 self.stream.to_files(**args)
             elif output == "view":
-                self.stream.to_viewer()
+                del args["on_progress"]
+                self.stream.view()
             else:
                 raise Exception(f'unknown output type "{output}"')
         else:
