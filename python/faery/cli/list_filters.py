@@ -297,6 +297,10 @@ def class_to_name_to_filter() -> dict[typing.Any, dict[str, Filter]]:
                     str(faery.Time),
                     typing.Optional[faery.Time],
                     str(typing.Optional[faery.Time]),
+                    faery.TimeOrTimecode,
+                    str(faery.TimeOrTimecode),
+                    typing.Optional[faery.TimeOrTimecode],
+                    str(typing.Optional[faery.TimeOrTimecode]),
                     faery.Color,
                     str(faery.Color),
                     typing.Optional[faery.Color],
@@ -312,6 +316,18 @@ def class_to_name_to_filter() -> dict[typing.Any, dict[str, Filter]]:
                     elif parameter.annotation in {
                         typing.Optional[faery.Time],
                         str(typing.Optional[faery.Time]),
+                    }:
+                        options["type"] = parse_optional_time
+                        type_representation = "(int | float | hh:mm:ss.µµµµµµ | none)"
+                    elif parameter.annotation in {
+                        faery.TimeOrTimecode,
+                        str(faery.TimeOrTimecode),
+                    }:
+                        options["type"] = parse_time
+                        type_representation = "(int | float | hh:mm:ss.µµµµµµ)"
+                    elif parameter.annotation in {
+                        typing.Optional[faery.TimeOrTimecode],
+                        str(typing.Optional[faery.TimeOrTimecode]),
                     }:
                         options["type"] = parse_optional_time
                         type_representation = "(int | float | hh:mm:ss.µµµµµµ | none)"

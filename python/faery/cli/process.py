@@ -316,9 +316,10 @@ def output_parser(
         subparser = subparsers.add_parser("udp")
         subparser.add_argument("address", type=list_filters.parse_udp)
         subparser.add_argument(
-            "--payload-length",
+            "--events-per-packet",
             type=list_filters.parse_optional_int,
             default="none",
+            dest="events_per_packet",
             help="(default: %(default)s)",
         )
         subparser.add_argument(
@@ -417,7 +418,20 @@ def output_parser(
 
         # Output frame viewer (GUI)
         subparser = subparsers.add_parser("view")
-        
+        if stream_parent_class in {
+            faery.FiniteFrameStream,
+            faery.FiniteRegularFrameStream,
+        }:
+            subparser.add_argument(
+                "--no-progress",
+                action="store_const",
+                const=False,
+                default=True,
+                dest="progress",
+            )
+        else:
+            subparser.add_argument("--progress", action="store_true")
+
         # Output frame files (frame collection)
         subparser = subparsers.add_parser("files")
         subparser.add_argument("path_pattern", metavar="path-pattern")
@@ -593,7 +607,8 @@ class StreamWrapper:
                 )
                 self.stream.to_files(**args)
             elif output == "view":
-                self.stream.to_viewer()
+                del args["on_progress"]
+                self.stream.view()
             else:
                 raise Exception(f'unknown output type "{output}"')
         else:

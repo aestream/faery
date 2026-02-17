@@ -99,6 +99,7 @@ class Decoder(events_stream.EventsStream):
                             previous_t = events["t"][-1]
                             yield events
         elif self.format == "t32_x16_y15_on1":
+            offset = 0
             with Receiver(self.address) as receiver:
                 dtype = numpy.dtype([("t", "<u4"), ("x", "<u2"), ("y+on", "<u2")])
                 while True:
@@ -115,7 +116,7 @@ class Decoder(events_stream.EventsStream):
                         events["t"] = raw_events["t"]
                         events["x"] = raw_events["x"]
                         events["y"] = raw_events["y+on"] >> 1
-                        events["y"] = raw_events["on"] & 1
+                        events["on"] = raw_events["y+on"] & 1
                         events["t"] += offset
                         if events["t"][0] >= previous_t:
                             previous_t = events["t"][-1]
