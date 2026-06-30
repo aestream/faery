@@ -3,6 +3,7 @@ use pyo3::prelude::*;
 mod aedat;
 mod csv;
 mod dat;
+mod dlpack;
 mod es;
 mod evt;
 mod font;
@@ -101,6 +102,11 @@ fn faery(python: Python<'_>, module: &pyo3::Bound<'_, pyo3::types::PyModule>) ->
         let submodule = PyModule::new(python, "mustache")?;
         submodule.add_class::<mustache::Job>()?;
         submodule.add_function(wrap_pyfunction!(mustache::render, &submodule)?)?;
+        module.add_submodule(&submodule)?;
+    }
+    {
+        let submodule = PyModule::new(python, "dlpack")?;
+        submodule.add_function(wrap_pyfunction!(dlpack::rasterize_to_frame, &submodule)?)?;
         module.add_submodule(&submodule)?;
     }
     {

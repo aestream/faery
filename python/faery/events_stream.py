@@ -214,6 +214,53 @@ class Output(typing.Generic[OutputState]):
             on_progress=on_progress,  # type: ignore
         )
 
+    def to_dlpack_sparse(
+        self,
+    ) -> collections.abc.Iterator[dict[str, numpy.ndarray]]:
+        """
+        Yields events per packet as a dict of contiguous arrays {"t", "x", "y", "p"}.
+
+        Each value is a numpy array that exposes `__dlpack__`, so it can be passed
+        to any ML framework that supports the DLPack protocol
+        (e.g. `torch.from_dlpack`, `jax.dlpack.from_dlpack`).
+
+        Fields are copied out of the structured event packet into contiguous arrays
+        so that DLPack export does not require strided support on the consumer side.
+        Dtypes match the event packet:
+            t: uint64, x: uint16, y: uint16, p: bool
+        """
+        for events in self:
+            yield {
+                "t": numpy.ascontiguousarray(events["t"]),
+                "x": numpy.ascontiguousarray(events["x"]),
+                "y": numpy.ascontiguousarray(events["y"]),
+                "p": numpy.ascontiguousarray(events["on"]),
+            }
+
+    def to_dlpack_frame(
+        self,
+        dtype: typing.Literal["u16", "u32", "f32"] = "u16",
+    ) -> collections.abc.Iterator[numpy.ndarray]:
+        """
+        Yields per-packet `(2, height, width)` frames as numpy arrays.
+
+        Each frame is a polarity-split event count histogram where
+        `frame[p, y, x]` is the number of events at pixel `(x, y)` with polarity `p`
+        (0 = OFF, 1 = ON) inside the packet. Output is a numpy array that exposes
+        `__dlpack__`, so it can be passed to any ML framework that supports DLPack.
+
+        u16 saturates at 65535 (hot pixels in long packets may saturate);
+        u32 and f32 are safe from saturation.
+
+        Args:
+            dtype: Output dtype, one of "u16" (default), "u32", or "f32".
+        """
+        from .extension import dlpack
+
+        width, height = self.dimensions()
+        for events in self:
+            yield dlpack.rasterize_to_frame(events, width, height, dtype)
+
 
 class EventsStream(
     stream.Stream[numpy.ndarray], Output[events_stream_state.EventsStreamState]
