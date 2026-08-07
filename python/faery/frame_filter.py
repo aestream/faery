@@ -302,3 +302,70 @@ class Map(frame_stream.FiniteRegularFrameFilter):
                 pixels=self.function(frame.pixels),
                 t=frame.t,
             )
+
+
+@typed_filter({"", "Finite", "Regular", "FiniteRegular"})
+class Overlay(frame_stream.FiniteRegularFrameFilter):
+    """
+    Draws sidecar data onto each frame by zipping the frame stream with a second,
+    index-aligned iterable.
+
+    This is the "merge" step of a fork-join pipeline: a source event stream is used
+    twice, once to `render` frames and once to compute per-packet data (e.g. tracker
+    positions), and this filter recombines the two branches.
+
+        source = events.regularize(frequency_hz=hz)
+        frames = source.render(...)
+        tracks = (run_tracker(packet) for packet in events.regularize(frequency_hz=hz))
+        video = frames.overlay(tracks, draw=draw_circles)
+
+    Alignment is positional: sidecar item `i` is paired with frame `i`. Both branches
+    are assumed to share the same packet cadence -- the simplest guarantee is to build
+    both from the same `regularize(frequency_hz=..., start=...)` parameters. Pin `start`
+    if the two branches do not share a parent object.
+
+    `run_tracker` (the sidecar producer) and `draw` are arbitrary callables. `run_tracker`
+    is the natural boundary to a foreign backend: it receives a numpy structured-array
+    view of the packet (zero-copy, DLPack-compatible) and may forward it to C++/Rust,
+    returning any Python object. `draw` receives the RGBA frame and the sidecar item.
+
+    Args:
+        parent: Input frame stream.
+        sidecar: Iterable yielding one item per frame, aligned by index. Must be at
+            least as long as the frame stream.
+        draw: Callable `(pixels, item)` invoked per frame. `pixels` is the RGBA frame
+            (shape `(height, width, 4)`, dtype uint8). Mutate it in place, or return a
+            replacement array; returning `None` keeps the in-place result.
+
+    Raises:
+        ValueError: If the sidecar is exhausted before the frame stream (cadence mismatch).
+    """
+
+    def __init__(
+        self,
+        parent: frame_stream.FiniteRegularFrameStream,
+        sidecar: collections.abc.Iterable[typing.Any],
+        draw: collections.abc.Callable[
+            [numpy.typing.NDArray[numpy.uint8], typing.Any],
+            typing.Optional[numpy.typing.NDArray[numpy.uint8]],
+        ],
+    ):
+        self.init(parent=parent)
+        self.sidecar = sidecar
+        self.draw = draw
+
+    def __iter__(self) -> collections.abc.Iterator[frame_stream.Frame]:
+        sidecar_iterator = iter(self.sidecar)
+        for index, frame in enumerate(self.parent):
+            try:
+                item = next(sidecar_iterator)
+            except StopIteration:
+                raise ValueError(
+                    f"the overlay sidecar was exhausted after {index} item(s) but the "
+                    "frame stream produced more frames; the two branches are not aligned "
+                    "(ensure both use the same regularize frequency_hz and start)"
+                )
+            replacement = self.draw(frame.pixels, item)
+            if replacement is not None:
+                frame.pixels = replacement
+            yield frame
