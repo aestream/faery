@@ -180,6 +180,15 @@ class FrameStream(
         ],
     ) -> "FrameStream": ...
 
+    def overlay_with(
+        self,
+        sidecar: collections.abc.Iterable[typing.Any],
+        draw: collections.abc.Callable[
+            [numpy.typing.NDArray[numpy.uint8], typing.Any],
+            typing.Optional[numpy.typing.NDArray[numpy.uint8]],
+        ],
+    ) -> "FrameStream": ...
+
 
 class FiniteFrameStream(
     stream.FiniteStream[Frame],
@@ -221,6 +230,15 @@ class FiniteFrameStream(
         self,
         function: collections.abc.Callable[
             [numpy.typing.NDArray[numpy.uint8]], numpy.typing.NDArray[numpy.uint8]
+        ],
+    ) -> "FiniteFrameStream": ...
+
+    def overlay_with(
+        self,
+        sidecar: collections.abc.Iterable[typing.Any],
+        draw: collections.abc.Callable[
+            [numpy.typing.NDArray[numpy.uint8], typing.Any],
+            typing.Optional[numpy.typing.NDArray[numpy.uint8]],
         ],
     ) -> "FiniteFrameStream": ...
 
@@ -269,6 +287,15 @@ class RegularFrameStream(
         ],
     ) -> "RegularFrameStream": ...
 
+    def overlay_with(
+        self,
+        sidecar: collections.abc.Iterable[typing.Any],
+        draw: collections.abc.Callable[
+            [numpy.typing.NDArray[numpy.uint8], typing.Any],
+            typing.Optional[numpy.typing.NDArray[numpy.uint8]],
+        ],
+    ) -> "RegularFrameStream": ...
+
 
 class FiniteRegularFrameStream(
     stream.FiniteRegularStream[Frame],
@@ -311,6 +338,15 @@ class FiniteRegularFrameStream(
         self,
         function: collections.abc.Callable[
             [numpy.typing.NDArray[numpy.uint8]], numpy.typing.NDArray[numpy.uint8]
+        ],
+    ) -> "FiniteRegularFrameStream": ...
+
+    def overlay_with(
+        self,
+        sidecar: collections.abc.Iterable[typing.Any],
+        draw: collections.abc.Callable[
+            [numpy.typing.NDArray[numpy.uint8], typing.Any],
+            typing.Optional[numpy.typing.NDArray[numpy.uint8]],
         ],
     ) -> "FiniteRegularFrameStream": ...
 
@@ -426,13 +462,32 @@ def bind(prefix: typing.Literal["", "Finite", "Regular", "FiniteRegular"]):
             function=function,
         )
 
+    def overlay_with(
+        self,
+        sidecar: collections.abc.Iterable[typing.Any],
+        draw: collections.abc.Callable[
+            [numpy.typing.NDArray[numpy.uint8], typing.Any],
+            typing.Optional[numpy.typing.NDArray[numpy.uint8]],
+        ],
+    ):
+        from .frame_filter import FILTERS
+
+        return FILTERS[f"{prefix}Overlay"](
+            parent=self,
+            sidecar=sidecar,
+            draw=draw,
+        )
+
     scale.filter_return_annotation = f"{prefix}FrameStream"
     annotate.filter_return_annotation = f"{prefix}FrameStream"
+    map.filter_return_annotation = f"{prefix}FrameStream"
+    overlay_with.filter_return_annotation = f"{prefix}FrameStream"
 
     globals()[f"{prefix}FrameStream"].scale = scale
     globals()[f"{prefix}FrameStream"].annotate = annotate
     globals()[f"{prefix}FrameStream"].add_overlay = add_overlay
     globals()[f"{prefix}FrameStream"].map = map
+    globals()[f"{prefix}FrameStream"].overlay_with = overlay_with
 
 
 for prefix in ("", "Finite", "Regular", "FiniteRegular"):
