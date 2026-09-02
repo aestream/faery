@@ -39,6 +39,18 @@ pip install pytest
 pytest tests
 ```
 
+## Build the documentation
+
+The docs are built with [Jupyter Book](https://next.jupyterbook.org/). The
+`--execute` flag runs the tutorial notebooks (stored as jupytext Markdown in
+_docs/tutorials_) so their outputs appear on the site; it requires the `docs`
+dependency group, which includes `torch` and `jax`.
+
+```sh
+uv sync --group dev --group docs
+cd docs && uv run jupyter book build --html --execute
+```
+
 ## Upload a new version
 
 1. Update the version in _pyproject.toml_.
