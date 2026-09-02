@@ -3,6 +3,8 @@
 target
 __pycache__
 .vscode
+uv.lock
+.claude/
 *.so
 tests/data_generated
 src/mp4/x264-build

@@ -47,6 +47,7 @@
               export CC="gcc" # use gcc to compile x264
               export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath [
                 pkgs.libGL pkgs.libxkbcommon pkgs.wayland pkgs.fontconfig
+                pkgs.stdenv.cc.cc.lib pkgs.zlib
               ]}:$LD_LIBRARY_PATH"
               source .venv/bin/activate
               maturin develop --release
