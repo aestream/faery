@@ -216,9 +216,15 @@ class Output(typing.Generic[OutputState]):
 
     def to_dlpack_sparse(
         self,
+        fields: collections.abc.Sequence[typing.Literal["t", "x", "y", "p"]] = (
+            "t",
+            "x",
+            "y",
+            "p",
+        ),
     ) -> collections.abc.Iterator[dict[str, numpy.ndarray]]:
         """
-        Yields events per packet as a dict of contiguous arrays {"t", "x", "y", "p"}.
+        Yields events per packet as a dict of contiguous arrays (by default {"t", "x", "y", "p"}).
 
         Each value is a numpy array that exposes `__dlpack__`, so it can be passed
         to any ML framework that supports the DLPack protocol
@@ -228,13 +234,23 @@ class Output(typing.Generic[OutputState]):
         so that DLPack export does not require strided support on the consumer side.
         Dtypes match the event packet:
             t: uint64, x: uint16, y: uint16, p: bool
+
+        Args:
+            fields: Fields to extract, any subset of ("t", "x", "y", "p").
+                Fields not listed are not copied. A continuously streaming GPU
+                consumer typically only needs ("x", "y", "p") — timestamps are
+                implicit in the packet cadence.
         """
+        key_map = {"t": "t", "x": "x", "y": "y", "p": "on"}
+        for field in fields:
+            if field not in key_map:
+                raise ValueError(
+                    f'unknown field "{field}" (expected "t", "x", "y", or "p")'
+                )
         for events in self:
             yield {
-                "t": numpy.ascontiguousarray(events["t"]),
-                "x": numpy.ascontiguousarray(events["x"]),
-                "y": numpy.ascontiguousarray(events["y"]),
-                "p": numpy.ascontiguousarray(events["on"]),
+                field: numpy.ascontiguousarray(events[key_map[field]])
+                for field in fields
             }
 
     def to_dlpack_frame(

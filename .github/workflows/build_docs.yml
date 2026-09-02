@@ -40,10 +40,10 @@ jobs:
           node-version: "24.x"
       - name: Install dev dependencies
         run: |
-          uv sync --group dev
+          uv sync --group dev --group docs
       - name: Build documentation
         run: |
-          cd docs && uv run jupyter book build --html
+          cd docs && uv run jupyter book build --html --execute
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
