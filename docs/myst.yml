@@ -28,6 +28,11 @@ project:
           title: Synthetic Data
         - file: inputs/stdin.md
           title: Standard Input
+    - title: Tutorials
+      file: tutorials/tutorials.md
+      children:
+        - file: tutorials/stream_to_pytorch.md
+          title: Streaming into PyTorch & JAX
     - file: cli.md
     - file: python.md
     - file: batch.md
