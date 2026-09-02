@@ -56,6 +56,21 @@ def test_to_dlpack_sparse_yields_field_dicts():
         assert hasattr(arr, "__dlpack__")
 
 
+def test_to_dlpack_sparse_field_subset():
+    packet = _make_packet()
+    stream = _FixedStream([packet], dimensions=(10, 8))
+    out = next(iter(stream.to_dlpack_sparse(fields=("x", "y", "p"))))
+    assert set(out) == {"x", "y", "p"}
+    numpy.testing.assert_array_equal(out["x"], packet["x"])
+    numpy.testing.assert_array_equal(out["p"], packet["on"])
+
+
+def test_to_dlpack_sparse_unknown_field():
+    stream = _FixedStream([_make_packet()], dimensions=(10, 8))
+    with pytest.raises(ValueError):
+        next(iter(stream.to_dlpack_sparse(fields=("x", "polarity"))))  # type: ignore[arg-type]
+
+
 def test_to_dlpack_frame_counts_polarities():
     packet = _make_packet()
     stream = _FixedStream([packet], dimensions=(10, 8))
