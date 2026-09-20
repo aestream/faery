@@ -13,14 +13,14 @@ dependencies = ["numpy>=1.26"]
 version = "0.7.0"
 
 [project.optional-dependencies]
-tests = ["pytest==9.1.1"]
+tests = ["pytest==8.4.2"]
 
 [dependency-groups]
 dev = [
   "maturin==1.15.0",
-  "pytest==9.1.1",
-  "isort==9.0.1",
-  "black==26.5.1",
+  "pytest==8.4.2",
+  "isort==6.1.0",
+  "black==25.11.0",
   "pyright==1.1.414",
   "jupyter-book==2.1.6",
 ]
