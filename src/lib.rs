@@ -18,7 +18,7 @@ mod render;
 mod types;
 mod utilities;
 
-#[pymodule]
+#[pymodule(gil_used = false)]
 #[pyo3(name = "extension")]
 fn faery(python: Python<'_>, module: &pyo3::Bound<'_, pyo3::types::PyModule>) -> PyResult<()> {
     {
@@ -73,7 +73,10 @@ fn faery(python: Python<'_>, module: &pyo3::Bound<'_, pyo3::types::PyModule>) ->
     }
     {
         let submodule = PyModule::new(python, "gui")?;
-        submodule.add_function(wrap_pyfunction!(gui::run_frame_viewer_from_iterator, &submodule)?)?;
+        submodule.add_function(wrap_pyfunction!(
+            gui::run_frame_viewer_from_iterator,
+            &submodule
+        )?)?;
         module.add_submodule(&submodule)?;
     }
     {

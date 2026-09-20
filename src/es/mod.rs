@@ -81,9 +81,9 @@ impl Decoder {
     #[pyo3(signature = (_exception_type, _value, _traceback))]
     fn __exit__(
         &mut self,
-        _exception_type: Option<PyObject>,
-        _value: Option<PyObject>,
-        _traceback: Option<PyObject>,
+        _exception_type: Option<Py<PyAny>>,
+        _value: Option<Py<PyAny>>,
+        _traceback: Option<Py<PyAny>>,
     ) -> PyResult<bool> {
         if self.inner.is_none() {
             return Err(pyo3::exceptions::PyException::new_err(
@@ -98,7 +98,7 @@ impl Decoder {
         Ok(shell.into())
     }
 
-    fn __next__(mut shell: PyRefMut<Self>) -> PyResult<Option<PyObject>> {
+    fn __next__(mut shell: PyRefMut<Self>) -> PyResult<Option<Py<PyAny>>> {
         let packet = match shell.inner {
             Some(ref mut decoder) => match decoder.next() {
                 Ok(result) => match result {
@@ -113,7 +113,7 @@ impl Decoder {
                 ))
             }
         };
-        Python::with_gil(|python| -> PyResult<Option<PyObject>> {
+        Python::attach(|python| -> PyResult<Option<Py<PyAny>>> {
             Ok(Some(match packet {
                 decoder::Packet::Generic(events) => {
                     let length = events.len() as numpy::npyffi::npy_intp;
@@ -132,7 +132,8 @@ impl Decoder {
                                 .copy_from_slice(&(pybytes as usize).to_ne_bytes());
                             std::ptr::copy(event_array.as_ptr(), event_cell, event_array.len());
                         }
-                        PyObject::from_owned_ptr(python, array as *mut pyo3::ffi::PyObject)
+                        pyo3::Bound::from_owned_ptr(python, array as *mut pyo3::ffi::PyObject)
+                            .unbind()
                     }
                 }
                 decoder::Packet::Dvs(events) => {
@@ -146,10 +147,12 @@ impl Decoder {
                                     as *const neuromorphic_types::PolarityEvent<u64, u16, u16>
                                     as *const u8,
                                 event_cell,
-                                std::mem::size_of::<neuromorphic_types::PolarityEvent<u64, u16, u16>>(),
+                                std::mem::size_of::<neuromorphic_types::PolarityEvent<u64, u16, u16>>(
+                                ),
                             );
                         }
-                        PyObject::from_owned_ptr(python, array as *mut pyo3::ffi::PyObject)
+                        pyo3::Bound::from_owned_ptr(python, array as *mut pyo3::ffi::PyObject)
+                            .unbind()
                     }
                 }
                 decoder::Packet::Atis(events) => {
@@ -183,7 +186,8 @@ impl Decoder {
                             }
                             std::ptr::copy(event_array.as_ptr(), event_cell, event_array.len());
                         }
-                        PyObject::from_owned_ptr(python, array as *mut pyo3::ffi::PyObject)
+                        pyo3::Bound::from_owned_ptr(python, array as *mut pyo3::ffi::PyObject)
+                            .unbind()
                     }
                 }
                 decoder::Packet::Color(events) => {
@@ -198,7 +202,8 @@ impl Decoder {
                                 std::mem::size_of::<common::ColorEvent>(),
                             );
                         }
-                        PyObject::from_owned_ptr(python, array as *mut pyo3::ffi::PyObject)
+                        pyo3::Bound::from_owned_ptr(python, array as *mut pyo3::ffi::PyObject)
+                            .unbind()
                     }
                 }
             }))
@@ -250,9 +255,9 @@ impl Encoder {
     #[pyo3(signature = (_exception_type, _value, _traceback))]
     fn __exit__(
         &mut self,
-        _exception_type: Option<PyObject>,
-        _value: Option<PyObject>,
-        _traceback: Option<PyObject>,
+        _exception_type: Option<Py<PyAny>>,
+        _value: Option<Py<PyAny>>,
+        _traceback: Option<Py<PyAny>>,
     ) -> PyResult<bool> {
         if self.inner.is_none() {
             return Err(pyo3::exceptions::PyException::new_err(
@@ -273,7 +278,7 @@ impl Encoder {
     }
 
     fn write(&mut self, events: &pyo3::Bound<'_, pyo3::types::PyAny>) -> PyResult<()> {
-        Python::with_gil(|python| -> PyResult<()> {
+        Python::attach(|python| -> PyResult<()> {
             match self.inner.as_mut() {
                 Some(encoder) => match encoder {
                     encoder::Encoder::Generic(encoder) => {

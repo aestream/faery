@@ -66,9 +66,9 @@ impl Encoder {
     #[pyo3(signature = (_exception_type, _value, _traceback))]
     fn __exit__(
         &mut self,
-        _exception_type: Option<PyObject>,
-        _value: Option<PyObject>,
-        _traceback: Option<PyObject>,
+        _exception_type: Option<Py<PyAny>>,
+        _value: Option<Py<PyAny>>,
+        _traceback: Option<Py<PyAny>>,
     ) -> PyResult<bool> {
         match self.inner.as_mut() {
             Some(inner) => {
@@ -113,7 +113,7 @@ impl Encoder {
                 match inner.collector.as_mut() {
                     Some(collector) => {
                         let array_slice = array.as_slice().expect("the frame is contiguous");
-                        collector
+                        let outcome = collector
                             .add_frame_rgba(
                                 inner.frame_index,
                                 gifski::collector::ImgVec::new(
@@ -145,7 +145,9 @@ impl Encoder {
                             )
                             .map_err(|error| {
                                 PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(error.to_string())
-                            })
+                            });
+                        inner.frame_index += 1;
+                        outcome
                     }
                     None => Err(pyo3::exceptions::PyException::new_err("collector is None")),
                 }

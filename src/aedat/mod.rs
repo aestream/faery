@@ -52,7 +52,7 @@ impl From<common::DescriptionError> for PyErr {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone)]
 pub struct Track {
     #[pyo3(get, set)]
@@ -107,13 +107,13 @@ pub struct Frame {
     #[pyo3(get)]
     offset_y: i16,
     #[pyo3(get)]
-    pixels: PyObject,
+    pixels: Py<PyAny>,
 }
 
 #[pymethods]
 impl Frame {
     fn __repr__(&self) -> String {
-        Python::with_gil(|python| -> String {
+        Python::attach(|python| -> String {
             format!(
                 "faery.aedat.Frame(t={}, start_t={}, end_t={}, exposure_start_t={}, exposure_end_t={}, format=\"{}\", offset_x={}, offset_y={}, pixels={})",
                 self.t,
@@ -133,7 +133,7 @@ impl Frame {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone)]
 pub struct FileDataDefinition {
     #[pyo3(get)]
@@ -165,7 +165,7 @@ impl FileDataDefinition {
     }
 }
 
-#[pyclass(eq)]
+#[pyclass(eq, from_py_object)]
 #[derive(Clone, PartialEq, Eq)]
 pub enum DescriptionAttribute {
     #[pyo3(name = "string")]
@@ -201,9 +201,9 @@ impl DescriptionAttribute {
     #[new]
     fn new(attribute_type: &str, value: &pyo3::Bound<'_, pyo3::types::PyAny>) -> PyResult<Self> {
         match attribute_type {
-            "string" => Ok(Self::String(value.downcast::<pyo3::types::PyString>()?.extract()?)),
-            "int" => Ok(Self::Int(value.downcast::<pyo3::types::PyInt>()?.extract()?)),
-            "long" => Ok(Self::Long(value.downcast::<pyo3::types::PyInt>()?.extract()?)),
+            "string" => Ok(Self::String(value.cast::<pyo3::types::PyString>()?.extract()?)),
+            "int" => Ok(Self::Int(value.cast::<pyo3::types::PyInt>()?.extract()?)),
+            "long" => Ok(Self::Long(value.cast::<pyo3::types::PyInt>()?.extract()?)),
             attribute_type => Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
                 "unexpected attribute type \"{attribute_type}\" (expected \"string\", \"int\", or \"long\")"
             )))
@@ -222,8 +222,8 @@ impl DescriptionAttribute {
     }
 
     #[getter]
-    fn value(&self) -> PyResult<PyObject> {
-        Python::with_gil(|python| -> PyResult<PyObject> {
+    fn value(&self) -> PyResult<Py<PyAny>> {
+        Python::attach(|python| -> PyResult<Py<PyAny>> {
             Ok(match self {
                 DescriptionAttribute::String(value) => {
                     value.into_pyobject(python)?.unbind().into_any()
@@ -253,7 +253,7 @@ impl DescriptionAttribute {
     }
 }
 
-#[pyclass(eq)]
+#[pyclass(eq, from_py_object)]
 #[derive(Clone, PartialEq, Eq)]
 pub struct DescriptionNode {
     #[pyo3(get, set)]
@@ -410,9 +410,9 @@ impl Decoder {
     #[pyo3(signature = (_exception_type, _value, _traceback))]
     fn __exit__(
         &mut self,
-        _exception_type: Option<PyObject>,
-        _value: Option<PyObject>,
-        _traceback: Option<PyObject>,
+        _exception_type: Option<Py<PyAny>>,
+        _value: Option<Py<PyAny>>,
+        _traceback: Option<Py<PyAny>>,
     ) -> PyResult<bool> {
         if self.inner.is_none() {
             return Err(pyo3::exceptions::PyException::new_err(
@@ -427,7 +427,7 @@ impl Decoder {
         Ok(shell.into())
     }
 
-    fn __next__(mut shell: PyRefMut<Self>) -> PyResult<Option<(Track, PyObject)>> {
+    fn __next__(mut shell: PyRefMut<Self>) -> PyResult<Option<(Track, Py<PyAny>)>> {
         let packet = match shell.inner {
             Some(ref mut decoder) => match decoder.next() {
                 Ok(result) => match result {
@@ -442,7 +442,7 @@ impl Decoder {
                 ))
             }
         };
-        Python::with_gil(|python| -> PyResult<Option<(Track, PyObject)>> {
+        Python::attach(|python| -> PyResult<Option<(Track, Py<PyAny>)>> {
             let track = Track {
                 id: packet.track_id,
                 data_type: packet.track.to_data_type().to_owned(),
@@ -492,7 +492,8 @@ impl Decoder {
                             event_array[12] = if event.on() { 1 } else { 0 };
                             std::ptr::copy(event_array.as_ptr(), event_cell, event_array.len());
                         }
-                        PyObject::from_owned_ptr(python, array as *mut pyo3::ffi::PyObject)
+                        pyo3::Bound::from_owned_ptr(python, array as *mut pyo3::ffi::PyObject)
+                            .unbind()
                     }
                 }
                 common::Track::Frame {
@@ -620,7 +621,8 @@ impl Decoder {
                             std::ptr::copy(imu_array.as_ptr(), imu_cell, imu_array.len());
                             index += 1;
                         }
-                        PyObject::from_owned_ptr(python, array as *mut pyo3::ffi::PyObject)
+                        pyo3::Bound::from_owned_ptr(python, array as *mut pyo3::ffi::PyObject)
+                            .unbind()
                     }
                 }
                 common::Track::Triggers { ref mut previous_t } => {
@@ -675,7 +677,8 @@ impl Decoder {
                             );
                             index += 1;
                         }
-                        PyObject::from_owned_ptr(python, array as *mut pyo3::ffi::PyObject)
+                        pyo3::Bound::from_owned_ptr(python, array as *mut pyo3::ffi::PyObject)
+                            .unbind()
                     }
                 }
             };
@@ -716,9 +719,9 @@ impl Encoder {
     #[pyo3(signature = (_exception_type, _value, _traceback))]
     fn __exit__(
         &mut self,
-        _exception_type: Option<PyObject>,
-        _value: Option<PyObject>,
-        _traceback: Option<PyObject>,
+        _exception_type: Option<Py<PyAny>>,
+        _value: Option<Py<PyAny>>,
+        _traceback: Option<Py<PyAny>>,
     ) -> PyResult<bool> {
         if self.inner.is_none() {
             return Err(pyo3::exceptions::PyException::new_err(
@@ -734,7 +737,7 @@ impl Encoder {
         track_id: i32,
         packet: &pyo3::Bound<'_, pyo3::types::PyAny>,
     ) -> PyResult<()> {
-        Python::with_gil(|python| -> PyResult<()> {
+        Python::attach(|python| -> PyResult<()> {
             match self.inner.as_mut() {
                 Some(encoder) => match encoder.get_track(track_id) {
                     Some(track) => {
@@ -797,7 +800,7 @@ impl Encoder {
                                 dimensions,
                                 ref mut previous_t,
                             } => {
-                                let frame_bound: &pyo3::Bound<'_, Frame> = packet.downcast()?;
+                                let frame_bound: &pyo3::Bound<'_, Frame> = packet.cast()?;
                                 let frame = frame_bound.borrow();
                                 if frame.t < *previous_t {
                                     return Err(utilities::WriteError::NonMonotonic {
@@ -809,7 +812,7 @@ impl Encoder {
                                 self.frame_buffer.clear();
                                 let (frame_format, frame_dimensions) = match frame.format.as_str() {
                                     "L" => {
-                                        let array_bound = frame.pixels.downcast_bound::<numpy::PyArray2<u8>>(python)?.readonly();
+                                        let array_bound = frame.pixels.cast_bound::<numpy::PyArray2<u8>>(python)?.readonly();
                                         let array = array_bound.as_array();
                                         let array_dim = array.dim();
                                         if array_dim.1 > dimensions.0 as usize {
@@ -833,7 +836,7 @@ impl Encoder {
                                         (encoder::Format::L, (array_dim.1, array_dim.0))
                                     },
                                     "RGB" | "RGBA" => {
-                                        let array_bound = frame.pixels.downcast_bound::<numpy::PyArray3<u8>>(python)?.readonly();
+                                        let array_bound = frame.pixels.cast_bound::<numpy::PyArray3<u8>>(python)?.readonly();
                                         let array = array_bound.as_array();
                                         let array_dim = array.dim();
                                         if array_dim.1 > dimensions.0 as usize {

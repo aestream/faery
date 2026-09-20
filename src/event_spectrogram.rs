@@ -141,9 +141,9 @@ impl EventSpectrogram {
     #[pyo3(signature = (_exception_type, _value, _traceback))]
     fn __exit__(
         &mut self,
-        _exception_type: Option<PyObject>,
-        _value: Option<PyObject>,
-        _traceback: Option<PyObject>,
+        _exception_type: Option<Py<PyAny>>,
+        _value: Option<Py<PyAny>>,
+        _traceback: Option<Py<PyAny>>,
     ) -> PyResult<bool> {
         if self.inner.is_none() {
             return Err(pyo3::exceptions::PyException::new_err(
@@ -158,8 +158,8 @@ impl EventSpectrogram {
         &mut self,
         events: &pyo3::Bound<'_, pyo3::types::PyAny>,
         render_t: u64,
-    ) -> PyResult<PyObject> {
-        Python::with_gil(|python| -> PyResult<PyObject> {
+    ) -> PyResult<Py<PyAny>> {
+        Python::attach(|python| -> PyResult<Py<PyAny>> {
             match self.inner.as_mut() {
                 Some(renderer) => {
                     let (array, length) =
@@ -404,7 +404,7 @@ impl EventSpectrogram {
                         }
                     }
                     Ok(unsafe {
-                        PyObject::from_owned_ptr(python, array as *mut pyo3::ffi::PyObject)
+                        pyo3::Bound::from_owned_ptr(python, array as *mut pyo3::ffi::PyObject).unbind()
                     })
                 }
                 None => Err(pyo3::exceptions::PyException::new_err(

@@ -350,7 +350,8 @@ impl FrameViewer {
         let streamer = self.streamer.clone();
 
         // Set timer frequency based on target frame rate, with 16ms (60fps) as minimum for UI responsiveness
-        let timer_interval = if let Some(target_rate) = *streamer.target_frame_rate.lock().unwrap() {
+        let timer_interval = if let Some(target_rate) = *streamer.target_frame_rate.lock().unwrap()
+        {
             let target_interval = 1000.0 / target_rate;
             std::cmp::max(16, target_interval as u64)
         } else {

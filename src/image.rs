@@ -4,11 +4,12 @@ use numpy::PyArrayMethods;
 use numpy::PyUntypedArrayMethods;
 use numpy::ToPyArray;
 use pyo3::prelude::*;
+use pyo3::sync::MutexExt;
 
 use crate::font;
 
 #[pyfunction]
-pub fn decode(bytes: &[u8]) -> PyResult<PyObject> {
+pub fn decode(bytes: &[u8]) -> PyResult<Py<PyAny>> {
     let decoder = image::codecs::png::PngDecoder::new(std::io::Cursor::new(bytes))
         .map_err(|error| pyo3::exceptions::PyException::new_err(format!("{error}")))?;
     let image = image::DynamicImage::from_decoder(decoder)
@@ -18,7 +19,7 @@ pub fn decode(bytes: &[u8]) -> PyResult<PyObject> {
     let array =
         numpy::ndarray::ArrayView3::<u8>::from_shape((height as usize, width as usize, 4), &image)
             .map_err(|error| pyo3::exceptions::PyException::new_err(format!("{error}")))?;
-    Ok(Python::with_gil(|python| {
+    Ok(Python::attach(|python| {
         array.to_pyarray(python).unbind().into_any()
     }))
 }
@@ -27,7 +28,7 @@ pub fn decode(bytes: &[u8]) -> PyResult<PyObject> {
 pub fn encode(
     frame: &pyo3::Bound<'_, numpy::PyArray3<u8>>,
     compression_level: &str,
-) -> PyResult<PyObject> {
+) -> PyResult<Py<PyAny>> {
     if !frame.is_contiguous() {
         return Err(pyo3::exceptions::PyAttributeError::new_err(format!(
             "the frame's memory must be contiguous"
@@ -84,7 +85,7 @@ pub fn encode(
             )
             .map_err(|error| pyo3::exceptions::PyRuntimeError::new_err(format!("{error:?}")))?;
     }
-    Ok(Python::with_gil(|python| {
+    Ok(Python::attach(|python| {
         pyo3::types::PyBytes::new(python, &buffer).into()
     }))
 }
@@ -213,8 +214,8 @@ fn write_text(
     }
 }
 
-static SCALES_AND_FONTS: pyo3::sync::GILProtected<std::cell::RefCell<Vec<(i32, fontdue::Font)>>> =
-    pyo3::sync::GILProtected::new(std::cell::RefCell::new(Vec::new()));
+static SCALES_AND_FONTS: std::sync::Mutex<Vec<(i32, fontdue::Font)>> =
+    std::sync::Mutex::new(Vec::new());
 
 #[pyfunction]
 pub fn annotate(
@@ -239,26 +240,28 @@ pub fn annotate(
             dimensions.0, dimensions.1, dimensions.2,
         )));
     }
-    Python::with_gil(|python| {
-        let mut scales_and_fonts = SCALES_AND_FONTS.get(python).borrow_mut();
-        for (font_scale, font) in scales_and_fonts.iter() {
-            if *font_scale == size {
-                write_text(array, dimensions, text, x, y, size, color, font);
-                return;
-            }
+    let mut scales_and_fonts = SCALES_AND_FONTS
+        .lock_py_attached(frame.py())
+        .unwrap_or_else(|error| error.into_inner());
+    match scales_and_fonts
+        .iter()
+        .find(|(font_scale, _)| *font_scale == size)
+    {
+        Some((_, font)) => write_text(array, dimensions, text, x, y, size, color, font),
+        None => {
+            let font = fontdue::Font::from_bytes(
+                font::ROBOTO_MONO_REGULAR as &[u8],
+                fontdue::FontSettings {
+                    collection_index: 0,
+                    scale: size as f32,
+                    load_substitutions: true,
+                },
+            )
+            .expect("loading RobotoMono-Regular.ttf did not fail");
+            write_text(array, dimensions, text, x, y, size, color, &font);
+            scales_and_fonts.push((size, font));
         }
-        let font = fontdue::Font::from_bytes(
-            font::ROBOTO_MONO_REGULAR as &[u8],
-            fontdue::FontSettings {
-                collection_index: 0,
-                scale: size as f32,
-                load_substitutions: true,
-            },
-        )
-        .expect("loading RobotoMono-Regular.ttf did not fail");
-        write_text(array, dimensions, text, x, y, size, color, &font);
-        scales_and_fonts.push((size, font));
-    });
+    }
     Ok(())
 }
 
@@ -285,13 +288,13 @@ pub fn resize(
     frame: &pyo3::Bound<'_, numpy::PyUntypedArray>,
     new_dimensions: (u16, u16),
     sampling_filter: &str,
-) -> PyResult<PyObject> {
+) -> PyResult<Py<PyAny>> {
     if !frame.is_contiguous() {
         return Err(pyo3::exceptions::PyAttributeError::new_err(format!(
             "the frame's memory must be contiguous"
         )));
     }
-    let image_type = Python::with_gil(|python| {
+    let image_type = Python::attach(|python| {
         if frame.dtype().is_equiv_to(&numpy::dtype::<u8>(python)) {
             Some(ImageType::U8)
         } else if frame.dtype().is_equiv_to(&numpy::dtype::<f64>(python)) {
@@ -302,7 +305,7 @@ pub fn resize(
     });
     match image_type {
         Some(ImageType::U8) => {
-            let frame: &pyo3::Bound<'_, numpy::PyArray3<u8>> = frame.downcast()?;
+            let frame: &pyo3::Bound<'_, numpy::PyArray3<u8>> = frame.cast()?;
             let readonly_frame = frame.readonly();
             let array_dimensions = readonly_frame.as_array().dim();
             if array_dimensions.2 == 3 {
@@ -323,7 +326,7 @@ pub fn resize(
                     &resized_image,
                 )
                 .map_err(|error| pyo3::exceptions::PyException::new_err(format!("{error}")))?;
-                Ok(Python::with_gil(|python| {
+                Ok(Python::attach(|python| {
                     array.to_pyarray(python).unbind().into_any()
                 }))
             } else if array_dimensions.2 == 4 {
@@ -344,7 +347,7 @@ pub fn resize(
                     &resized_image,
                 )
                 .map_err(|error| pyo3::exceptions::PyException::new_err(format!("{error}")))?;
-                Ok(Python::with_gil(|python| {
+                Ok(Python::attach(|python| {
                     array.to_pyarray(python).unbind().into_any()
                 }))
             } else {
@@ -355,7 +358,7 @@ pub fn resize(
             }
         }
         Some(ImageType::F64) => {
-            let frame: &pyo3::Bound<'_, numpy::PyArray3<f64>> = frame.downcast()?;
+            let frame: &pyo3::Bound<'_, numpy::PyArray3<f64>> = frame.cast()?;
             if !frame.is_contiguous() {
                 return Err(pyo3::exceptions::PyAttributeError::new_err(format!(
                     "the frame's memory must be contiguous"
@@ -381,7 +384,7 @@ pub fn resize(
                     &resized_image,
                 )
                 .map_err(|error| pyo3::exceptions::PyException::new_err(format!("{error}")))?;
-                Ok(Python::with_gil(|python| {
+                Ok(Python::attach(|python| {
                     array.to_pyarray(python).unbind().into_any()
                 }))
             } else {

@@ -2,7 +2,7 @@ use pyo3::prelude::*;
 
 use crate::types;
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(serde::Serialize, serde::Deserialize, Clone)]
 pub struct Task {
     #[pyo3(get, set)]

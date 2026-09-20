@@ -70,9 +70,9 @@ impl Encoder {
     #[pyo3(signature = (_exception_type, _value, _traceback))]
     fn __exit__(
         &mut self,
-        _exception_type: Option<PyObject>,
-        _value: Option<PyObject>,
-        _traceback: Option<PyObject>,
+        _exception_type: Option<Py<PyAny>>,
+        _value: Option<Py<PyAny>>,
+        _traceback: Option<Py<PyAny>>,
     ) -> PyResult<bool> {
         match self.inner.as_mut() {
             Some(inner) => {

@@ -8,27 +8,27 @@ name = "faery"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-flatbuffers = "25.1.24"
-fontdue = "0.9.2"
-gifski = {version = "1.32.0", default-features = false}
-image = {version = "0.25.1", default-features = false, features = ["png"]}
-lz4 = "1.28.0"
+flatbuffers = "25.12.19"
+fontdue = "0.9.4"
+gifski = {version = "1.34.0", default-features = false}
+image = {version = "0.25.10", default-features = false, features = ["png"]}
+lz4 = "1.28.1"
 mp4 = "0.14.0"
 mustache = "0.9.0"
 neuromorphic-types = "0.6.0"
-numpy = {version = "0.23.0"}
-pyo3 = {version = "0.23.4", features = ["extension-module"]}
-resvg = "0.44.0"
-roxmltree = "0.20.0"
+numpy = {version = "0.29.0"}
+pyo3 = {version = "0.29.2", features = ["extension-module"]}
+resvg = "0.48.1"
+roxmltree = "0.21.1"
 serde = {version = "1.0", features = ["derive"]}
 serde_json = "1.0"
-thiserror = "1.0"
-toml = "0.8.19"
-zstd = "0.13.2"
-slint = "1.9.1"
+slint = "1.18.0"
+thiserror = "2.0"
+toml = "1.1.6"
+zstd = "0.14.0"
 
 [build-dependencies]
-bindgen = "0.70.1"
+bindgen = "0.72.1"
 
 [profile.release]
 codegen-units = 1

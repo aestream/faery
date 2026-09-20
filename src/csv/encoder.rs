@@ -69,7 +69,7 @@ impl Encoder {
             dimensions,
             separator,
             previous_t: 0,
-            enforce_monotonic
+            enforce_monotonic,
         })
     }
 

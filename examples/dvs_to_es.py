@@ -1,5 +1,6 @@
 import argparse
 import pathlib
+
 import numpy
 
 import faery

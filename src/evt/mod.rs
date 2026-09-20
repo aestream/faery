@@ -76,9 +76,9 @@ impl Decoder {
     #[pyo3(signature = (_exception_type, _value, _traceback))]
     fn __exit__(
         &mut self,
-        _exception_type: Option<PyObject>,
-        _value: Option<PyObject>,
-        _traceback: Option<PyObject>,
+        _exception_type: Option<Py<PyAny>>,
+        _value: Option<Py<PyAny>>,
+        _traceback: Option<Py<PyAny>>,
     ) -> PyResult<bool> {
         if self.inner.is_none() {
             return Err(pyo3::exceptions::PyException::new_err(
@@ -93,7 +93,7 @@ impl Decoder {
         Ok(shell.into())
     }
 
-    fn __next__(mut shell: PyRefMut<Self>) -> PyResult<Option<PyObject>> {
+    fn __next__(mut shell: PyRefMut<Self>) -> PyResult<Option<Py<PyAny>>> {
         let packet = match shell.inner {
             Some(ref mut decoder) => match decoder.next() {
                 Ok(result) => match result {
@@ -108,7 +108,7 @@ impl Decoder {
                 ))
             }
         };
-        Python::with_gil(|python| -> PyResult<Option<PyObject>> {
+        Python::attach(|python| -> PyResult<Option<Py<PyAny>>> {
             let python_packet = pyo3::types::PyDict::new(python);
             if !packet.0.is_empty() {
                 let length = packet.0.len() as numpy::npyffi::npy_intp;
@@ -124,7 +124,7 @@ impl Decoder {
                             std::mem::size_of::<neuromorphic_types::PolarityEvent<u64, u16, u16>>(),
                         );
                     }
-                    PyObject::from_owned_ptr(python, array as *mut pyo3::ffi::PyObject)
+                    pyo3::Bound::from_owned_ptr(python, array as *mut pyo3::ffi::PyObject).unbind()
                 })?;
             }
             if !packet.1.is_empty() {
@@ -144,7 +144,7 @@ impl Decoder {
                         };
                         std::ptr::copy(trigger_array.as_ptr(), trigger_cell, trigger_array.len());
                     }
-                    PyObject::from_owned_ptr(python, array as *mut pyo3::ffi::PyObject)
+                    pyo3::Bound::from_owned_ptr(python, array as *mut pyo3::ffi::PyObject).unbind()
                 })?;
             }
             Ok(Some(python_packet.into()))
@@ -185,9 +185,9 @@ impl Encoder {
     #[pyo3(signature = (_exception_type, _value, _traceback))]
     fn __exit__(
         &mut self,
-        _exception_type: Option<PyObject>,
-        _value: Option<PyObject>,
-        _traceback: Option<PyObject>,
+        _exception_type: Option<Py<PyAny>>,
+        _value: Option<Py<PyAny>>,
+        _traceback: Option<Py<PyAny>>,
     ) -> PyResult<bool> {
         if self.inner.is_none() {
             return Err(pyo3::exceptions::PyException::new_err(
@@ -208,7 +208,7 @@ impl Encoder {
     }
 
     fn write(&mut self, packet: &pyo3::Bound<'_, pyo3::types::PyDict>) -> PyResult<()> {
-        Python::with_gil(|python| -> PyResult<()> {
+        Python::attach(|python| -> PyResult<()> {
             match self.inner.as_mut() {
                 Some(encoder) => {
                     let mut events_and_length = None;
@@ -245,8 +245,11 @@ impl Encoder {
                         let mut event_index = 0;
                         let mut trigger_index = 0;
                         unsafe {
-                            let mut event_cell: *mut neuromorphic_types::PolarityEvent<u64, u16, u16> =
-                                types::array_at(python, events, event_index);
+                            let mut event_cell: *mut neuromorphic_types::PolarityEvent<
+                                u64,
+                                u16,
+                                u16,
+                            > = types::array_at(python, events, event_index);
                             let mut trigger_cell: *mut neuromorphic_types::TriggerEvent<u64, u8> =
                                 types::array_at(python, triggers, trigger_index);
                             loop {

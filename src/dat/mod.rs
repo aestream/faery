@@ -98,9 +98,9 @@ impl Decoder {
     #[pyo3(signature = (_exception_type, _value, _traceback))]
     fn __exit__(
         &mut self,
-        _exception_type: Option<PyObject>,
-        _value: Option<PyObject>,
-        _traceback: Option<PyObject>,
+        _exception_type: Option<Py<PyAny>>,
+        _value: Option<Py<PyAny>>,
+        _traceback: Option<Py<PyAny>>,
     ) -> PyResult<bool> {
         if self.inner.is_none() {
             return Err(pyo3::exceptions::PyException::new_err(
@@ -115,7 +115,7 @@ impl Decoder {
         Ok(shell.into())
     }
 
-    fn __next__(mut shell: PyRefMut<Self>) -> PyResult<Option<PyObject>> {
+    fn __next__(mut shell: PyRefMut<Self>) -> PyResult<Option<Py<PyAny>>> {
         let packet = match shell.inner {
             Some(ref mut decoder) => match decoder.next() {
                 Ok(result) => match result {
@@ -130,7 +130,7 @@ impl Decoder {
                 ))
             }
         };
-        Python::with_gil(|python| -> PyResult<Option<PyObject>> {
+        Python::attach(|python| -> PyResult<Option<Py<PyAny>>> {
             let length = packet.len() as numpy::npyffi::npy_intp;
             let array = types::ArrayType::Dat.new_array(python, length);
             unsafe {
@@ -142,10 +142,9 @@ impl Decoder {
                         std::mem::size_of::<common::Event>(),
                     );
                 }
-                Ok(Some(PyObject::from_owned_ptr(
-                    python,
-                    array as *mut pyo3::ffi::PyObject,
-                )))
+                Ok(Some(
+                    pyo3::Bound::from_owned_ptr(python, array as *mut pyo3::ffi::PyObject).unbind(),
+                ))
             }
         })
     }
@@ -184,9 +183,9 @@ impl Encoder {
     #[pyo3(signature = (_exception_type, _value, _traceback))]
     fn __exit__(
         &mut self,
-        _exception_type: Option<PyObject>,
-        _value: Option<PyObject>,
-        _traceback: Option<PyObject>,
+        _exception_type: Option<Py<PyAny>>,
+        _value: Option<Py<PyAny>>,
+        _traceback: Option<Py<PyAny>>,
     ) -> PyResult<bool> {
         if self.inner.is_none() {
             return Err(pyo3::exceptions::PyException::new_err(
@@ -207,7 +206,7 @@ impl Encoder {
     }
 
     fn write(&mut self, packet: &pyo3::Bound<'_, pyo3::types::PyAny>) -> PyResult<()> {
-        Python::with_gil(|python| -> PyResult<()> {
+        Python::attach(|python| -> PyResult<()> {
             match self.inner.as_mut() {
                 Some(encoder) => {
                     let (array, length) =

@@ -4,7 +4,7 @@ use pyo3::prelude::*;
 use crate::font;
 
 #[pyfunction]
-pub fn render(svg_string: &str) -> PyResult<PyObject> {
+pub fn render(svg_string: &str) -> PyResult<Py<PyAny>> {
     let fontdb = std::sync::Arc::new({
         let mut fontdb = resvg::usvg::fontdb::Database::new();
         {
@@ -58,7 +58,7 @@ pub fn render(svg_string: &str) -> PyResult<PyObject> {
         resvg::tiny_skia::Transform::identity(),
         &mut pixmap.as_mut(),
     );
-    Ok(Python::with_gil(|python| {
+    Ok(Python::attach(|python| {
         let mut dimensions = [
             height as numpy::npyffi::npy_intp,
             width as numpy::npyffi::npy_intp,
@@ -82,7 +82,7 @@ pub fn render(svg_string: &str) -> PyResult<PyObject> {
                 numpy::PY_ARRAY_API.PyArray_GetPtr(python, array, index.as_mut_ptr()) as *mut u8,
                 width as usize * height as usize * 4,
             );
-            PyObject::from_owned_ptr(python, array as *mut pyo3::ffi::PyObject)
+            pyo3::Bound::from_owned_ptr(python, array as *mut pyo3::ffi::PyObject).unbind()
         }
     }))
 }

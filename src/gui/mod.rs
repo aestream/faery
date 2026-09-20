@@ -10,7 +10,7 @@ pub use viewer::{FrameStreamer, FrameViewer, FrameViewerWindow};
 #[pyo3(signature = (frame_stream, frame_rate=None))]
 pub fn run_frame_viewer_from_iterator(
     py: Python,
-    frame_stream: PyObject,
+    frame_stream: Py<PyAny>,
     frame_rate: Option<f64>,
 ) -> PyResult<()> {
     // Create window first to catch any errors directly
@@ -45,14 +45,14 @@ pub fn run_frame_viewer_from_iterator(
                 continue;
             }
 
-            let result = Python::with_gil(|py| iter.call_method0(py, "__next__"));
+            let result = Python::attach(|py| iter.call_method0(py, "__next__"));
 
             match result {
                 Ok(frame_obj) => {
                     if let Ok(frame_data) =
-                        Python::with_gil(|py| -> PyResult<numpy::ndarray::Array3<u8>> {
+                        Python::attach(|py| -> PyResult<numpy::ndarray::Array3<u8>> {
                             let pixels = frame_obj.getattr(py, "pixels")?;
-                            let frame_array = pixels.bind(py).downcast::<numpy::PyArray3<u8>>()?;
+                            let frame_array = pixels.bind(py).cast::<numpy::PyArray3<u8>>()?;
                             let readonly_frame = frame_array.readonly();
                             let array = readonly_frame.as_array();
                             Ok(array.to_owned())
@@ -85,7 +85,7 @@ pub fn run_frame_viewer_from_iterator(
     );
 
     // Start the GUI in a thread so we can return and release the GIL
-    py.allow_threads(|| {
+    py.detach(|| {
         // Run event loop on main thread
         slint::run_event_loop()
     })

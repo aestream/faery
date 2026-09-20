@@ -1,6 +1,6 @@
 use pyo3::prelude::*;
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(serde::Serialize, Clone)]
 pub struct Job {
     #[pyo3(get, set)]

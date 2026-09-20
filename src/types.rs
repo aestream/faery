@@ -3,24 +3,24 @@ use numpy::Element;
 use pyo3::prelude::*;
 
 pub fn python_path_to_string(path: &pyo3::Bound<'_, pyo3::types::PyAny>) -> PyResult<String> {
-    if let Ok(result) = path.downcast::<pyo3::types::PyString>() {
+    if let Ok(result) = path.cast::<pyo3::types::PyString>() {
         return Ok(result.to_string());
     }
-    if let Ok(result) = path.downcast::<pyo3::types::PyBytes>() {
+    if let Ok(result) = path.cast::<pyo3::types::PyBytes>() {
         return Ok(result.to_string());
     }
     let fspath_result = path.call_method0("__fspath__")?;
     {
         let fspath_as_string: Result<
             &pyo3::Bound<'_, pyo3::types::PyString>,
-            pyo3::DowncastError<'_, '_>,
-        > = fspath_result.downcast();
+            pyo3::CastError<'_, '_>,
+        > = fspath_result.cast();
         if let Ok(result) = fspath_as_string {
             return Ok(result.to_string());
         }
     }
     let fspath_as_bytes: &pyo3::Bound<'_, pyo3::types::PyBytes> = fspath_result
-        .downcast()
+        .cast()
         .map_err(|__fspath__| pyo3::exceptions::PyTypeError::new_err("path must be a string, bytes, or an object with an __fspath__ method (such as pathlib.Path"))?;
     Ok(fspath_as_bytes.to_string())
 }
@@ -486,8 +486,7 @@ impl Fields {
         unsafe {
             numpy::PY_ARRAY_API.PyArray_NewFromDescr(
                 python,
-                numpy::PY_ARRAY_API
-                    .get_type_object(python, numpy::npyffi::array::NpyTypes::PyArray_Type),
+                numpy::npyffi::get_type_object(python, numpy::npyffi::NpyTypes::PyArray_Type),
                 dtype,
                 1_i32,
                 &mut length,

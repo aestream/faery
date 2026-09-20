@@ -13,19 +13,19 @@ dependencies = ["numpy>=1.26"]
 version = "0.7.0"
 
 [project.optional-dependencies]
-tests = ["pytest==8.3.3"]
+tests = ["pytest==9.1.1"]
 
 [dependency-groups]
 dev = [
-  "maturin",
-  "pytest",
-  "isort==6.0.1",
-  "black==25.1.0",
-  "pyright==1.1.405",
-  "jupyter-book>=2.0.0b3",
+  "maturin==1.15.0",
+  "pytest==9.1.1",
+  "isort==9.0.1",
+  "black==26.5.1",
+  "pyright==1.1.414",
+  "jupyter-book==2.1.6",
 ]
 camera = [
-  "neuromorphic-drivers",
+  "neuromorphic-drivers==0.18.1",
   "event-camera-drivers"
 ]
 
@@ -38,7 +38,7 @@ repository = "https://github.com/aestream/faery/"
 documentation = "https://github.com/aestream/faery/"
 
 [build-system]
-requires = ["maturin==1.9.3"]
+requires = ["maturin==1.15.0"]
 build-backend = "maturin"
 
 [tool.maturin]
