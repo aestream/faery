@@ -10,7 +10,7 @@ on:
 env:
   # free-threaded wheels (cp314t and above) are built by default since cibuildwheel 4.0
   # cp315 is skipped until numpy publishes Python 3.15 wheels (faery depends on numpy)
-  CIBW_SKIP: cp38-* cp315-* pp* *i686 *win32
+  CIBW_SKIP: cp315-* cp315t-* *i686 *win32
 
   # cibuildhweel macOS configuration
   CIBW_ARCHS_MACOS: native
