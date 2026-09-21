@@ -4,7 +4,17 @@
 #![allow(dead_code)]
 include!(concat!(env!("OUT_DIR"), "/x264_bindings.rs"));
 
+#[allow(clippy::upper_case_acronyms)]
 pub struct RGBA(u32);
+
+fn rgba_value(pixels: &[u8], index: usize) -> u32 {
+    u32::from_le_bytes([
+        pixels[index * 4],
+        pixels[index * 4 + 1],
+        pixels[index * 4 + 2],
+        pixels[index * 4 + 3],
+    ])
+}
 
 const TIMEBASE_NUMERATOR: u32 = 1_000_000;
 
@@ -54,11 +64,11 @@ impl RGBA {
 pub struct RGBAFrame<'a> {
     width: u16,
     height: u16,
-    pixels: &'a [u32],
+    pixels: &'a [u8],
 }
 
 impl<'a> RGBAFrame<'a> {
-    pub fn pixels(&self) -> &[u32] {
+    pub fn pixels(&self) -> &[u8] {
         self.pixels
     }
 
@@ -70,8 +80,8 @@ impl<'a> RGBAFrame<'a> {
         self.height
     }
 
-    pub fn new(width: u16, height: u16, pixels: &'a [u32]) -> Result<Self, Error> {
-        if width as usize * height as usize != pixels.len() {
+    pub fn new(width: u16, height: u16, pixels: &'a [u8]) -> Result<Self, Error> {
+        if width as usize * height as usize * 4 != pixels.len() {
             Err(Error::RgbaLengthMismatch {
                 width,
                 height,
@@ -159,16 +169,16 @@ impl Preset {
 
     fn char_ptr(&self) -> *const std::os::raw::c_char {
         match self {
-            Preset::Ultrafast => "ultrafast\0".as_ptr() as *const std::os::raw::c_char,
-            Preset::Superfast => "superfast\0".as_ptr() as *const std::os::raw::c_char,
-            Preset::Veryfast => "veryfast\0".as_ptr() as *const std::os::raw::c_char,
-            Preset::Faster => "faster\0".as_ptr() as *const std::os::raw::c_char,
-            Preset::Fast => "fast\0".as_ptr() as *const std::os::raw::c_char,
-            Preset::Medium => "medium\0".as_ptr() as *const std::os::raw::c_char,
-            Preset::Slow => "slow\0".as_ptr() as *const std::os::raw::c_char,
-            Preset::Slower => "slower\0".as_ptr() as *const std::os::raw::c_char,
-            Preset::Veryslow => "veryslow\0".as_ptr() as *const std::os::raw::c_char,
-            Preset::Placebo => "placebo\0".as_ptr() as *const std::os::raw::c_char,
+            Preset::Ultrafast => c"ultrafast".as_ptr(),
+            Preset::Superfast => c"superfast".as_ptr(),
+            Preset::Veryfast => c"veryfast".as_ptr(),
+            Preset::Faster => c"faster".as_ptr(),
+            Preset::Fast => c"fast".as_ptr(),
+            Preset::Medium => c"medium".as_ptr(),
+            Preset::Slow => c"slow".as_ptr(),
+            Preset::Slower => c"slower".as_ptr(),
+            Preset::Veryslow => c"veryslow".as_ptr(),
+            Preset::Placebo => c"placebo".as_ptr(),
             Preset::None => std::ptr::null(),
         }
     }
@@ -205,14 +215,14 @@ impl Tune {
 
     fn char_ptr(&self) -> *const std::os::raw::c_char {
         match self {
-            Tune::Film => "film\0".as_ptr() as *const std::os::raw::c_char,
-            Tune::Animation => "animaation\0".as_ptr() as *const std::os::raw::c_char,
-            Tune::Grain => "grain\0".as_ptr() as *const std::os::raw::c_char,
-            Tune::Stillimage => "stillimage\0".as_ptr() as *const std::os::raw::c_char,
-            Tune::Psnr => "psnr\0".as_ptr() as *const std::os::raw::c_char,
-            Tune::Ssim => "ssim\0".as_ptr() as *const std::os::raw::c_char,
-            Tune::Fastdecode => "fastdecode\0".as_ptr() as *const std::os::raw::c_char,
-            Tune::Zerolatency => "zerolatency\0".as_ptr() as *const std::os::raw::c_char,
+            Tune::Film => c"film".as_ptr(),
+            Tune::Animation => c"animaation".as_ptr(),
+            Tune::Grain => c"grain".as_ptr(),
+            Tune::Stillimage => c"stillimage".as_ptr(),
+            Tune::Psnr => c"psnr".as_ptr(),
+            Tune::Ssim => c"ssim".as_ptr(),
+            Tune::Fastdecode => c"fastdecode".as_ptr(),
+            Tune::Zerolatency => c"zerolatency".as_ptr(),
             Tune::None => std::ptr::null(),
         }
     }
@@ -256,6 +266,7 @@ impl Profile {
 
 #[derive(Debug, Clone, Copy)]
 #[repr(u8)]
+#[allow(clippy::upper_case_acronyms)]
 pub enum Colorspace {
     I400 = 0x01, // monochrome 4:0:0
     I420 = 0x02, // yuv 4:2:0 planar
@@ -377,7 +388,6 @@ impl Picture<{ Colorspace::I420.value() }> {
     }
 
     pub fn copy_from_rgb(&mut self, rgb_frame: RGBFrame) -> Result<(), Error> {
-        // This function has *not* been tested on non-little-endian platforms.
         if self.inner.img.i_csp != X264_CSP_I420 as i32 {
             panic!("colorspace mismatch");
         }
@@ -423,7 +433,6 @@ impl Picture<{ Colorspace::I420.value() }> {
     }
 
     pub fn copy_from_rgba(&mut self, rgba_frame: RGBAFrame) -> Result<(), Error> {
-        // This function has *not* been tested on non-little-endian platforms.
         if self.inner.img.i_csp != X264_CSP_I420 as i32 {
             panic!("colorspace mismatch");
         }
@@ -449,13 +458,16 @@ impl Picture<{ Colorspace::I420.value() }> {
             for (downsampled_y, y) in (0..self.height).step_by(2).enumerate() {
                 for (downsampled_x, x) in (0..self.width).step_by(2).enumerate() {
                     y_as_i32[downsampled_x + downsampled_y * (self.width as usize / 2)] =
-                        ((rgba_frame.pixels[x as usize + y as usize * self.width as usize])
-                            & 0xffffff) as i32;
+                        (rgba_value(
+                            rgba_frame.pixels,
+                            x as usize + y as usize * self.width as usize,
+                        ) & 0xffffff) as i32;
                 }
             }
             self.copy_from_y(y_as_i32);
         }
-        for (index, rgba) in rgba_frame.pixels.iter().enumerate() {
+        for index in 0..rgba_frame.pixels.len() / 4 {
+            let rgba = rgba_value(rgba_frame.pixels, index);
             unsafe {
                 *self.inner.img.plane[0].add(index) = ((77 * (rgba & 0xff)
                     + 150 * ((rgba & 0xff00) >> 8)
@@ -604,7 +616,7 @@ pub enum EncodeError<HandleFrameError> {
 }
 
 impl<const Colorspace: u8> Encoder<{ Colorspace }> {
-    pub fn headers(&mut self) -> Result<Headers<{ Colorspace }>, HeadersError> {
+    pub fn headers(&mut self) -> Result<Headers<'_, { Colorspace }>, HeadersError> {
         let mut nal_units: std::mem::MaybeUninit<*mut x264_nal_t> = std::mem::MaybeUninit::uninit();
         let mut nal_units_count: ::std::os::raw::c_int = 0;
         let payload_size = unsafe {

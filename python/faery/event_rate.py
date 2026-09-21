@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import collections.abc
 import dataclasses
 import pathlib
@@ -9,7 +11,7 @@ from . import color as color_module
 from . import enums, events_stream_state, file_encoder, frame_stream, svg, timestamp
 
 if typing.TYPE_CHECKING:
-    from .types import image, raster  # type: ignore
+    from .types import image, raster
 else:
     from .extension import image, raster
 
@@ -41,7 +43,7 @@ MAXIMUM_SUBDECADES_TO_CONSIDER_LINEAR_LOG_LABELS: int = 2
 def superscript(number: int, use_tspan: bool, font_size: int) -> tuple[str, float]:
     number_as_string = str(number)
     if use_tspan:
-        exponent_font_size = int(round(font_size * 0.75))
+        exponent_font_size = round(font_size * 0.75)
         pixel_length = int(
             numpy.ceil(len(number_as_string) * FONT_WIDTH_RATIO * exponent_font_size)
         )
@@ -58,7 +60,7 @@ def superscript(number: int, use_tspan: bool, font_size: int) -> tuple[str, floa
         )
 
 
-def log_nan(value: typing.Union[numpy.ndarray, float, int]):
+def log_nan(value: numpy.ndarray | float):
     if isinstance(value, numpy.ndarray):
         value = value.copy()
         value[value <= 0.0] = numpy.nan
@@ -74,11 +76,11 @@ class Label:
     @classmethod
     def from_value(
         cls,
-        mantissa_and_precision: typing.Optional[tuple[float, int]],
+        mantissa_and_precision: tuple[float, int] | None,
         exponent: int,
         use_tspan: bool,
         font_size: int,
-    ) -> "Label":
+    ) -> Label:
         exponent_text, exponent_length = superscript(
             number=exponent, use_tspan=use_tspan, font_size=font_size
         )
@@ -92,8 +94,132 @@ class Label:
             mantissa_string = f"{mantissa:.{precision}f}"
             return cls(
                 text=f"{mantissa_string} × 10{exponent_text}",
-                length=len(mantissa_string) + len(f" x 10") + exponent_length,
+                length=len(mantissa_string) + len(" x 10") + exponent_length,
             )
+
+
+def log_ticks(
+    minimum: float,
+    maximum: float,
+    to_position: typing.Callable[[float], float],
+    ticks_height: float,
+    use_tspan: bool,
+    font_size: int,
+) -> tuple[list[float], list[Label], list[float]]:
+    """
+    Decade ticks and subgrid for a logarithmic axis.
+
+    The decade step is the smallest one that keeps consecutive labels at least
+    MINIMUM_DISTANCE_BETWEEN_LABELS lines apart. Axes that span fewer than
+    MAXIMUM_SUBDECADES_TO_CONSIDER_LINEAR_LOG_LABELS decades also get linearly
+    spaced labels within the decade.
+
+    Args:
+        minimum: Smallest value of the axis.
+        maximum: Largest value of the axis.
+        to_position: Maps a value to its pixel position along the axis.
+        ticks_height: Height of a line of text in pixels.
+        use_tspan: Whether exponents may use tspan elements.
+        font_size: Font size in pixels.
+
+    Returns:
+        tuple[list[float], list[Label], list[float]]: Tick values, tick labels and
+        subgrid values.
+    """
+    base_delta = to_position(minimum) - to_position(10.0 * minimum)
+    exponent_step = int(
+        numpy.ceil(
+            ((MINIMUM_DISTANCE_BETWEEN_LABELS + 1.0) * ticks_height) / base_delta
+        )
+    )
+    exponents = numpy.arange(
+        numpy.ceil(numpy.log10(minimum)),
+        numpy.floor(numpy.log10(maximum)) + 1,
+        exponent_step,
+        dtype=numpy.int64,
+    )
+    values = (10.0 ** exponents.astype(numpy.float64)).tolist()
+    labels = []
+    for exponent in exponents.tolist():
+        labels.append(
+            Label.from_value(
+                mantissa_and_precision=None,
+                exponent=exponent,
+                use_tspan=use_tspan,
+                font_size=font_size,
+            )
+        )
+    if len(exponents) < MAXIMUM_SUBDECADES_TO_CONSIDER_LINEAR_LOG_LABELS:
+        subminimum_exponent = (
+            int(exponents[0]) - 1
+            if len(exponents) > 0
+            else int(numpy.floor(numpy.log10(minimum)))
+        )
+        subgrid = []
+        for subpower in range(-12, 12):
+            found = False
+            for multiplier in (1, 2, 5):
+                step_exponent = subminimum_exponent + subpower
+                step = multiplier * (10**step_exponent)
+                substep = step / 10
+                maximum_step_index = int(numpy.floor(maximum / step))
+                if maximum_step_index > 1:
+                    minimum_delta = to_position(
+                        (maximum_step_index - 1) * step
+                    ) - to_position(maximum_step_index * step)
+                    valid = bool(
+                        minimum_delta
+                        >= (MINIMUM_DISTANCE_BETWEEN_LABELS + 1.0) * ticks_height
+                    )
+                else:
+                    valid = True
+                if valid:
+                    minimum_step_index = int(numpy.ceil(minimum / step)) - 1
+                    for step_index in range(minimum_step_index, maximum_step_index + 1):
+                        y_value = step_index * step
+                        for substep_index in range(1, 10):
+                            value = y_value + substep_index * substep
+                            if value >= minimum and value <= maximum:
+                                subgrid.append(value)
+                        if step_index == minimum_step_index:
+                            continue
+                        log10_y_value = numpy.log10(y_value)
+                        if abs(y_value - 10.0 ** round(log10_y_value)) < step / 10.0:
+                            continue
+                        values.append(y_value)
+                        y_exponent = int(numpy.floor(numpy.log10(y_value)))
+                        labels.append(
+                            Label.from_value(
+                                mantissa_and_precision=(
+                                    y_value / (10**y_exponent),
+                                    y_exponent - step_exponent,
+                                ),
+                                exponent=y_exponent,
+                                use_tspan=use_tspan,
+                                font_size=font_size,
+                            )
+                        )
+                    found = True
+                    break
+            if found:
+                break
+    else:
+        if exponent_step == 1:
+            subgrid = []
+            for exponent in [exponents[0] - 1] + exponents.tolist():
+                for multiplier in range(2, 10):
+                    value = multiplier * (10.0**exponent)
+                    if value >= minimum and value <= maximum:
+                        subgrid.append(value)
+        else:
+            subgrid_exponents = numpy.arange(
+                numpy.ceil(numpy.log10(minimum)),
+                numpy.floor(numpy.log10(maximum)) + 1,
+                1,
+                dtype=numpy.int64,
+            )
+            subgrid = (10.0 ** subgrid_exponents.astype(numpy.float64)).tolist()
+    return values, labels, subgrid
 
 
 class EventRate:
@@ -150,15 +276,14 @@ class EventRate:
             state_manager.commit(events=events)
         timestamps = (
             numpy.floor(
-                numpy.arange(start=0, stop=samples, step=1, dtype=numpy.float64) / scale
+                numpy.arange(0, samples, 1, dtype=numpy.float64) / scale
             ).astype(numpy.uint64)
             + time_range[0].to_microseconds()
         ).astype(numpy.uint64)
         deltas = (
             numpy.diff(
                 numpy.floor(
-                    numpy.arange(start=0, stop=samples + 1, step=1, dtype=numpy.float64)
-                    / scale
+                    numpy.arange(0, samples + 1, 1, dtype=numpy.float64) / scale
                 )
             )
             * 1e-6
@@ -198,12 +323,12 @@ class EventRate:
         self,
         color_theme: color_module.ColorTheme = color_module.LIGHT_COLOR_THEME,
         hamming_windows_sizes: typing.Iterable[int] = (1, 20),
-        x_ticks: typing.Optional[list[tuple[timestamp.Time, str]]] = None,
-        y_range: tuple[typing.Optional[float], typing.Optional[float]] = (None, None),
-        y_ticks: typing.Optional[list[tuple[float, str]]] = None,
+        x_ticks: list[tuple[timestamp.Time, str]] | None = None,
+        y_range: tuple[float | None, float | None] = (None, None),
+        y_ticks: list[tuple[float, str]] | None = None,
         y_log_scale: bool = True,
         y_range_padding_ratio: float = 0.1,
-        graph_width: typing.Optional[int] = None,
+        graph_width: int | None = None,
         graph_height: int = 1000,
         font_size: int = 30,
         use_tspan_for_superscripts: bool = False,
@@ -239,14 +364,17 @@ class EventRate:
                     else:
                         y_minimum = min(
                             *(
-                                float(nonnull_filtered_samples.min())
+                                float(numpy.min(nonnull_filtered_samples))
                                 for nonnull_filtered_samples in nonnull_series
                                 if len(nonnull_filtered_samples) > 0
                             )
                         )
                 else:
                     y_minimum = min(
-                        *(float(filtered_samples.min()) for filtered_samples in series)
+                        *(
+                            float(numpy.min(filtered_samples))
+                            for filtered_samples in series
+                        )
                     )
             else:
                 y_minimum = y_range[0]
@@ -255,7 +383,10 @@ class EventRate:
                     y_maximum = y_minimum
                 else:
                     y_maximum = max(
-                        *(float(filtered_samples.max()) for filtered_samples in series)
+                        *(
+                            float(numpy.max(filtered_samples))
+                            for filtered_samples in series
+                        )
                     )
             else:
                 y_maximum = y_range[1]
@@ -310,8 +441,7 @@ class EventRate:
                     offset = (y_maximum - y_minimum) * y_range_padding_ratio
                     if y_range[0] is None:
                         y_minimum -= offset
-                        if y_minimum < 0.0:
-                            y_minimum = 0.0
+                        y_minimum = max(y_minimum, 0.0)
                     if y_range[1] is None:
                         y_maximum += offset
 
@@ -338,110 +468,14 @@ class EventRate:
         if y_ticks is None:
             y_ticks_height = FONT_HEIGHT_RATIO * font_size
             if y_log_scale:
-                base_delta = y_to_position(y_minimum) - y_to_position(10.0 * y_minimum)
-                exponent_step = int(
-                    numpy.ceil(
-                        ((MINIMUM_DISTANCE_BETWEEN_LABELS + 1.0) * y_ticks_height)
-                        / base_delta
-                    )
+                y_ticks_values, y_ticks_labels, y_subgrid = log_ticks(
+                    minimum=y_minimum,
+                    maximum=y_maximum,
+                    to_position=y_to_position,
+                    ticks_height=y_ticks_height,
+                    use_tspan=use_tspan_for_superscripts,
+                    font_size=font_size,
                 )
-                exponents = numpy.arange(
-                    start=numpy.ceil(numpy.log10(y_minimum)),
-                    stop=numpy.floor(numpy.log10(y_maximum)) + 1,
-                    step=exponent_step,
-                    dtype=numpy.int64,
-                )
-                y_ticks_values = (10.0 ** exponents.astype(numpy.float64)).tolist()
-                y_ticks_labels = []
-                for exponent in exponents.tolist():
-                    y_ticks_labels.append(
-                        Label.from_value(
-                            mantissa_and_precision=None,
-                            exponent=exponent,
-                            use_tspan=use_tspan_for_superscripts,
-                            font_size=font_size,
-                        )
-                    )
-                if len(exponents) < MAXIMUM_SUBDECADES_TO_CONSIDER_LINEAR_LOG_LABELS:
-                    subminimum_exponent = (
-                        int(exponents[0]) - 1
-                        if len(exponents) > 0
-                        else int(numpy.floor(numpy.log10(y_minimum)))
-                    )
-                    y_subgrid = []
-                    for subpower in range(-12, 12):
-                        found = False
-                        for multiplier in (1, 2, 5):
-                            step_exponent = subminimum_exponent + subpower
-                            step = multiplier * (10**step_exponent)
-                            substep = step / 10
-                            maximum_step_index = int(numpy.floor(y_maximum / step))
-                            if maximum_step_index > 1:
-                                minimum_delta = y_to_position(
-                                    (maximum_step_index - 1) * step
-                                ) - y_to_position(maximum_step_index * step)
-                                valid = bool(
-                                    minimum_delta
-                                    >= (MINIMUM_DISTANCE_BETWEEN_LABELS + 1.0)
-                                    * y_ticks_height
-                                )
-                            else:
-                                valid = True
-                            if valid:
-                                minimum_step_index = (
-                                    int(numpy.ceil(y_minimum / step)) - 1
-                                )
-                                for step_index in range(
-                                    minimum_step_index, maximum_step_index + 1
-                                ):
-                                    y_value = step_index * step
-                                    for substep_index in range(1, 10):
-                                        value = y_value + substep_index * substep
-                                        if value >= y_minimum and value <= y_maximum:
-                                            y_subgrid.append(value)
-                                    if step_index == minimum_step_index:
-                                        continue
-                                    log10_y_value = numpy.log10(y_value)
-                                    if (
-                                        abs(y_value - 10.0 ** round(log10_y_value))
-                                        < step / 10.0
-                                    ):
-                                        continue
-                                    y_ticks_values.append(y_value)
-                                    y_exponent = int(numpy.floor(numpy.log10(y_value)))
-                                    y_ticks_labels.append(
-                                        Label.from_value(
-                                            mantissa_and_precision=(
-                                                y_value / (10**y_exponent),
-                                                y_exponent - step_exponent,
-                                            ),
-                                            exponent=y_exponent,
-                                            use_tspan=use_tspan_for_superscripts,
-                                            font_size=font_size,
-                                        )
-                                    )
-                                found = True
-                                break
-                        if found:
-                            break
-                else:
-                    if exponent_step == 1:
-                        y_subgrid = []
-                        for exponent in [exponents[0] - 1] + exponents.tolist():
-                            for multiplier in range(2, 10):
-                                value = multiplier * (10.0**exponent)
-                                if value >= y_minimum and value <= y_maximum:
-                                    y_subgrid.append(value)
-                    else:
-                        subgrid_exponents = numpy.arange(
-                            start=numpy.ceil(numpy.log10(y_minimum)),
-                            stop=numpy.floor(numpy.log10(y_maximum)) + 1,
-                            step=1,
-                            dtype=numpy.int64,
-                        )
-                        y_subgrid = (
-                            10.0 ** subgrid_exponents.astype(numpy.float64)
-                        ).tolist()
             else:
                 y_ticks_values = []
                 y_ticks_labels = []
@@ -468,8 +502,7 @@ class EventRate:
                 step = y_multiplier * (10.0**y_exponent)
                 minimum_tick = int(numpy.ceil(y_minimum / step))
                 maximum_tick = int(numpy.floor(y_maximum / step))
-                if maximum_tick < minimum_tick:
-                    maximum_tick = minimum_tick
+                maximum_tick = max(maximum_tick, minimum_tick)
                 power_offset = int(
                     numpy.floor(numpy.log10(float(maximum_tick * y_multiplier)))
                 )
@@ -711,7 +744,7 @@ class EventRate:
         )
         x_grid_positions: list[float] = []
         for value, label in zip(x_ticks_values, x_ticks_labels):
-            position = position = float(numpy.floor(x_to_position(value))) + 0.5
+            position = float(numpy.floor(x_to_position(value))) + 0.5
             if abs(x_title_position - position) >= x_title_minimum_distance:
                 x_grid_positions.append(position)
                 group.node(
@@ -882,12 +915,12 @@ class EventRate:
         self,
         color_theme: color_module.ColorTheme = color_module.LIGHT_COLOR_THEME,
         hamming_windows_sizes: typing.Iterable[int] = (1, 20),
-        x_ticks: typing.Optional[list[tuple[timestamp.Time, str]]] = None,
-        y_range: tuple[typing.Optional[float], typing.Optional[float]] = (None, None),
-        y_ticks: typing.Optional[list[tuple[float, str]]] = None,
+        x_ticks: list[tuple[timestamp.Time, str]] | None = None,
+        y_range: tuple[float | None, float | None] = (None, None),
+        y_ticks: list[tuple[float, str]] | None = None,
         y_log_scale: bool = True,
         y_range_padding_ratio: float = 0.1,
-        graph_width: typing.Optional[int] = None,
+        graph_width: int | None = None,
         graph_height: int = 1000,
         font_size: int = 30,
     ) -> frame_stream.Frame:
@@ -909,22 +942,22 @@ class EventRate:
 
     def to_file(
         self,
-        path: typing.Union[pathlib.Path, str],
+        path: pathlib.Path | str,
         color_theme: color_module.ColorTheme = color_module.LIGHT_COLOR_THEME,
         hamming_windows_sizes: typing.Iterable[int] = (1, 20),
-        x_ticks: typing.Optional[list[tuple[timestamp.Time, str]]] = None,
-        y_range: tuple[typing.Optional[float], typing.Optional[float]] = (None, None),
-        y_ticks: typing.Optional[list[tuple[float, str]]] = None,
+        x_ticks: list[tuple[timestamp.Time, str]] | None = None,
+        y_range: tuple[float | None, float | None] = (None, None),
+        y_ticks: list[tuple[float, str]] | None = None,
         y_log_scale: bool = True,
         y_range_padding_ratio: float = 0.1,
-        graph_width: typing.Optional[int] = None,
+        graph_width: int | None = None,
         graph_height: int = 1000,
         font_size: int = 30,
         use_tspan_for_superscripts: bool = False,
         indent: str = "    ",
         line_breaks: bool = True,
         compression_level: enums.ImageFileCompressionLevel = "best",
-        file_type: typing.Optional[enums.GraphFileType] = None,
+        file_type: enums.GraphFileType | None = None,
         use_write_suffix: bool = True,
     ):
         path = pathlib.Path(path)

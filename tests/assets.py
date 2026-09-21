@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import dataclasses
 import hashlib
 import pathlib
@@ -68,14 +70,14 @@ class File:
     path: pathlib.Path
     format: Format
     field_to_digest: dict[str, str]
-    dimensions: typing.Optional[tuple[int, int]]
+    dimensions: tuple[int, int] | None
     time_range: tuple[str, str]
-    description: typing.Optional[list[faery.aedat.DescriptionNode]]
-    tracks: typing.Optional[list[faery.aedat.Track]]
-    content_lines: typing.Optional[list[bytes]]
-    t0: typing.Optional[str]
+    description: list[faery.aedat.DescriptionNode] | None
+    tracks: list[faery.aedat.Track] | None
+    content_lines: list[bytes] | None
+    t0: str | None
 
-    def field_to_hasher(self, fields: typing.Optional[list[str]] = None):
+    def field_to_hasher(self, fields: list[str] | None = None):
         if fields is None:
             fields = list(self.field_to_digest.keys())
         return {field: hashlib.sha3_224() for field in fields}
@@ -85,11 +87,11 @@ class File:
         path: pathlib.Path,
         format: Format,
         field_to_digest: dict[str, str],
-        tracks: typing.Optional[list[faery.aedat.Track]],
-        description: typing.Optional[list[faery.aedat.DescriptionNode]],
-        content_lines: typing.Optional[list[bytes]],
-        t0: typing.Optional[str],
-    ) -> "File":
+        tracks: list[faery.aedat.Track] | None,
+        description: list[faery.aedat.DescriptionNode] | None,
+        content_lines: list[bytes] | None,
+        t0: str | None,
+    ) -> File:
         return File(
             path=path,
             format=format,

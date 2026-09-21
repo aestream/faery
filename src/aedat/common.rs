@@ -185,6 +185,7 @@ impl Track {
         }
     }
 
+    #[allow(clippy::wrong_self_convention)]
     pub fn to_identifier(&self) -> &'static str {
         match self {
             Self::Events { .. } => "EVTS",
@@ -194,6 +195,7 @@ impl Track {
         }
     }
 
+    #[allow(clippy::wrong_self_convention)]
     pub fn to_data_type(&self) -> &'static str {
         match self {
             Self::Events { .. } => "events",
@@ -238,9 +240,6 @@ pub enum DescriptionError {
 
     #[error("missing attribute \"name\" on node")]
     MissingName,
-
-    #[error("missing attribute \"path\" on node wit name \"{0}\"")]
-    MissingPath(String),
 
     #[error("missing attribute \"key\" on attr")]
     MissingKey,
@@ -304,6 +303,7 @@ pub enum DescriptionAttribute {
 }
 
 impl DescriptionAttribute {
+    #[allow(clippy::inherent_to_string)]
     fn to_string(&self) -> String {
         match self {
             DescriptionAttribute::String(value) => value.clone(),
@@ -318,7 +318,7 @@ impl DescriptionAttribute {
                 Err(DescriptionError::UnexpectedStringValue(value.clone()))
             }
             DescriptionAttribute::Int(value) => {
-                if *value < 0 || *value > 32768 as i32 {
+                if *value < 0 || *value > 32768_i32 {
                     Err(DescriptionError::UnexpectedIntValue(*value))
                 } else {
                     Ok(*value as u16)
@@ -354,7 +354,7 @@ impl DescriptionAttribute {
 
 pub struct DescriptionNode {
     pub name: String,
-    pub path: String,
+    pub path: Option<String>,
     pub attributes: std::collections::HashMap<String, DescriptionAttribute>,
     pub nodes: Vec<DescriptionNode>,
 }
@@ -364,10 +364,13 @@ impl DescriptionNode {
         let mut key_and_attribute: Vec<_> = self.attributes.iter().collect();
         key_and_attribute.sort_by(|a, b| a.0.cmp(b.0));
         format!(
-            "{}<node name=\"{}\" path=\"{}\">\n{}{}{}{}{}</node>",
+            "{}<node name=\"{}\"{}>\n{}{}{}{}{}</node>",
             " ".repeat(indent),
             self.name,
-            self.path,
+            match &self.path {
+                Some(path) => format!(" path=\"{path}\""),
+                None => String::new(),
+            },
             key_and_attribute
                 .iter()
                 .map(|(key, attribute)| attribute.to_xml_string(key, indent + 4))
@@ -389,89 +392,81 @@ pub struct Description(pub Vec<DescriptionNode>);
 
 fn parse_node(node: roxmltree::Node<'_, '_>) -> Result<DescriptionNode, DescriptionError> {
     match node.attribute("name") {
-        Some(name) => match node.attribute("path") {
-            Some(path) => {
-                let mut description_node = DescriptionNode {
-                    name: name.to_owned(),
-                    path: path.to_owned(),
-                    attributes: std::collections::HashMap::new(),
-                    nodes: Vec::new(),
-                };
-                for child in node.children() {
-                    if child.is_comment() || child.is_text() {
-                        continue;
+        Some(name) => {
+            let mut description_node = DescriptionNode {
+                name: name.to_owned(),
+                path: node.attribute("path").map(|path| path.to_owned()),
+                attributes: std::collections::HashMap::new(),
+                nodes: Vec::new(),
+            };
+            for child in node.children() {
+                if child.is_comment() || child.is_text() {
+                    continue;
+                }
+                if !child.is_element() {
+                    return Err(DescriptionError::NodeTag(
+                        child.tag_name().name().to_owned(),
+                    ));
+                }
+                match child.tag_name().name() {
+                    "node" => {
+                        description_node.nodes.push(parse_node(child)?);
                     }
-                    if !child.is_element() {
-                        return Err(DescriptionError::NodeTag(
-                            child.tag_name().name().to_owned(),
-                        ));
-                    }
-                    match child.tag_name().name() {
-                        "node" => {
-                            description_node.nodes.push(parse_node(child)?);
-                        }
-                        "attr" => match child.attribute("key") {
-                            Some(key) => {
-                                let mut contents = None;
-                                for attr_child in child.children() {
-                                    if attr_child.is_comment() {
-                                        continue;
-                                    }
-                                    if !attr_child.is_text() || contents.is_some() {
-                                        return Err(DescriptionError::UnexpectedAttrChildren(
-                                            key.to_owned(),
-                                        ));
-                                    }
-                                    contents = Some(
-                                        attr_child.text().expect("the attr child contains text"),
-                                    );
+                    "attr" => match child.attribute("key") {
+                        Some(key) => {
+                            let mut contents = None;
+                            for attr_child in child.children() {
+                                if attr_child.is_comment() {
+                                    continue;
                                 }
-                                if (match contents {
-                                    Some(contents) => match child.attribute("type") {
-                                        Some(attr_type) => match attr_type {
-                                            "int" => description_node.attributes.insert(
-                                                key.to_owned(),
-                                                DescriptionAttribute::Int(contents.parse()?),
-                                            ),
-                                            "long" => description_node.attributes.insert(
-                                                key.to_owned(),
-                                                DescriptionAttribute::Long(contents.parse()?),
-                                            ),
-                                            "string" => description_node.attributes.insert(
-                                                key.to_owned(),
-                                                DescriptionAttribute::String(contents.to_owned()),
-                                            ),
-                                            attr_type => {
-                                                return Err(DescriptionError::UnsupportedType {
-                                                    key: key.to_owned(),
-                                                    attr_type: attr_type.to_owned(),
-                                                });
-                                            }
-                                        },
-                                        None => {
-                                            return Err(DescriptionError::MissingType(
-                                                key.to_owned(),
-                                            ))
+                                if !attr_child.is_text() || contents.is_some() {
+                                    return Err(DescriptionError::UnexpectedAttrChildren(
+                                        key.to_owned(),
+                                    ));
+                                }
+                                contents =
+                                    Some(attr_child.text().expect("the attr child contains text"));
+                            }
+                            if (match contents {
+                                Some(contents) => match child.attribute("type") {
+                                    Some(attr_type) => match attr_type {
+                                        "int" => description_node.attributes.insert(
+                                            key.to_owned(),
+                                            DescriptionAttribute::Int(contents.parse()?),
+                                        ),
+                                        "long" => description_node.attributes.insert(
+                                            key.to_owned(),
+                                            DescriptionAttribute::Long(contents.parse()?),
+                                        ),
+                                        "string" => description_node.attributes.insert(
+                                            key.to_owned(),
+                                            DescriptionAttribute::String(contents.to_owned()),
+                                        ),
+                                        attr_type => {
+                                            return Err(DescriptionError::UnsupportedType {
+                                                key: key.to_owned(),
+                                                attr_type: attr_type.to_owned(),
+                                            });
                                         }
                                     },
                                     None => {
-                                        return Err(DescriptionError::EmptyAttr(key.to_owned()))
+                                        return Err(DescriptionError::MissingType(key.to_owned()))
                                     }
-                                })
-                                .is_some()
-                                {
-                                    return Err(DescriptionError::DuplicateKey(key.to_owned()));
-                                }
+                                },
+                                None => return Err(DescriptionError::EmptyAttr(key.to_owned())),
+                            })
+                            .is_some()
+                            {
+                                return Err(DescriptionError::DuplicateKey(key.to_owned()));
                             }
-                            None => return Err(DescriptionError::MissingKey),
-                        },
-                        name => return Err(DescriptionError::NodeTag(name.to_owned())),
-                    }
+                        }
+                        None => return Err(DescriptionError::MissingKey),
+                    },
+                    name => return Err(DescriptionError::NodeTag(name.to_owned())),
                 }
-                Ok(description_node)
             }
-            None => Err(DescriptionError::MissingPath(name.to_owned())),
-        },
+            Ok(description_node)
+        }
         None => Err(DescriptionError::MissingName),
     }
 }

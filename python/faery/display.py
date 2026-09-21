@@ -1,14 +1,16 @@
+from __future__ import annotations
+
 import functools
 import os
 import sys
 import typing
 
-from . import events_stream_state, frame_stream_state, timestamp
+from . import events_stream_state, frame_stream_state
 
 ANSI_COLORS_ENABLED = os.getenv("ANSI_COLORS_DISABLED") is None
 
 
-def generate_progress_bar(width: int, progress: typing.Optional[float]) -> str:
+def generate_progress_bar(width: int, progress: float | None) -> str:
     """Generates a progress bar compatible with terminals.
 
     Args:
@@ -31,16 +33,14 @@ def generate_progress_bar(width: int, progress: typing.Optional[float]) -> str:
 
 
 def progress_bar_implementation(
-    state: typing.Union[
-        events_stream_state.EventsStreamState,
-        events_stream_state.FiniteEventsStreamState,
-        events_stream_state.RegularEventsStreamState,
-        events_stream_state.FiniteRegularEventsStreamState,
-        frame_stream_state.FrameStreamState,
-        frame_stream_state.FiniteFrameStreamState,
-        frame_stream_state.RegularFrameStreamState,
-        frame_stream_state.FiniteRegularFrameStreamState,
-    ],
+    state: events_stream_state.EventsStreamState
+    | events_stream_state.FiniteEventsStreamState
+    | events_stream_state.RegularEventsStreamState
+    | events_stream_state.FiniteRegularEventsStreamState
+    | frame_stream_state.FrameStreamState
+    | frame_stream_state.FiniteFrameStreamState
+    | frame_stream_state.RegularFrameStreamState
+    | frame_stream_state.FiniteRegularFrameStreamState,
     clear_after_last: bool,
 ):
     if isinstance(
@@ -159,7 +159,7 @@ def progress_bar_implementation(
                 sys.stdout.write("\n")
         sys.stdout.flush()
     else:
-        raise Exception(f"unsupported state type {state}")
+        raise TypeError(f"unsupported state type {state}")
 
 
 progress_bar = functools.partial(progress_bar_implementation, clear_after_last=False)

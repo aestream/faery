@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import ast
 import dataclasses
 import functools
@@ -11,7 +13,7 @@ import typing
 from . import display, timestamp
 
 if typing.TYPE_CHECKING:
-    from .types import job_metadata  # type: ignore
+    from .types import job_metadata
 else:
     from .extension import job_metadata
 
@@ -68,7 +70,7 @@ class Task:
         raise NotImplementedError()
 
 
-def task(suffix: str, icon: str = "", name: typing.Optional[str] = None):
+def task(suffix: str, icon: str = "", name: str | None = None):
     def task_generator(
         function: typing.Callable[
             [
@@ -81,7 +83,6 @@ def task(suffix: str, icon: str = "", name: typing.Optional[str] = None):
         ],
     ) -> Task:
         class DecoratedTask(Task):
-
             def suffix(self) -> str:
                 return suffix
 
@@ -134,7 +135,7 @@ class JobManager:
         start: timestamp.TimeOrTimecode,
         end: timestamp.TimeOrTimecode,
         tasks: list[Task],
-        nickname: typing.Optional[str] = None,
+        nickname: str | None = None,
     ):
         name = input.stem if nickname is None else nickname
         triplet = (
@@ -189,7 +190,7 @@ class JobManager:
                 )
                 try:
                     metadata = job_metadata.read(output.parent / "metadata.toml")
-                except:
+                except Exception:  # noqa: BLE001
                     metadata = {}
                 task_name = task.name()
                 skip = (

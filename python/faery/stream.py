@@ -71,8 +71,6 @@ class FiniteRegularStream(FiniteStream[ItemType], RegularStream[ItemType]):
     A stream that is finite and regular (see FiniteStream and RegularStream).
     """
 
-    pass
-
 
 class Filter(Stream[ItemType]):
     """

@@ -100,12 +100,9 @@ impl Decoder {
 
     fn __next__(mut shell: PyRefMut<Self>) -> PyResult<Option<Py<PyAny>>> {
         let packet = match shell.inner {
-            Some(ref mut decoder) => match decoder.next() {
-                Ok(result) => match result {
-                    Some(result) => result,
-                    None => return Ok(None),
-                },
-                Err(result) => return Err(result.into()),
+            Some(ref mut decoder) => match decoder.next()? {
+                Some(result) => result,
+                None => return Ok(None),
             },
             None => {
                 return Err(pyo3::exceptions::PyException::new_err(
@@ -123,7 +120,7 @@ impl Decoder {
                             let event_cell = types::array_at(python, array, index);
                             let event = &events[index as usize];
                             let mut event_array = [0u8; 8 + std::mem::size_of::<usize>()];
-                            event_array[0..8].copy_from_slice(&event.t.to_le_bytes());
+                            event_array[0..8].copy_from_slice(&event.t.to_ne_bytes());
                             let pybytes = pyo3::ffi::PyBytes_FromStringAndSize(
                                 event.bytes.as_ptr() as *const core::ffi::c_char,
                                 event.bytes.len() as pyo3::ffi::Py_ssize_t,
@@ -163,9 +160,9 @@ impl Decoder {
                             let event_cell = types::array_at(python, array, index);
                             let event = events[index as usize];
                             let mut event_array = [0u8; 14];
-                            event_array[0..8].copy_from_slice(&event.t.to_le_bytes());
-                            event_array[8..10].copy_from_slice(&event.x.to_le_bytes());
-                            event_array[10..12].copy_from_slice(&event.y.to_le_bytes());
+                            event_array[0..8].copy_from_slice(&event.t.to_ne_bytes());
+                            event_array[8..10].copy_from_slice(&event.x.to_ne_bytes());
+                            event_array[10..12].copy_from_slice(&event.y.to_ne_bytes());
                             match event.polarity {
                                 neuromorphic_types::AtisPolarity::Off => {
                                     event_array[12] = 0;
@@ -294,7 +291,7 @@ impl Encoder {
                                     event_array.len(),
                                 );
                                 encoder.write(common::GenericEvent {
-                                    t: u64::from_le_bytes(
+                                    t: u64::from_ne_bytes(
                                         event_array[0..8].try_into().expect("8 bytes"),
                                     ),
                                     bytes: {
@@ -361,13 +358,13 @@ impl Encoder {
                                     event_array.len(),
                                 );
                                 encoder.write(neuromorphic_types::AtisEvent {
-                                    t: u64::from_le_bytes(
+                                    t: u64::from_ne_bytes(
                                         event_array[0..8].try_into().expect("8 bytes"),
                                     ),
-                                    x: u16::from_le_bytes(
+                                    x: u16::from_ne_bytes(
                                         event_array[8..10].try_into().expect("2 bytes"),
                                     ),
-                                    y: u16::from_le_bytes(
+                                    y: u16::from_ne_bytes(
                                         event_array[10..12].try_into().expect("2 bytes"),
                                     ),
                                     polarity: {

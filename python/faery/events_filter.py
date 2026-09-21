@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import collections.abc
 import types
 import typing
@@ -54,7 +56,6 @@ def typed_filter(
             Generated.__name__ = f"{prefix}{filter_class.__name__}"
             Generated.__qualname__ = Generated.__name__
             FILTERS[Generated.__name__] = Generated
-        return None
 
     return decorator
 
@@ -65,7 +66,7 @@ class Regularize(events_stream.FiniteRegularEventsFilter):
         self,
         parent: stream.FiniteRegularStream[numpy.ndarray],
         frequency_hz: float,
-        start: typing.Optional[timestamp.TimeOrTimecode] = None,
+        start: timestamp.TimeOrTimecode | None = None,
     ):
         self.init(parent=parent)
         self._frequency_hz = frequency_hz
@@ -87,7 +88,7 @@ class Regularize(events_stream.FiniteRegularEventsFilter):
         end_index = 1
         while True:
             end = timestamp.Time(
-                microseconds=int(round(start.to_microseconds() + end_index * period_us))
+                microseconds=round(start.to_microseconds() + end_index * period_us)
             )
             if end >= time_range_end:
                 return (start, end)
@@ -117,8 +118,8 @@ class Regularize(events_stream.FiniteRegularEventsFilter):
                     first_packet_start_t_us = int(events["t"][0])
                 if events["t"][-1] < first_packet_start_t_us:
                     break
-                next_packet_start_t = int(
-                    round(first_packet_start_t_us + (packet_index + 1) * period_us)
+                next_packet_start_t = round(
+                    first_packet_start_t_us + (packet_index + 1) * period_us
                 )
                 if events["t"][0] >= next_packet_start_t:
                     if len(events_buffers) == 0:
@@ -198,7 +199,7 @@ class OffsetT(events_stream.FiniteRegularEventsFilter):
 
 
 @typed_filter({"", "Finite"})
-class TimeSlice(events_stream.EventsFilter):  # type: ignore
+class TimeSlice(events_stream.EventsFilter):
     def __init__(
         self,
         parent: stream.Stream[numpy.ndarray],
@@ -249,7 +250,7 @@ class TimeSlice(events_stream.EventsFilter):  # type: ignore
 
 
 @typed_filter({"FiniteRegular"})
-class PacketSlice(events_stream.FiniteRegularEventsFilter):  # type: ignore
+class PacketSlice(events_stream.FiniteRegularEventsFilter):
     def __init__(
         self,
         parent: stream.FiniteRegularStream[numpy.ndarray],
@@ -270,11 +271,9 @@ class PacketSlice(events_stream.FiniteRegularEventsFilter):  # type: ignore
             return (
                 timestamp.Time(microseconds=0),
                 timestamp.Time(
-                    microseconds=int(
-                        round(
-                            parent_time_range[0].to_microseconds()
-                            + period_us * (self.end - self.start)
-                        )
+                    microseconds=round(
+                        parent_time_range[0].to_microseconds()
+                        + period_us * (self.end - self.start)
                     )
                 ),
             )
@@ -365,14 +364,12 @@ class RegularEventSlice(events_stream.RegularEventsFilter):
         self.end = end
 
     def __iter__(self) -> collections.abc.Iterator[numpy.ndarray]:
-        index = 0
-        for events in self.parent:
+        for index, events in enumerate(self.parent):
             length = len(events)
             if index >= self.start and index + length < self.end:
                 yield events
             else:
                 yield numpy.ndarray([], dtype=events_stream.EVENTS_DTYPE)
-            index += 1
 
 
 @typed_filter({"", "Finite", "Regular", "FiniteRegular"})
@@ -404,14 +401,10 @@ class Crop(events_stream.FiniteRegularEventsFilter):
     def __iter__(self) -> collections.abc.Iterator[numpy.ndarray]:
         for events in self.parent:
             events = events[
-                numpy.logical_and.reduce(
-                    (
-                        events["x"] >= self.left,
-                        events["x"] < self.right,
-                        events["y"] >= self.top,
-                        events["y"] < self.bottom,
-                    )
-                )
+                (events["x"] >= self.left)
+                & (events["x"] < self.right)
+                & (events["y"] >= self.top)
+                & (events["y"] < self.bottom)
             ]
             events["x"] -= self.left
             events["y"] -= self.top
@@ -515,10 +508,10 @@ class FilterArbiterSaturationLines(events_stream.FiniteRegularEventsFilter):
     def __iter__(self) -> collections.abc.Iterator[numpy.ndarray]:
         dimensions = self.parent.dimensions()
         if self.filter_orientation == "row":
-            maximum_line_fill = int(round(dimensions[0] * self.maximum_line_fill_ratio))
+            maximum_line_fill = round(dimensions[0] * self.maximum_line_fill_ratio)
             delta_coordinate = "y"
         else:
-            maximum_line_fill = int(round(dimensions[1] * self.maximum_line_fill_ratio))
+            maximum_line_fill = round(dimensions[1] * self.maximum_line_fill_ratio)
             delta_coordinate = "x"
         buffer = numpy.array([], dtype=events_stream.EVENTS_DTYPE)
         for events in self.parent:
@@ -577,9 +570,9 @@ class FilterHotPixels(events_stream.FiniteRegularEventsFilter):
             top[0] = 1
             bottom = numpy.roll(count, -1, axis=0)
             bottom[-1] = 1
-            maximum = numpy.maximum.reduce(
-                [left, right, top, bottom], dtype=numpy.float64
-            )
+            maximum = numpy.maximum(
+                numpy.maximum(left, right), numpy.maximum(top, bottom)
+            ).astype(numpy.float64)
             numpy.multiply(maximum, self.maximum_relative_event_count, out=maximum)
             mask = count < maximum
             yield events[mask[events["y"], events["x"]]]

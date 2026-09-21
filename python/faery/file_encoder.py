@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import collections.abc
 import pathlib
 import typing
@@ -9,7 +11,7 @@ import numpy.typing
 from . import enums, events_stream_state, frame_stream, frame_stream_state, timestamp
 
 if typing.TYPE_CHECKING:
-    from .types import aedat, csv, dat, es, evt, gif, mp4  # type: ignore
+    from .types import aedat, csv, dat, es, evt, gif, mp4
 else:
     from .extension import aedat, csv, dat, es, evt, gif, mp4
 
@@ -20,16 +22,14 @@ def with_write_suffix(path: pathlib.Path) -> pathlib.Path:
 
 def events_to_file(
     stream: collections.abc.Iterable[numpy.ndarray],
-    path: typing.Union[pathlib.Path, str, None],
+    path: pathlib.Path | str | None,
     dimensions: tuple[int, int],
-    version: typing.Optional[enums.EventsFileVersion] = None,
+    version: enums.EventsFileVersion | None = None,
     zero_t0: bool = True,
-    compression: typing.Optional[
-        typing.Tuple[enums.EventsFileCompression, int]
-    ] = aedat.LZ4_DEFAULT,
+    compression: tuple[enums.EventsFileCompression, int] | None = aedat.LZ4_DEFAULT,
     csv_separator: bytes = b",",
     csv_header: bool = True,
-    file_type: typing.Optional[enums.EventsFileType] = None,
+    file_type: enums.EventsFileType | None = None,
     use_write_suffix: bool = True,
     on_progress: typing.Callable[
         [events_stream_state.EventsStreamState], None
@@ -94,9 +94,9 @@ def events_to_file(
     )
     if file_type == "aedat":
         assert path is not None
-        assert (
-            enforce_monotonic_timestamps
-        ), "AEDAT files do not support non-monotonic timestamps, since timestamps may overflow"
+        assert enforce_monotonic_timestamps, (
+            "AEDAT files do not support non-monotonic timestamps, since timestamps may overflow"
+        )
         with aedat.Encoder(
             path=path if write_path is None else write_path,
             description=[
@@ -176,12 +176,16 @@ def events_to_file(
         t0 = 0
     elif file_type == "dat":
         assert path is not None
-        assert (
-            enforce_monotonic_timestamps
-        ), "DAT files do not support non-monotonic timestamps, since timestamps may overflow"
+        assert enforce_monotonic_timestamps, (
+            "DAT files do not support non-monotonic timestamps, since timestamps may overflow"
+        )
+        dat_version = "dat2" if version is None else version
+        assert dat_version in ("dat1", "dat2"), (
+            f'"{dat_version}" is not a DAT version (expected "dat1" or "dat2")'
+        )
         with dat.Encoder(
             path=path if write_path is None else write_path,
-            version="dat2" if version is None else version,  # type: ignore
+            version=dat_version,
             event_type="cd",
             zero_t0=zero_t0,
             dimensions=dimensions,
@@ -191,9 +195,9 @@ def events_to_file(
                 events = events.astype(
                     dtype=numpy.dtype(
                         [
-                            ("t", "<u8"),
-                            ("x", "<u2"),
-                            ("y", "<u2"),
+                            ("t", "=u8"),
+                            ("x", "=u2"),
+                            ("y", "=u2"),
                             ("payload", "u1"),
                         ]
                     ),
@@ -212,9 +216,9 @@ def events_to_file(
         state_manager.end()
     elif file_type == "es":
         assert path is not None
-        assert (
-            enforce_monotonic_timestamps
-        ), "ES files do not support non-monotonic timestamps"
+        assert enforce_monotonic_timestamps, (
+            "ES files do not support non-monotonic timestamps"
+        )
         with es.Encoder(
             path=path if write_path is None else write_path,
             event_type="dvs",
@@ -236,9 +240,13 @@ def events_to_file(
         state_manager.end()
     elif file_type == "evt":
         assert path is not None
+        evt_version = "evt3" if version is None else version
+        assert evt_version in ("evt2", "evt2.1", "evt3"), (
+            f'"{evt_version}" is not an EVT version (expected "evt2", "evt2.1" or "evt3")'
+        )
         with evt.Encoder(
             path=path if write_path is None else write_path,
-            version="evt3" if version is None else version,  # type: ignore
+            version=evt_version,
             zero_t0=zero_t0,
             dimensions=dimensions,
             enforce_monotonic=enforce_monotonic_timestamps,
@@ -262,10 +270,10 @@ def events_to_file(
 
 def frames_to_files(
     stream: collections.abc.Iterable[frame_stream.Frame],
-    path_pattern: typing.Union[pathlib.Path, str],
+    path_pattern: pathlib.Path | str,
     compression_level: enums.ImageFileCompressionLevel = "fast",
     quality: int = 100,
-    file_type: typing.Optional[enums.ImageFileType] = None,
+    file_type: enums.ImageFileType | None = None,
     use_write_suffix: bool = True,
     on_progress: typing.Callable[[frame_stream.OutputState], None] = lambda _: None,
 ):
@@ -292,14 +300,13 @@ def frames_to_files(
         )
     if not found:
         raise Exception(
-            f'at least one of {{i}}/{{index}} or {{t}}/{{timestamp}} must appear in the path pattern (for example "output/{{i:05}}.png" or "output/{{index:05}}_{{timestamp:010}}.png")'
+            'at least one of {i}/{index} or {t}/{timestamp} must appear in the path pattern (for example "output/{i:05}.png" or "output/{index:05}_{timestamp:010}.png")'
         )
     state_manager = frame_stream_state.StateManager(
         stream=stream, on_progress=on_progress
     )
     state_manager.start()
-    index = 0
-    for frame in stream:
+    for index, frame in enumerate(stream):
         path = pathlib.Path(
             *(
                 part.format_map(
@@ -320,13 +327,12 @@ def frames_to_files(
             use_write_suffix=use_write_suffix,
         )
         state_manager.commit(frame=frame)
-        index += 1
     state_manager.end()
 
 
 def frames_to_file(
     stream: collections.abc.Iterable[frame_stream.Frame],
-    path: typing.Union[pathlib.Path, str],
+    path: pathlib.Path | str,
     dimensions: tuple[int, int],
     frame_rate: float = 60.0,
     crf: float = 17.0,
@@ -336,7 +342,7 @@ def frames_to_file(
     quality: int = 100,
     rewind: bool = False,
     skip: int = 0,
-    file_type: typing.Optional[enums.VideoFileType] = None,
+    file_type: enums.VideoFileType | None = None,
     use_write_suffix: bool = True,
     on_progress: typing.Callable[[frame_stream.OutputState], None] = lambda _: None,
 ):

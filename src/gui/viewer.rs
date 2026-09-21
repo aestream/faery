@@ -22,7 +22,7 @@ pub fn convert_numpy_frame_to_rgba(
         let rgb_slice = frame.as_slice().ok_or("Frame is not contiguous")?;
         let mut rgba_data = Vec::with_capacity(height * width * 4);
 
-        for rgb_chunk in rgb_slice.chunks_exact(3) {
+        for rgb_chunk in rgb_slice.as_chunks::<3>().0 {
             rgba_data.extend_from_slice(rgb_chunk);
             rgba_data.push(255); // Add alpha
         }

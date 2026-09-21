@@ -45,7 +45,6 @@ for colormap in faery.colormaps_list():
     if colormap.type == "sequential":
 
         class Kinectograph(faery.Task):
-
             def __init__(self, colormap: faery.Colormap):
                 self.colormap = colormap
 
@@ -62,8 +61,8 @@ for colormap in faery.colormaps_list():
                 self,
                 input: pathlib.Path,
                 output: pathlib.Path,
-                start: faery.Time,
-                end: faery.Time,
+                start: faery.TimeOrTimecode,
+                end: faery.TimeOrTimecode,
             ):
                 (
                     faery.events_stream_from_file(input)

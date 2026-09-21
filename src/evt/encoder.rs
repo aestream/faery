@@ -12,6 +12,7 @@ pub struct Evt2Encoder {
     enforce_monotonic: bool,
 }
 
+#[allow(dead_code)]
 pub struct Evt21Encoder {
     file: std::io::BufWriter<std::fs::File>,
     dimensions: (u16, u16),
@@ -30,6 +31,7 @@ pub struct Evt3Encoder {
     enforce_monotonic: bool,
 }
 
+#[allow(dead_code, clippy::enum_variant_names)]
 pub enum Encoder {
     Evt2Encoder(Evt2Encoder),
     Evt21Encoder(Evt21Encoder),
@@ -356,8 +358,7 @@ impl Evt3Encoder {
             let previous_lsb = (self.previous_t & 0xFFF) as u16;
             let lsb = (t & 0xFFF) as u16;
             if update_lsb || previous_lsb != lsb {
-                self.file
-                    .write_all(&(((0b0110 << 12) | lsb) as u16).to_le_bytes())?;
+                self.file.write_all(&((0b0110 << 12) | lsb).to_le_bytes())?;
             }
         }
         Ok(())
@@ -433,14 +434,14 @@ impl Evt3Encoder {
             self.vector.flush(&mut self.file)?;
         }
         self.file.write_all(
-            &(((0b1010 << 12)
+            &((0b1010 << 12)
                 | (((event.id & 0b1111) as u16) << 8)
                 | match event.polarity {
                     neuromorphic_types::TriggerPolarity::Falling => 0b00,
                     neuromorphic_types::TriggerPolarity::Rising => 0b01,
                     neuromorphic_types::TriggerPolarity::Pulse => 0b10,
-                }) as u16)
-                .to_le_bytes(),
+                })
+            .to_le_bytes(),
         )?;
         self.previous_t = t;
         Ok(())
@@ -472,7 +473,7 @@ impl Vector {
             .previous_y
             .is_some_and(|previous_y| previous_y == self.y)
         {
-            output.write_all(&((0b0000 << 12) | self.y).to_le_bytes())?;
+            output.write_all(&self.y.to_le_bytes())?;
         }
         self.previous_y = Some(self.y);
         if self.bits == 1 {

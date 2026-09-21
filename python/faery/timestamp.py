@@ -51,12 +51,12 @@ class Time:
             return Time(microseconds=self.microseconds * other)
         other = other.__float__()
         assert other >= 0.0
-        return Time(microseconds=int(round(self.microseconds * other)))
+        return Time(microseconds=round(self.microseconds * other))
 
     def __truediv__(self, other) -> "Time":
         other = other.__float__()
         assert other >= 0.0
-        return Time(microseconds=int(round(self.microseconds / other)))
+        return Time(microseconds=round(self.microseconds / other))
 
     def __floordiv__(self, other) -> "Time":
         if isinstance(other, int):
@@ -64,7 +64,7 @@ class Time:
             return Time(microseconds=self.microseconds // other)
         other = other.__float__()
         assert other >= 0.0
-        return Time(microseconds=int(round(self.microseconds // other)))
+        return Time(microseconds=round(self.microseconds // other))
 
     def __mod__(self, other) -> "Time":
         if isinstance(other, int):
@@ -72,7 +72,7 @@ class Time:
             return Time(microseconds=self.microseconds % other)
         other = other.__float__()
         assert other >= 0.0
-        return Time(microseconds=int(round(self.microseconds % other)))
+        return Time(microseconds=round(self.microseconds % other))
 
     def __divmod__(self, other) -> "tuple[Time, Time]":
         if isinstance(other, int):
@@ -83,8 +83,8 @@ class Time:
         assert other >= 0.0
         quotient, remainder = divmod(self.microseconds, other)
         return (
-            Time(microseconds=int(round(quotient))),
-            Time(microseconds=int(round(remainder))),
+            Time(microseconds=round(quotient)),
+            Time(microseconds=round(remainder)),
         )
 
     def __rmul__(self, other) -> "Time":
@@ -168,18 +168,18 @@ def parse_time(value: TimeOrTimecode) -> Time:
             + int(match[3]) * 1000000
         )
         if match[4] is not None:
-            microseconds += int(round(float(f"0{match[4]}") * 1000000.0))
+            microseconds += round(float(f"0{match[4]}") * 1000000.0)
         return Time(microseconds=microseconds)
     match = MINUTES_TIMECODE_PATTERN.match(value)
     if match is not None:
         microseconds = int(match[1]) * (1000000 * 60) + int(match[2]) * 1000000
         if match[3] is not None:
-            microseconds += int(round(float(f"0{match[3]}") * 1000000.0))
+            microseconds += round(float(f"0{match[3]}") * 1000000.0)
         return Time(microseconds=microseconds)
     match = SECONDS_TIMECODE_PATTERN.match(value)
     if match is not None:
         microseconds = int(match[1]) * 1000000
         if match[2] is not None:
-            microseconds += int(round(float(f"0{match[2]}") * 1000000.0))
+            microseconds += round(float(f"0{match[2]}") * 1000000.0)
         return Time(microseconds=microseconds)
     raise RuntimeError(f'Parsing the timecode "{value}" failed')

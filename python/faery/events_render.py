@@ -8,7 +8,7 @@ from . import color as color_module
 from . import enums, events_stream, frame_stream, stream, timestamp
 
 if typing.TYPE_CHECKING:
-    from .types import render  # type: ignore
+    from .types import render
 else:
     from .extension import render
 
@@ -45,7 +45,6 @@ def typed_render(
             Generated.__name__ = f"{prefix}{render_class.__name__}"
             Generated.__qualname__ = Generated.__name__
             FILTERS[Generated.__name__] = Generated
-        return None
 
     return decorator
 
@@ -137,11 +136,8 @@ class Render(frame_stream.FiniteRegularFrameStream):
                     if first_frame_t is None:
                         continue
                     frame_t = timestamp.Time(
-                        microseconds=int(
-                            round(
-                                first_frame_t.to_microseconds()
-                                + frame_index * period_us
-                            )
+                        microseconds=round(
+                            first_frame_t.to_microseconds() + frame_index * period_us
                         )
                     )
                 else:
@@ -151,21 +147,17 @@ class Render(frame_stream.FiniteRegularFrameStream):
                         assert frame_index is not None
                         if first_frame_t is None:
                             first_frame_t = timestamp.Time(
-                                microseconds=int(
-                                    round(
-                                        int(events["t"][0])
-                                        + ((1 - frame_index) * period_us)
-                                    )
+                                microseconds=round(
+                                    int(events["t"][0])
+                                    + ((1 - frame_index) * period_us)
                                 )
                             )
                             if frame_index > 0:
-                                for empty_frame_index in range(0, frame_index):
+                                for empty_frame_index in range(frame_index):
                                     empty_frame_t = timestamp.Time(
-                                        microseconds=int(
-                                            round(
-                                                first_frame_t.to_microseconds()
-                                                + empty_frame_index * period_us
-                                            )
+                                        microseconds=round(
+                                            first_frame_t.to_microseconds()
+                                            + empty_frame_index * period_us
                                         )
                                     )
                                     assert empty_frame_t >= timestamp.Time(
@@ -183,11 +175,9 @@ class Render(frame_stream.FiniteRegularFrameStream):
                                     )
                         frame_index += 1
                         frame_t = timestamp.Time(
-                            microseconds=int(
-                                round(
-                                    first_frame_t.to_microseconds()
-                                    + frame_index * period_us
-                                )
+                            microseconds=round(
+                                first_frame_t.to_microseconds()
+                                + frame_index * period_us
                             )
                         )
                 pixels = renderer.render(

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import pathlib
 import typing
 
@@ -212,7 +214,7 @@ def bind(name: str, type: typing.Any):
         else:
             all_but_one = (f'"{value}"' for value in valid_values)
             valid_values_as_string = (
-                f"{', '.join(all_but_one)}, or \"{valid_values[-1]}\""
+                f'{", ".join(all_but_one)}, or "{valid_values[-1]}"'
             )
         raise Exception(f'unknown {name} "{value}" (expected {valid_values_as_string})')
 
@@ -225,7 +227,7 @@ for name, variable in list(locals().items()):
         bind(name, variable)
 
 
-def events_file_type_magic(events_file_type: EventsFileType) -> typing.Optional[bytes]:
+def events_file_type_magic(events_file_type: EventsFileType) -> bytes | None:
     if events_file_type == "aedat":
         return b"#!AER-DAT4.0\r\n"
     if events_file_type == "csv":

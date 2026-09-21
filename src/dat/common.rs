@@ -51,6 +51,7 @@ impl Type {
         }
     }
 
+    #[allow(clippy::wrong_self_convention)]
     pub fn to_string(&self) -> &'static str {
         match self {
             Self::Event2d { .. } => "2d",

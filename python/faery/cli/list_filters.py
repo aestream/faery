@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import argparse
 import dataclasses
 import functools
@@ -68,7 +70,7 @@ def parse_time(string: str) -> faery.Time:
     return float(string) * faery.s
 
 
-def parse_optional_time(string: str) -> typing.Optional[faery.Time]:
+def parse_optional_time(string: str) -> faery.Time | None:
     if string in NONE_KEYWORDS:
         return None
     return parse_time(string)
@@ -125,7 +127,7 @@ def parse_dimensions(string: str) -> tuple[int, int]:
 
 def parse_factor_or_minimum_dimensions(
     string: str,
-) -> typing.Union[float, tuple[int, int]]:
+) -> float | tuple[int, int]:
     # Try WIDTHxHEIGHT format first
     dimensions_match = DIMENSIONS_X_PATTERN.match(string)
     if dimensions_match is not None:
@@ -139,19 +141,19 @@ def parse_factor_or_minimum_dimensions(
     return float(string)
 
 
-def parse_optional_color(string: str) -> typing.Optional[faery.Color]:
+def parse_optional_color(string: str) -> faery.Color | None:
     if string in NONE_KEYWORDS:
         return None
     return parse_color(string)
 
 
-def parse_optional_float(string: str) -> typing.Optional[float]:
+def parse_optional_float(string: str) -> float | None:
     if string in NONE_KEYWORDS:
         return None
     return float(string)
 
 
-def parse_optional_int(string: str) -> typing.Optional[int]:
+def parse_optional_int(string: str) -> int | None:
     if string in NONE_KEYWORDS:
         return None
     return int(string)
@@ -159,9 +161,7 @@ def parse_optional_int(string: str) -> typing.Optional[int]:
 
 def parse_udp(
     string: str,
-) -> typing.Union[
-    tuple[str, int], tuple[str, int, typing.Optional[int], typing.Optional[str]]
-]:
+) -> tuple[str, int] | tuple[str, int, int | None, str | None]:
     # Try IPv4 address pattern first
     match = UDP_IPV4_PATTERN.match(string)
     if match is not None:
@@ -199,13 +199,24 @@ def class_to_name_to_filter() -> dict[typing.Any, dict[str, Filter]]:
             ):
                 continue
             signature = inspect.signature(function)
+            resolved_annotations = typing.get_type_hints(function)
+            signature = signature.replace(
+                parameters=[
+                    parameter.replace(
+                        annotation=resolved_annotations.get(
+                            parameter.name, parameter.annotation
+                        )
+                    )
+                    for parameter in signature.parameters.values()
+                ]
+            )
             if len(signature.parameters) == 0:
                 raise Exception(
                     f'filter {function_name} of {stream_class} has no parameters (it should have at least "self")'
                 )
             filter = Filter(
                 parameters=[],
-                return_annotation=getattr(function, "filter_return_annotation"),
+                return_annotation=function.filter_return_annotation,
             )
             parameters_items = iter(signature.parameters.items())
             if next(parameters_items)[0] != "self":
@@ -228,7 +239,7 @@ def class_to_name_to_filter() -> dict[typing.Any, dict[str, Filter]]:
                             format_color(">", PUNCTUATION_COLOR),
                         )
                     else:
-                        argparse_flag = f'--{parameter_name.replace("_", "-")}'
+                        argparse_flag = f"--{parameter_name.replace('_', '-')}"
                         options["default"] = parameter.default
                         options["help"] = "(default: %(default)s)"
                         options["dest"] = parameter_name
@@ -278,7 +289,7 @@ def class_to_name_to_filter() -> dict[typing.Any, dict[str, Filter]]:
                                 parameter_name=parameter_name,
                                 argparse_flag=argparse_flag,
                                 representation="{}{}{}".format(
-                                    format_color(f"[", PUNCTUATION_COLOR),
+                                    format_color("[", PUNCTUATION_COLOR),
                                     format_color(parameter_name, LITERAL_COLOR),
                                     format_color("]", PUNCTUATION_COLOR),
                                 ),
@@ -367,7 +378,7 @@ def class_to_name_to_filter() -> dict[typing.Any, dict[str, Filter]]:
                             format_color(">", PUNCTUATION_COLOR),
                         )
                     else:
-                        argparse_flag = f'--{parameter_name.replace("_", "-")}'
+                        argparse_flag = f"--{parameter_name.replace('_', '-')}"
                         options["dest"] = parameter_name
                         representation = "{}{} {} {} {}{}".format(
                             format_color("[", PUNCTUATION_COLOR),
@@ -414,7 +425,7 @@ def class_to_name_to_filter() -> dict[typing.Any, dict[str, Filter]]:
                             format_color(">", PUNCTUATION_COLOR),
                         )
                     else:
-                        argparse_flag = f'--{parameter_name.replace("_", "-")}'
+                        argparse_flag = f"--{parameter_name.replace('_', '-')}"
                         options["default"] = parameter.default
                         options["help"] = "(default: %(default)s)"
                         options["dest"] = parameter_name
@@ -445,63 +456,63 @@ def class_to_name_to_filter() -> dict[typing.Any, dict[str, Filter]]:
                 else:
                     found = False
                     for _, member in inspect.getmembers(faery.enums):
-                        if typing.get_origin(member) == typing.Literal:
-                            if parameter.annotation in {member, str(member)}:
-                                choices = list(typing.get_args(member))
-                                options = {"choices": choices}
-                                choices_representation = "{}{}{}".format(
-                                    format_color("{", PUNCTUATION_COLOR),
-                                    format_color(", ", PUNCTUATION_COLOR).join(
-                                        format_color(choice, LITERAL_COLOR)
-                                        for choice in choices
+                        if typing.get_origin(
+                            member
+                        ) == typing.Literal and parameter.annotation in {
+                            member,
+                            str(member),
+                        }:
+                            choices = list(typing.get_args(member))
+                            options = {"choices": choices}
+                            choices_representation = "{}{}{}".format(
+                                format_color("{", PUNCTUATION_COLOR),
+                                format_color(", ", PUNCTUATION_COLOR).join(
+                                    format_color(choice, LITERAL_COLOR)
+                                    for choice in choices
+                                ),
+                                format_color("}", PUNCTUATION_COLOR),
+                            )
+                            if parameter.default == inspect._empty:
+                                argparse_flag = parameter_name
+                                options["metavar"] = parameter_name.replace("_", "-")
+                                representation = "{} {}{}".format(
+                                    format_color(
+                                        f"<{options['metavar']}", PUNCTUATION_COLOR
                                     ),
-                                    format_color("}", PUNCTUATION_COLOR),
+                                    choices_representation,
+                                    format_color(">", PUNCTUATION_COLOR),
                                 )
-                                if parameter.default == inspect._empty:
-                                    argparse_flag = parameter_name
-                                    options["metavar"] = parameter_name.replace(
-                                        "_", "-"
-                                    )
-                                    representation = "{} {}{}".format(
-                                        format_color(
-                                            f"<{options['metavar']}", PUNCTUATION_COLOR
+                            else:
+                                argparse_flag = f"--{parameter_name.replace('_', '-')}"
+                                options["default"] = parameter.default
+                                options["help"] = "(default: %(default)s)"
+                                options["dest"] = parameter_name
+                                representation = "{}{} {} {} {}{}".format(
+                                    format_color("[", PUNCTUATION_COLOR),
+                                    format_color(argparse_flag, LITERAL_COLOR),
+                                    choices_representation,
+                                    format_color("=", PUNCTUATION_COLOR),
+                                    format_color(
+                                        (
+                                            "none"
+                                            if parameter.default is None
+                                            else parameter.default
                                         ),
-                                        choices_representation,
-                                        format_color(">", PUNCTUATION_COLOR),
-                                    )
-                                else:
-                                    argparse_flag = (
-                                        f'--{parameter_name.replace("_", "-")}'
-                                    )
-                                    options["default"] = parameter.default
-                                    options["help"] = "(default: %(default)s)"
-                                    options["dest"] = parameter_name
-                                    representation = "{}{} {} {} {}{}".format(
-                                        format_color("[", PUNCTUATION_COLOR),
-                                        format_color(argparse_flag, LITERAL_COLOR),
-                                        choices_representation,
-                                        format_color("=", PUNCTUATION_COLOR),
-                                        format_color(
-                                            (
-                                                "none"
-                                                if parameter.default is None
-                                                else parameter.default
-                                            ),
-                                            LITERAL_COLOR,
-                                        ),
-                                        format_color("]", PUNCTUATION_COLOR),
-                                    )
-                                filter.parameters.append(
-                                    Parameter(
-                                        parameter_name=parameter_name,
-                                        argparse_flag=argparse_flag,
-                                        representation=representation,
-                                        options=options,
-                                        transform=lambda value: value,
-                                    )
+                                        LITERAL_COLOR,
+                                    ),
+                                    format_color("]", PUNCTUATION_COLOR),
                                 )
-                                found = True
-                                break
+                            filter.parameters.append(
+                                Parameter(
+                                    parameter_name=parameter_name,
+                                    argparse_flag=argparse_flag,
+                                    representation=representation,
+                                    options=options,
+                                    transform=lambda value: value,
+                                )
+                            )
+                            found = True
+                            break
                     if not found:
                         raise Exception(
                             f"unsupported parameter type {parameter.annotation} in filter {function_name} of {stream_class}"

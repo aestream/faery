@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import dataclasses
 import typing
 
@@ -27,7 +29,7 @@ class EventsStreamState:
     Provided to the user via the `on_progress` callback *after* a packet is fully processed.
     """
 
-    packet: typing.Union[PacketState, typing.Literal["start", "end"]]
+    packet: PacketState | typing.Literal["start", "end"]
     """
     "start" indicates the beginning of the stream (before reading the first packet)
 
@@ -43,7 +45,7 @@ class FiniteEventsStreamState:
     Provided to the user via the `on_progress` callback *after* a packet is fully processed.
     """
 
-    packet: typing.Union[PacketState, typing.Literal["start", "end"]]
+    packet: PacketState | typing.Literal["start", "end"]
     """
     "start" indicates the beginning of the stream (before reading the first packet)
 
@@ -67,7 +69,7 @@ class RegularEventsStreamState:
     Provided to the user via the `on_progress` callback *after* a packet is fully processed.
     """
 
-    packet: typing.Union[PacketState, typing.Literal["start", "end"]]
+    packet: PacketState | typing.Literal["start", "end"]
     """
     "start" indicates the beginning of the stream (before reading the first packet)
 
@@ -87,7 +89,7 @@ class FiniteRegularEventsStreamState:
     Provided to the user via the `on_progress` callback *after* a packet is fully processed.
     """
 
-    packet: typing.Union[PacketState, typing.Literal["start", "end"]]
+    packet: PacketState | typing.Literal["start", "end"]
     """
     "start" indicates the beginning of the stream (before reading the first packet)
 
@@ -123,7 +125,7 @@ class StateManager:
     ):
         self.index = 0
         try:
-            self.time_range: typing.Optional[tuple[timestamp.Time, timestamp.Time]] = (
+            self.time_range: tuple[timestamp.Time, timestamp.Time] | None = (
                 stream.time_range()
             )
         except (AttributeError, NotImplementedError):
@@ -140,11 +142,9 @@ class StateManager:
             period_us = 1e6 / self.frequency_hz
             while True:
                 end = timestamp.Time(
-                    microseconds=int(
-                        round(
-                            self.time_range[0].to_microseconds()
-                            + self.packet_count * period_us
-                        )
+                    microseconds=round(
+                        self.time_range[0].to_microseconds()
+                        + self.packet_count * period_us
                     )
                 )
                 if end >= self.time_range[1]:

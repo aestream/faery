@@ -1,17 +1,18 @@
+from __future__ import annotations
+
 import collections.abc
 import socket
 import threading
 import time
 import types
-import typing
 
 import numpy
+import numpy.typing
 
 from . import enums, events_stream
 
 
 class Receiver:
-
     def target(self):
         while self.running:
             try:
@@ -23,16 +24,14 @@ class Receiver:
 
     def __init__(
         self,
-        address: typing.Union[
-            tuple[str, int], tuple[str, int, typing.Optional[int], typing.Optional[str]]
-        ],
+        address: tuple[str, int] | tuple[str, int, int | None, str | None],
     ):
         ipv6 = len(address) == 4
         if ipv6:
             if address[2] is None and address[3] is None:
                 self.address = (address[0], address[1])
             elif address[3] is None:
-                self.address = (address[0], address[1], address[2])  # type: ignore
+                self.address = (address[0], address[1], address[2])
         self.socket = socket.socket(
             socket.AF_INET6 if ipv6 else socket.AF_INET,
             socket.SOCK_DGRAM,
@@ -45,14 +44,14 @@ class Receiver:
         self.thread = threading.Thread(target=self.target, daemon=True)
         self.thread.start()
 
-    def __enter__(self) -> "Receiver":
+    def __enter__(self) -> Receiver:
         return self
 
     def __exit__(
         self,
-        exception_type: typing.Optional[typing.Type[BaseException]],
-        value: typing.Optional[BaseException],
-        traceback: typing.Optional[types.TracebackType],
+        exception_type: type[BaseException] | None,
+        value: BaseException | None,
+        traceback: types.TracebackType | None,
     ) -> bool:
         self.running = False
         self.thread.join()
@@ -70,9 +69,7 @@ class Decoder(events_stream.EventsStream):
     def __init__(
         self,
         dimensions: tuple[int, int],
-        address: typing.Union[
-            tuple[str, int], tuple[str, int, typing.Optional[int], typing.Optional[str]]
-        ],
+        address: tuple[str, int] | tuple[str, int, int | None, str | None],
         format: enums.UdpFormat = "t64_x16_y16_on8",
     ):
         super().__init__()
@@ -94,22 +91,21 @@ class Decoder(events_stream.EventsStream):
                         raw_bytes[0 : (len(raw_bytes) // 13) * 13],
                         dtype=events_stream.EVENTS_DTYPE,
                     )
-                    if len(events) > 0:
-                        if events["t"][0] >= previous_t:
-                            previous_t = events["t"][-1]
-                            yield events
+                    if len(events) > 0 and events["t"][0] >= previous_t:
+                        previous_t = events["t"][-1]
+                        yield events
         elif self.format == "t32_x16_y15_on1":
             offset = 0
             with Receiver(self.address) as receiver:
                 dtype = numpy.dtype([("t", "<u4"), ("x", "<u2"), ("y+on", "<u2")])
                 while True:
                     raw_bytes = receiver.next()
-                    raw_events = numpy.frombuffer(
+                    raw_events: numpy.typing.NDArray[numpy.void] = numpy.frombuffer(
                         raw_bytes[0 : (len(raw_bytes) // 8) * 8],
                         dtype=dtype,
                     )
                     if len(raw_events) > 0:
-                        events = numpy.ndarray(
+                        events: numpy.typing.NDArray[numpy.void] = numpy.ndarray(
                             len(raw_events),
                             dtype=events_stream.EVENTS_DTYPE,
                         )

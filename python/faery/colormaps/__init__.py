@@ -75,11 +75,11 @@ __all__ = [
     "oslo",
     "roma",
     "roma_o",
+    "starry_night",
     "tofino",
     "tokyo",
     "turku",
     "vanimo",
     "vik",
     "vik_o",
-    "starry_night",
 ]

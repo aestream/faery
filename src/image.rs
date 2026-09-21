@@ -30,9 +30,9 @@ pub fn encode(
     compression_level: &str,
 ) -> PyResult<Py<PyAny>> {
     if !frame.is_contiguous() {
-        return Err(pyo3::exceptions::PyAttributeError::new_err(format!(
-            "the frame's memory must be contiguous"
-        )));
+        return Err(pyo3::exceptions::PyAttributeError::new_err(
+            "the frame's memory must be contiguous",
+        ));
     }
     let compression_type  = match compression_level {
         "default" => image::codecs::png::CompressionType::Default,
@@ -110,6 +110,7 @@ fn alpha_compose_over(
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 fn write_text(
     mut array: numpy::ndarray::ArrayBase<
         numpy::ndarray::ViewRepr<&mut u8>,
@@ -125,15 +126,15 @@ fn write_text(
 ) {
     for character in text.chars() {
         let (metrics, bitmap) = font.rasterize(character, size as f32);
-        let xmin = x_offset as i32 + metrics.xmin;
-        let ymin = y_offset as i32 - metrics.ymin + size - metrics.height as i32;
+        let xmin = x_offset + metrics.xmin;
+        let ymin = y_offset - metrics.ymin + size - metrics.height as i32;
         for y in 0..metrics.height as i32 {
             let output_y = y + ymin;
             if output_y >= 0 && output_y < dimensions.0 as i32 {
                 for x in 0..metrics.width as i32 {
                     let output_x = x + xmin;
                     if output_x >= 0 && output_x < dimensions.1 as i32 {
-                        let alpha = bitmap[x as usize + y as usize * metrics.width as usize];
+                        let alpha = bitmap[x as usize + y as usize * metrics.width];
                         if dimensions.2 == 3 {
                             let mut rgb = array.slice_mut(numpy::ndarray::prelude::s![
                                 output_y,
@@ -227,9 +228,9 @@ pub fn annotate(
     color: (u8, u8, u8, u8),
 ) -> PyResult<()> {
     if !frame.is_contiguous() {
-        return Err(pyo3::exceptions::PyAttributeError::new_err(format!(
-            "the frame's memory must be contiguous"
-        )));
+        return Err(pyo3::exceptions::PyAttributeError::new_err(
+            "the frame's memory must be contiguous",
+        ));
     }
     let mut readwrite_frame = frame.readwrite();
     let array = readwrite_frame.as_array_mut();
@@ -290,9 +291,9 @@ pub fn resize(
     sampling_filter: &str,
 ) -> PyResult<Py<PyAny>> {
     if !frame.is_contiguous() {
-        return Err(pyo3::exceptions::PyAttributeError::new_err(format!(
-            "the frame's memory must be contiguous"
-        )));
+        return Err(pyo3::exceptions::PyAttributeError::new_err(
+            "the frame's memory must be contiguous",
+        ));
     }
     let image_type = Python::attach(|python| {
         if frame.dtype().is_equiv_to(&numpy::dtype::<u8>(python)) {
@@ -360,9 +361,9 @@ pub fn resize(
         Some(ImageType::F64) => {
             let frame: &pyo3::Bound<'_, numpy::PyArray3<f64>> = frame.cast()?;
             if !frame.is_contiguous() {
-                return Err(pyo3::exceptions::PyAttributeError::new_err(format!(
-                    "the frame's memory must be contiguous"
-                )));
+                return Err(pyo3::exceptions::PyAttributeError::new_err(
+                    "the frame's memory must be contiguous",
+                ));
             }
             let readonly_frame = frame.readonly();
             let array_dimensions = readonly_frame.as_array().dim();
@@ -394,9 +395,9 @@ pub fn resize(
                 )))
             }
         }
-        None => Err(pyo3::exceptions::PyAttributeError::new_err(format!(
-            "unsupported image type (the dtype must be numpy.uint8 or numpy.float64)"
-        ))),
+        None => Err(pyo3::exceptions::PyAttributeError::new_err(
+            "unsupported image type (the dtype must be numpy.uint8 or numpy.float64)",
+        )),
     }
 }
 
@@ -410,14 +411,14 @@ pub fn overlay(
     sampling_filter: &str,
 ) -> PyResult<()> {
     if !frame.is_contiguous() {
-        return Err(pyo3::exceptions::PyAttributeError::new_err(format!(
-            "the frame's memory must be contiguous"
-        )));
+        return Err(pyo3::exceptions::PyAttributeError::new_err(
+            "the frame's memory must be contiguous",
+        ));
     }
     if !overlay.is_contiguous() {
-        return Err(pyo3::exceptions::PyAttributeError::new_err(format!(
-            "the overlay's memory must be contiguous"
-        )));
+        return Err(pyo3::exceptions::PyAttributeError::new_err(
+            "the overlay's memory must be contiguous",
+        ));
     }
     let mut readwrite_frame = frame.readwrite();
     let frame_dimensions = readwrite_frame.as_array_mut().dim();

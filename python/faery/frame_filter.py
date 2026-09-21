@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import collections.abc
 import math
 import pathlib
@@ -8,10 +10,10 @@ import numpy
 import numpy.typing
 
 from . import color as color_module
-from . import enums, frame_stream, stream, timestamp
+from . import enums, frame_stream, stream
 
 if typing.TYPE_CHECKING:
-    from .types import image  # type: ignore
+    from .types import image
 else:
     from .extension import image
 
@@ -19,13 +21,13 @@ else:
 SPEED_UP_PRECISION: float = 1e-3
 
 
-def number_to_string(number: typing.Union[int, float], precision: float) -> str:
+def number_to_string(number: float, precision: float) -> str:
     """
     Converts a number larger than one to a string with float or integer representation depending on the value.
     """
     assert number >= 1.0
     absolute_value = abs(number)
-    for ndigits in range(0, int(-numpy.log10(precision)) + 1):
+    for ndigits in range(int(-numpy.log10(precision)) + 1):
         rounded_value = round(absolute_value, ndigits=ndigits)
         if number < rounded_value * (1.0 + precision) and number > rounded_value * (
             1.0 - precision
@@ -67,7 +69,6 @@ def typed_filter(
             Generated.__name__ = f"{prefix}{filter_class.__name__}"
             Generated.__qualname__ = Generated.__name__
             FILTERS[Generated.__name__] = Generated
-        return None
 
     return decorator
 
@@ -77,7 +78,7 @@ class Scale(frame_stream.FiniteRegularFrameFilter):
     def __init__(
         self,
         parent: stream.FiniteRegularStream[frame_stream.Frame],
-        factor_or_minimum_dimensions: typing.Union[float, tuple[int, int]] = (960, 720),
+        factor_or_minimum_dimensions: float | tuple[int, int] = (960, 720),
         sampling_filter: enums.ImageResizeSamplingFilter = "nearest",
     ):
         self.init(parent=parent)
@@ -97,8 +98,8 @@ class Scale(frame_stream.FiniteRegularFrameFilter):
                 math.ceil(self.factor_or_minimum_dimensions[1] / parent_dimensions[1]),
             )
         return (
-            int(round(parent_dimensions[0] * factor)),
-            int(round(parent_dimensions[1] * factor)),
+            round(parent_dimensions[0] * factor),
+            round(parent_dimensions[1] * factor),
         )
 
     def __iter__(self) -> collections.abc.Iterator[frame_stream.Frame]:
@@ -116,8 +117,8 @@ class Scale(frame_stream.FiniteRegularFrameFilter):
                 yield frame
         else:
             new_dimensions = (
-                int(round(parent_dimensions[0] * factor)),
-                int(round(parent_dimensions[1] * factor)),
+                round(parent_dimensions[0] * factor),
+                round(parent_dimensions[1] * factor),
             )
             for frame in self.parent:
                 frame.pixels = image.resize(
@@ -197,7 +198,7 @@ class AddTimecodeAndSpeedup(frame_stream.FiniteRegularFrameFilter):
         y: int = 15,
         size: int = 30,
         color: color_module.Color = "#FFFFFF",
-        output_frame_rate: typing.Optional[float] = 60.0,
+        output_frame_rate: float | None = 60.0,
     ):
         self.init(parent=parent)
         self.x = x
@@ -250,7 +251,7 @@ class AddOverlay(frame_stream.FiniteRegularFrameFilter):
     def __init__(
         self,
         parent: stream.FiniteRegularStream[frame_stream.Frame],
-        overlay: typing.Union[pathlib.Path, str, numpy.typing.NDArray[numpy.uint8]],
+        overlay: pathlib.Path | str | numpy.typing.NDArray[numpy.uint8],
         x: int = 0,
         y: int = 0,
         scale_factor: float = 1.0,
@@ -276,8 +277,8 @@ class AddOverlay(frame_stream.FiniteRegularFrameFilter):
                 x=self.x,
                 y=self.y,
                 new_dimensions=(
-                    int(round(overlay.shape[1] * self.scale_factor)),
-                    int(round(overlay.shape[0] * self.scale_factor)),
+                    round(overlay.shape[1] * self.scale_factor),
+                    round(overlay.shape[0] * self.scale_factor),
                 ),
                 sampling_filter=self.scale_sampling_filter,
             )

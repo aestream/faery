@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import collections.abc
 import socket
 import typing
@@ -9,10 +11,8 @@ from . import enums, events_stream_state
 
 def encode(
     stream: collections.abc.Iterable[numpy.ndarray],
-    address: typing.Union[
-        tuple[str, int], tuple[str, int, typing.Optional[int], typing.Optional[str]]
-    ],
-    events_per_packet: typing.Optional[int] = None,
+    address: tuple[str, int] | tuple[str, int, int | None, str | None],
+    events_per_packet: int | None = None,
     format: enums.UdpFormat = "t64_x16_y16_on8",
     on_progress: typing.Callable[
         [events_stream_state.EventsStreamState], None

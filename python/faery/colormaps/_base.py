@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import dataclasses
 import math
 import pathlib
@@ -10,7 +12,7 @@ import numpy.typing
 from .. import enums
 
 if typing.TYPE_CHECKING:
-    from ..types import image  # type: ignore
+    from ..types import image
 else:
     from ..extension import image
 
@@ -316,28 +318,28 @@ class Colormap:
     def as_type(
         self,
         new_type: enums.ColormapType,
-    ) -> "Colormap":
+    ) -> Colormap:
         return Colormap(
             name=self.name,
             type=new_type,
             rgba=self.rgba.copy(),
         )
 
-    def flipped(self) -> "Colormap":
+    def flipped(self) -> Colormap:
         return Colormap(
             name=f"{self.name}_flipped",
             type=self.type,
             rgba=numpy.flip(self.rgba, axis=0).copy(),
         )
 
-    def rolled(self, shift: int) -> "Colormap":
+    def rolled(self, shift: int) -> Colormap:
         return Colormap(
             name=self.name,
             type=self.type,
             rgba=numpy.roll(self.rgba, shift=shift, axis=0).copy(),
         )
 
-    def repeated(self, count: int, flip_odd_indices: bool = False) -> "Colormap":
+    def repeated(self, count: int, flip_odd_indices: bool = False) -> Colormap:
         if count < 1:
             raise AttributeError("count must be strictly larger than 0")
         if count == 1:
@@ -348,7 +350,7 @@ class Colormap:
             )
         repeated_rgba = []
         if flip_odd_indices:
-            for index in range(0, count):
+            for index in range(count):
                 if index == 0:
                     repeated_rgba.append(self.rgba)
                 elif index % 2 == 0:
@@ -356,7 +358,7 @@ class Colormap:
                 else:
                     repeated_rgba.append(numpy.flip(self.rgba, axis=0)[1:])
         else:
-            for _ in range(0, count):
+            for _ in range(count):
                 repeated_rgba.append(self.rgba)
         return Colormap(
             name=self.name,
@@ -367,7 +369,7 @@ class Colormap:
     def colorblindness_simulation(
         self,
         type: enums.ColorblindnessType,
-    ) -> "Colormap":
+    ) -> Colormap:
         type = enums.validate_colorblindness_type(type)
         # https://doi.org/10.1002/(SICI)1520-6378(199908)24:4<243::AID-COL5>3.0.CO;2-3
         # https://vision.psychol.cam.ac.uk/jdmollon/papers/colourmaps.pdf
@@ -398,7 +400,7 @@ class Colormap:
 
     def to_file(
         self,
-        path: typing.Union[pathlib.Path, str],
+        path: pathlib.Path | str,
     ):
         frame = numpy.full(
             (
@@ -415,8 +417,8 @@ class Colormap:
             dtype=numpy.uint8,
         )
         labels = ("",) + typing.get_args(enums.ColorblindnessType)
-        maximum_label_width = int(
-            math.ceil(max(len(label) for label in labels) * LABEL_SIZE * FONT_RATIO)
+        maximum_label_width = math.ceil(
+            max(len(label) for label in labels) * LABEL_SIZE * FONT_RATIO
         )
         colorbar_width = (
             WIDTH - PADDING_LEFT - PADDING_RIGHT - COLUMN_GAP - maximum_label_width
@@ -436,7 +438,7 @@ class Colormap:
         offset += TITLE_SIZE + TITLE_PADDING_BOTTOM
         for label in labels:
             if len(label) > 0:
-                colormap = self.colorblindness_simulation(label)  # type: ignore
+                colormap = self.colorblindness_simulation(label)
             else:
                 colormap = self
             colormap_points = numpy.arange(
@@ -502,14 +504,14 @@ class ColorTheme:
 
     def replace(
         self,
-        background: typing.Optional[Color] = None,
-        labels: typing.Optional[Color] = None,
-        axes: typing.Optional[Color] = None,
-        grid: typing.Optional[Color] = None,
-        subgrid: typing.Optional[Color] = None,
-        lines: typing.Optional[list[Color]] = None,
-        colormap: typing.Optional[Colormap] = None,
-    ) -> "ColorTheme":
+        background: Color | None = None,
+        labels: Color | None = None,
+        axes: Color | None = None,
+        grid: Color | None = None,
+        subgrid: Color | None = None,
+        lines: list[Color] | None = None,
+        colormap: Colormap | None = None,
+    ) -> ColorTheme:
         """
         Creates a new theme by copying `self` and replacing the specified entries.
         """

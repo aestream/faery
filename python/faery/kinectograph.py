@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import collections.abc
 import math
 import typing
@@ -9,7 +11,7 @@ from . import color as color_module
 from . import enums, events_stream_state, frame_stream, timestamp
 
 if typing.TYPE_CHECKING:
-    from .types import image  # type: ignore
+    from .types import image
 else:
     from .extension import image
 
@@ -19,7 +21,6 @@ FONT_HEIGHT_RATIO: float = 1.31885
 
 
 class Kinectograph:
-
     def __init__(
         self,
         time_range: tuple[timestamp.Time, timestamp.Time],
@@ -53,9 +54,9 @@ class Kinectograph:
 
     def scale(
         self,
-        factor_or_minimum_dimensions: typing.Union[float, tuple[int, int]] = (960, 720),
+        factor_or_minimum_dimensions: float | tuple[int, int] = (960, 720),
         sampling_filter: enums.ImageResizeSamplingFilter = "nearest",
-    ) -> "Kinectograph":
+    ) -> Kinectograph:
         dimensions = self.dimensions()
         if isinstance(factor_or_minimum_dimensions, (float, int)):
             factor = factor_or_minimum_dimensions
@@ -68,8 +69,8 @@ class Kinectograph:
         if factor == 1.0:
             return self
         new_dimensions = (
-            int(round(dimensions[0] * factor)),
-            int(round(dimensions[1] * factor)),
+            round(dimensions[0] * factor),
+            round(dimensions[1] * factor),
         )
         return Kinectograph(
             time_range=self._time_range,
@@ -100,18 +101,14 @@ class Kinectograph:
         if legend:
             start_timecode = self._time_range[0].to_timecode()
             end_timecode = self._time_range[1].to_timecode()
-            width += int(
-                round(
-                    (
-                        legend_padding_left
-                        + legend_bar_width
-                        + legend_gap
-                        + max(len(start_timecode), len(end_timecode))
-                        * legend_font_size
-                        * FONT_WIDTH_RATIO
-                        + legend_padding_right
-                    )
-                )
+            width += round(
+                legend_padding_left
+                + legend_bar_width
+                + legend_gap
+                + max(len(start_timecode), len(end_timecode))
+                * legend_font_size
+                * FONT_WIDTH_RATIO
+                + legend_padding_right
             )
         frame = numpy.zeros(
             (
@@ -180,12 +177,10 @@ class Kinectograph:
                     frame=frame,
                     text=start_timecode,
                     x=legend_left + legend_bar_width + legend_gap,
-                    y=int(
-                        round(
-                            legend_padding_top
-                            + colorbar_height
-                            - legend_font_size * FONT_HEIGHT_RATIO
-                        )
+                    y=round(
+                        legend_padding_top
+                        + colorbar_height
+                        - legend_font_size * FONT_HEIGHT_RATIO
                     ),
                     size=legend_font_size,
                     color=color,

@@ -1159,7 +1159,7 @@ def generate_distinct(count: int) -> list[str]:
         return sorted(generated_set)
 
     generated_list: list[str] = []
-    for index in range(0, count):
+    for index in range(count):
         generated_list.append(
             f"{ADJECTIVES[index // len(NOUNS)]}-{NOUNS[index % len(NOUNS)]}"
         )

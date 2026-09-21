@@ -177,7 +177,7 @@ impl GenericEncoder {
                 break;
             }
         }
-        self.file.write_all(&event.bytes)?;
+        self.file.write_all(event.bytes)?;
         self.previous_t = t;
         Ok(())
     }

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import argparse
 import collections.abc
 import functools
@@ -15,7 +17,7 @@ def base_parser(keyword: str) -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers()
     subparser = subparsers.add_parser(keyword)
-    subparser.parse_args = parser.parse_args
+    subparser.parse_args = parser.parse_args  # ty: ignore[invalid-assignment]
     return subparser
 
 
@@ -212,7 +214,9 @@ def filter_parser(stream_class: typing.Any) -> argparse.ArgumentParser:
             )
         return result
 
-    parser.parse_args = parse_args.__get__(parser, argparse.ArgumentParser)
+    parser.parse_args = parse_args.__get__(  # ty: ignore[invalid-assignment]
+        parser, argparse.ArgumentParser
+    )
     return parser
 
 
@@ -229,7 +233,6 @@ def output_parser(
         faery.RegularEventsStream,
         faery.FiniteRegularEventsStream,
     }:
-
         # Output events stdout
         subparser = subparsers.add_parser("stdout")
         subparser.add_argument(
@@ -486,9 +489,7 @@ class StreamWrapper:
 
     def set_input(self, arguments: list[str]):
         if self.stream is not None:
-            sys.stderr.write(
-                f'"input" may only appear at the beginning of a pipeline\n'
-            )
+            sys.stderr.write('"input" may only appear at the beginning of a pipeline\n')
             sys.exit(1)
         args = input_parser().parse_args(arguments)
         if args.input == "stdin":
@@ -640,10 +641,9 @@ class StreamWrapper:
 def split_on_keywords(arguments: list[str]) -> collections.abc.Iterator[list[str]]:
     subcommand_start_index = 0
     for index, argument in enumerate(arguments):
-        if index > 0:
-            if argument in KEYWORDS:
-                yield arguments[subcommand_start_index:index]
-                subcommand_start_index = index
+        if index > 0 and argument in KEYWORDS:
+            yield arguments[subcommand_start_index:index]
+            subcommand_start_index = index
     yield arguments[subcommand_start_index:]
 
 
@@ -674,7 +674,7 @@ class Command(command.Command):
             elif subcommand_arguments[0] == "output":
                 if index < len(subcommands_arguments) - 1:
                     sys.stderr.write(
-                        f'"output" may only appear at the end of a pipeline\n'
+                        '"output" may only appear at the end of a pipeline\n'
                     )
                     sys.exit(1)
                 default_output = False

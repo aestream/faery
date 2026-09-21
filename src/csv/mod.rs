@@ -31,6 +31,7 @@ pub struct Decoder {
 #[pymethods]
 impl Decoder {
     #[new]
+    #[allow(clippy::too_many_arguments)]
     fn new(
         path: &pyo3::Bound<'_, pyo3::types::PyAny>,
         dimensions: (u16, u16),
@@ -100,12 +101,9 @@ impl Decoder {
 
     fn __next__(mut shell: PyRefMut<Self>) -> PyResult<Option<Py<PyAny>>> {
         let events = match shell.inner {
-            Some(ref mut decoder) => match decoder.next() {
-                Ok(result) => match result {
-                    Some(result) => result,
-                    None => return Ok(None),
-                },
-                Err(result) => return Err(result.into()),
+            Some(ref mut decoder) => match decoder.next()? {
+                Some(result) => result,
+                None => return Ok(None),
             },
             None => {
                 return Err(pyo3::exceptions::PyException::new_err(

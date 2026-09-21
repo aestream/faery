@@ -29,7 +29,9 @@ maturin develop  # or maturin develop --release to build with optimizations
 cargo fmt
 cargo clippy
 pip install --group dev
-isort .; black .; pyright .
+ruff format
+ruff check
+ty check
 ```
 
 ## Test
@@ -51,7 +53,7 @@ pytest tests
 
 After modifying any of the files in _src/aedat/flatbuffers_, re-generate the Rust interfaces.
 
-(Last run with flatc version 25.1.24)
+(Last run with flatc version 25.12.19)
 
 ```sh
 flatc --rust -o src/aedat/ src/aedat/flatbuffers/*.fbs

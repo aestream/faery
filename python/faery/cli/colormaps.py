@@ -63,9 +63,7 @@ class Command(command.Command):
                 maximum_label_width,
                 max([len(name) for name, _ in names_and_colormaps]),
             )
-        maximum_label_width = int(
-            math.ceil(maximum_label_width * LABEL_SIZE * FONT_RATIO)
-        )
+        maximum_label_width = math.ceil(maximum_label_width * LABEL_SIZE * FONT_RATIO)
         colorbar_total = (
             WIDTH - PADDING_LEFT - PADDING_RIGHT - 4 * COLUMN_GAP - maximum_label_width
         )
@@ -90,11 +88,9 @@ class Command(command.Command):
                 + COLUMN_GAP * 2
                 + colorbar_width
                 + (COLUMN_GAP + colorblind_colorbar_width) * index
-                + int(
-                    round(
-                        colorblind_colorbar_width / 2
-                        - len(colorblindness_type) / 2 * SUBTITLE_SIZE * FONT_RATIO
-                    )
+                + round(
+                    colorblind_colorbar_width / 2
+                    - len(colorblindness_type) / 2 * SUBTITLE_SIZE * FONT_RATIO
                 ),
                 y=offset + SUBTITLE_OFFSET,
                 size=SUBTITLE_SIZE,
@@ -105,9 +101,7 @@ class Command(command.Command):
             type_to_names_and_colormaps.keys(),
             key=lambda colormap_type: (
                 # show cyclic maps last
-                "\U0010fffd"
-                if colormap_type == "cyclic"
-                else colormap_type
+                "\U0010fffd" if colormap_type == "cyclic" else colormap_type
             ),
         ):
             faery.image.annotate(
@@ -120,7 +114,7 @@ class Command(command.Command):
             )
             offset += TITLE_SIZE + TITLE_PADDING_BOTTOM
             for name, colormap in type_to_names_and_colormaps[type]:
-                label_width = int(math.ceil(len(name) * LABEL_SIZE * FONT_RATIO))
+                label_width = math.ceil(len(name) * LABEL_SIZE * FONT_RATIO)
                 faery.image.annotate(
                     frame=frame,
                     text=name,

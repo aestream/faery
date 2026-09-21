@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import dataclasses
 import typing
 
@@ -25,7 +27,7 @@ class FrameStreamState:
     Provided to the user via the `on_progress` callback *after* a frame is fully processed.
     """
 
-    frame: typing.Union[FrameState, typing.Literal["start", "end"]]
+    frame: FrameState | typing.Literal["start", "end"]
     """
     "start" indicates the beginning of the stream (before reading the first frame)
 
@@ -41,7 +43,7 @@ class FiniteFrameStreamState:
     Provided to the user via the `on_progress` callback *after* a frame is fully processed.
     """
 
-    frame: typing.Union[FrameState, typing.Literal["start", "end"]]
+    frame: FrameState | typing.Literal["start", "end"]
     """
     "start" indicates the beginning of the stream (before reading the first frame)
 
@@ -65,7 +67,7 @@ class RegularFrameStreamState:
     Provided to the user via the `on_progress` callback *after* a frame is fully processed.
     """
 
-    frame: typing.Union[FrameState, typing.Literal["start", "end"]]
+    frame: FrameState | typing.Literal["start", "end"]
     """
     "start" indicates the beginning of the stream (before reading the first frame)
 
@@ -85,7 +87,7 @@ class FiniteRegularFrameStreamState:
     Provided to the user via the `on_progress` callback *after* a frame is fully processed.
     """
 
-    frame: typing.Union[FrameState, typing.Literal["start", "end"]]
+    frame: FrameState | typing.Literal["start", "end"]
     """
     "start" indicates the beginning of the stream (before reading the first packet)
 
@@ -136,11 +138,9 @@ class StateManager:
             period_us = 1e6 / self.frequency_hz
             while True:
                 end = timestamp.Time(
-                    microseconds=int(
-                        round(
-                            self.time_range[0].to_microseconds()
-                            + self.frame_count * period_us
-                        )
+                    microseconds=round(
+                        self.time_range[0].to_microseconds()
+                        + self.frame_count * period_us
                     )
                 )
                 if end >= self.time_range[1]:
@@ -184,7 +184,7 @@ class StateManager:
                     )
                 )
 
-    def commit(self, frame: "Frame"):
+    def commit(self, frame: Frame):
         """
         Must be called by the stream consumer after processing a frame.
         """

@@ -54,5 +54,5 @@ class Command:
         parser = argparse.ArgumentParser()
         subparsers = parser.add_subparsers()
         subparser = subparsers.add_parser(next(iter(keywords)))
-        subparser.parse_args = parser.parse_args
+        subparser.parse_args = parser.parse_args  # ty: ignore[invalid-assignment]
         return subparser

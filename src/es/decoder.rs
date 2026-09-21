@@ -184,7 +184,7 @@ impl Decoder {
     }
 
     pub fn version(&self) -> [u8; 3] {
-        self.version.clone()
+        self.version
     }
 
     pub fn dimensions(&self) -> Option<(u16, u16)> {
@@ -205,7 +205,7 @@ pub enum Packet<'a> {
 }
 
 impl Decoder {
-    pub fn next(&mut self) -> Result<Option<Packet>, utilities::ReadError> {
+    pub fn next(&mut self) -> Result<Option<Packet<'_>>, utilities::ReadError> {
         let read = self.file.read(&mut self.raw_buffer)?;
         if read == 0 {
             return Ok(None);

@@ -2,7 +2,6 @@ import importlib.resources
 import json
 import pathlib
 import sys
-import typing
 
 import faery
 
@@ -63,7 +62,7 @@ class Command(command.Command):
                 or args.output != "faery_script.py"
                 or args.template is not None
             ):
-                sys.stderr.write(f"--export-template cannot appear with other flags\n")
+                sys.stderr.write("--export-template cannot appear with other flags\n")
                 sys.exit(1)
             with (
                 importlib.resources.files(faery)
@@ -174,7 +173,7 @@ class Command(command.Command):
                     f"No files matched the input pattern ({pattern_and_count[0]})\n"
                 )
             else:
-                sys.stderr.write(f"No files matched the input patterns:\n")
+                sys.stderr.write("No files matched the input patterns:\n")
                 for pattern, count in pattern_and_count:
                     if count == 0:
                         quantifier = "no files"

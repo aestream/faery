@@ -10,16 +10,16 @@ class Decoder:
 
     def __init__(
         self,
-        path: typing.Union[pathlib.Path, str],
-        dimensions_fallback: typing.Optional[tuple[int, int]],
-        version_fallback: typing.Optional[typing.Literal["evt2", "evt2.1", "evt3"]],
+        path: pathlib.Path | str,
+        dimensions_fallback: tuple[int, int] | None,
+        version_fallback: typing.Literal["evt2", "evt2.1", "evt3"] | None,
     ): ...
     def __enter__(self) -> Decoder: ...
     def __exit__(
         self,
-        exception_type: typing.Optional[typing.Type[BaseException]],
-        value: typing.Optional[BaseException],
-        traceback: typing.Optional[types.TracebackType],
+        exception_type: type[BaseException] | None,
+        value: BaseException | None,
+        traceback: types.TracebackType | None,
     ) -> bool: ...
     def __iter__(self) -> Decoder: ...
     def __next__(self) -> dict[typing.Literal["events", "triggers"], numpy.ndarray]: ...
@@ -27,7 +27,7 @@ class Decoder:
 class Encoder:
     def __init__(
         self,
-        path: typing.Union[pathlib.Path, str],
+        path: pathlib.Path | str,
         version: typing.Literal["evt2", "evt2.1", "evt3"],
         zero_t0: bool,
         dimensions: tuple[int, int],
@@ -36,11 +36,11 @@ class Encoder:
     def __enter__(self) -> Encoder: ...
     def __exit__(
         self,
-        exception_type: typing.Optional[typing.Type[BaseException]],
-        value: typing.Optional[BaseException],
-        traceback: typing.Optional[types.TracebackType],
+        exception_type: type[BaseException] | None,
+        value: BaseException | None,
+        traceback: types.TracebackType | None,
     ) -> bool: ...
-    def t0(self) -> typing.Optional[int]: ...
+    def t0(self) -> int | None: ...
     def write(
         self, packet: dict[typing.Literal["events", "triggers"], numpy.ndarray]
     ): ...

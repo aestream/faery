@@ -127,7 +127,7 @@ class Command(command.Command):
             with faery.dat.Decoder(
                 args.path,
                 args.dimensions_fallback,
-                "dat2" if args.version_fallback == "none" else args.version_fallback,  # type: ignore
+                "dat2" if args.version_fallback == "none" else args.version_fallback,
             ) as decoder:
                 event_type = decoder.event_type
                 if event_type == "cd":
@@ -160,7 +160,7 @@ class Command(command.Command):
             with faery.evt.Decoder(
                 args.path,
                 args.dimensions_fallback,
-                "evt3" if args.version_fallback == "none" else args.version_fallback,  # type: ignore
+                "evt3" if args.version_fallback == "none" else args.version_fallback,
             ) as decoder:
                 info["stream_compatible"] = True
                 info["metadata"] = {

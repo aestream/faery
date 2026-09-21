@@ -3,7 +3,7 @@ fn copy_directory(
     destination: impl AsRef<std::path::Path>,
 ) {
     let _ = std::fs::create_dir_all(&destination);
-    let expect_message = format!("{:?} exists", &source);
+    let expect_message = format!("{:?} exists", source);
     for entry in std::fs::read_dir(source).expect(&expect_message) {
         let entry = entry.unwrap();
         let file_type = entry.file_type().unwrap();

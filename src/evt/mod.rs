@@ -95,12 +95,9 @@ impl Decoder {
 
     fn __next__(mut shell: PyRefMut<Self>) -> PyResult<Option<Py<PyAny>>> {
         let packet = match shell.inner {
-            Some(ref mut decoder) => match decoder.next() {
-                Ok(result) => match result {
-                    Some(result) => result,
-                    None => return Ok(None),
-                },
-                Err(result) => return Err(result.into()),
+            Some(ref mut decoder) => match decoder.next()? {
+                Some(result) => result,
+                None => return Ok(None),
             },
             None => {
                 return Err(pyo3::exceptions::PyException::new_err(
@@ -135,7 +132,7 @@ impl Decoder {
                         let trigger_cell = types::array_at(python, array, index);
                         let trigger = packet.1[index as usize];
                         let mut trigger_array = [0u8; 10];
-                        trigger_array[0..8].copy_from_slice(&trigger.t.to_le_bytes());
+                        trigger_array[0..8].copy_from_slice(&trigger.t.to_ne_bytes());
                         trigger_array[8] = trigger.id;
                         trigger_array[9] = match trigger.polarity {
                             neuromorphic_types::TriggerPolarity::Falling => 0,
@@ -237,8 +234,8 @@ impl Encoder {
                             }
                         }
                     }
-                    let has_events = events_and_length.map_or(false, |(_, length)| length > 0);
-                    let has_triggers = triggers_and_length.map_or(false, |(_, length)| length > 0);
+                    let has_events = events_and_length.is_some_and(|(_, length)| length > 0);
+                    let has_triggers = triggers_and_length.is_some_and(|(_, length)| length > 0);
                     if has_events && has_triggers {
                         let (events, events_length) = events_and_length.unwrap();
                         let (triggers, triggers_length) = events_and_length.unwrap();

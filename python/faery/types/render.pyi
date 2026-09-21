@@ -18,9 +18,9 @@ class Renderer:
     def __enter__(self) -> Renderer: ...
     def __exit__(
         self,
-        exception_type: typing.Optional[typing.Type[BaseException]],
-        value: typing.Optional[BaseException],
-        traceback: typing.Optional[types.TracebackType],
+        exception_type: type[BaseException] | None,
+        value: BaseException | None,
+        traceback: types.TracebackType | None,
     ) -> bool: ...
     def render(
         self, events: numpy.ndarray, render_t: int

@@ -1,7 +1,8 @@
+from __future__ import annotations
+
 import collections.abc
 import dataclasses
 import pathlib
-import time
 import typing
 
 import numpy
@@ -11,7 +12,7 @@ from . import color as color_module
 from . import enums, frame_stream_state, stream, timestamp
 
 if typing.TYPE_CHECKING:
-    from .types import gui, image  # type: ignore
+    from .types import gui, image
 else:
     from .extension import gui, image
 
@@ -116,7 +117,7 @@ class FrameOutput(typing.Generic[OutputState]):
         from . import file_encoder
 
         try:
-            self.time_range()  # type: ignore
+            self.time_range()
             use_write_suffix = True
         except (AttributeError, NotImplementedError):
             use_write_suffix = False
@@ -145,7 +146,7 @@ class FrameStream(
         self,
         factor_or_minimum_dimensions: typing.Union[float, tuple[int, int]] = (960, 720),
         sampling_filter: enums.ImageResizeSamplingFilter = "nearest",
-    ) -> "FrameStream": ...
+    ) -> FrameStream: ...
 
     def annotate(
         self,
@@ -154,7 +155,7 @@ class FrameStream(
         y: int,
         size: int,
         color: color_module.Color,
-    ) -> "FrameStream": ...
+    ) -> FrameStream: ...
 
     def add_timecode(
         self,
@@ -162,7 +163,7 @@ class FrameStream(
         y: int = 15,
         size: int = 30,
         color: color_module.Color = "#FFFFFF",
-    ) -> "FrameStream": ...
+    ) -> FrameStream: ...
 
     def add_overlay(
         self,
@@ -171,14 +172,14 @@ class FrameStream(
         y: int = 0,
         scale_factor: float = 1.0,
         scale_filter: enums.ImageResizeSamplingFilter = "nearest",
-    ) -> "FrameStream": ...
+    ) -> FrameStream: ...
 
     def map(
         self,
         function: collections.abc.Callable[
             [numpy.typing.NDArray[numpy.uint8]], numpy.typing.NDArray[numpy.uint8]
         ],
-    ) -> "FrameStream": ...
+    ) -> FrameStream: ...
 
 
 class FiniteFrameStream(
@@ -189,7 +190,7 @@ class FiniteFrameStream(
         self,
         factor_or_minimum_dimensions: typing.Union[float, tuple[int, int]] = (960, 720),
         sampling_filter: enums.ImageResizeSamplingFilter = "nearest",
-    ) -> "FiniteFrameStream": ...
+    ) -> FiniteFrameStream: ...
 
     def annotate(
         self,
@@ -198,7 +199,7 @@ class FiniteFrameStream(
         y: int,
         size: int,
         color: color_module.Color,
-    ) -> "FiniteFrameStream": ...
+    ) -> FiniteFrameStream: ...
 
     def add_timecode(
         self,
@@ -206,7 +207,7 @@ class FiniteFrameStream(
         y: int = 15,
         size: int = 30,
         color: color_module.Color = "#FFFFFF",
-    ) -> "FiniteFrameStream": ...
+    ) -> FiniteFrameStream: ...
 
     def add_overlay(
         self,
@@ -215,14 +216,14 @@ class FiniteFrameStream(
         y: int = 0,
         scale_factor: float = 1.0,
         scale_filter: enums.ImageResizeSamplingFilter = "nearest",
-    ) -> "FiniteFrameStream": ...
+    ) -> FiniteFrameStream: ...
 
     def map(
         self,
         function: collections.abc.Callable[
             [numpy.typing.NDArray[numpy.uint8]], numpy.typing.NDArray[numpy.uint8]
         ],
-    ) -> "FiniteFrameStream": ...
+    ) -> FiniteFrameStream: ...
 
 
 class RegularFrameStream(
@@ -233,7 +234,7 @@ class RegularFrameStream(
         self,
         factor_or_minimum_dimensions: typing.Union[float, tuple[int, int]] = (960, 720),
         sampling_filter: enums.ImageResizeSamplingFilter = "nearest",
-    ) -> "RegularFrameStream": ...
+    ) -> RegularFrameStream: ...
 
     def annotate(
         self,
@@ -242,7 +243,7 @@ class RegularFrameStream(
         y: int,
         size: int,
         color: color_module.Color,
-    ) -> "RegularFrameStream": ...
+    ) -> RegularFrameStream: ...
 
     def add_timecode(
         self,
@@ -251,7 +252,7 @@ class RegularFrameStream(
         size: int = 30,
         color: color_module.Color = "#FFFFFF",
         output_frame_rate: typing.Optional[float] = 60.0,
-    ) -> "RegularFrameStream": ...
+    ) -> RegularFrameStream: ...
 
     def add_overlay(
         self,
@@ -260,14 +261,14 @@ class RegularFrameStream(
         y: int = 0,
         scale_factor: float = 1.0,
         scale_filter: enums.ImageResizeSamplingFilter = "nearest",
-    ) -> "RegularFrameStream": ...
+    ) -> RegularFrameStream: ...
 
     def map(
         self,
         function: collections.abc.Callable[
             [numpy.typing.NDArray[numpy.uint8]], numpy.typing.NDArray[numpy.uint8]
         ],
-    ) -> "RegularFrameStream": ...
+    ) -> RegularFrameStream: ...
 
 
 class FiniteRegularFrameStream(
@@ -278,7 +279,7 @@ class FiniteRegularFrameStream(
         self,
         factor_or_minimum_dimensions: typing.Union[float, tuple[int, int]] = (960, 720),
         sampling_filter: enums.ImageResizeSamplingFilter = "nearest",
-    ) -> "FiniteRegularFrameStream": ...
+    ) -> FiniteRegularFrameStream: ...
 
     def annotate(
         self,
@@ -287,7 +288,7 @@ class FiniteRegularFrameStream(
         y: int,
         size: int,
         color: color_module.Color,
-    ) -> "FiniteRegularFrameStream": ...
+    ) -> FiniteRegularFrameStream: ...
 
     def add_timecode(
         self,
@@ -296,7 +297,7 @@ class FiniteRegularFrameStream(
         size: int = 30,
         color: color_module.Color = "#FFFFFF",
         output_frame_rate: typing.Optional[float] = 60.0,
-    ) -> "FiniteRegularFrameStream": ...
+    ) -> FiniteRegularFrameStream: ...
 
     def add_overlay(
         self,
@@ -305,14 +306,14 @@ class FiniteRegularFrameStream(
         y: int = 0,
         scale_factor: float = 1.0,
         scale_filter: enums.ImageResizeSamplingFilter = "nearest",
-    ) -> "FiniteRegularFrameStream": ...
+    ) -> FiniteRegularFrameStream: ...
 
     def map(
         self,
         function: collections.abc.Callable[
             [numpy.typing.NDArray[numpy.uint8]], numpy.typing.NDArray[numpy.uint8]
         ],
-    ) -> "FiniteRegularFrameStream": ...
+    ) -> FiniteRegularFrameStream: ...
 
 
 def bind(prefix: typing.Literal["", "Finite", "Regular", "FiniteRegular"]):
@@ -502,7 +503,7 @@ class FrameFunction(FiniteRegularFrameStream):
         self.get_frame = get_frame
 
     def __iter__(self) -> collections.abc.Iterator[Frame]:
-        for index in range(0, self.frame_count):
+        for index in range(self.frame_count):
             # this formula uses "index + 1" to match the convention used by events
             # specifically, for a time range [t0, t1) and a frequency f,
             # rendered event frames have labels in [t0 + 1e6 / f, t1)

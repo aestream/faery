@@ -1,3 +1,4 @@
+#[allow(clippy::module_inception)]
 mod mp4;
 mod x264;
 
@@ -37,7 +38,7 @@ impl Encoder {
         tune: &str,
         profile: &str,
     ) -> PyResult<Self> {
-        if dimensions.0 % 2 == 0 && dimensions.1 % 2 == 0 {
+        if dimensions.0.is_multiple_of(2) && dimensions.1.is_multiple_of(2) {
             Ok(Encoder {
                 inner: Some(std::sync::Arc::new(std::sync::Mutex::new(
                     mp4::Encoder::from_parameters_and_path(
@@ -90,9 +91,9 @@ impl Encoder {
 
     fn write(&mut self, frame: &pyo3::Bound<'_, numpy::PyArray3<u8>>) -> PyResult<()> {
         if !frame.is_contiguous() {
-            return Err(pyo3::exceptions::PyAttributeError::new_err(format!(
-                "the frame's memory must be contiguous"
-            )));
+            return Err(pyo3::exceptions::PyAttributeError::new_err(
+                "the frame's memory must be contiguous",
+            ));
         }
         let readonly_frame = frame.readonly();
         let array = readonly_frame.as_array();
@@ -132,8 +133,8 @@ impl Encoder {
                             // unsafe: the array is contiguous
                             unsafe {
                                 std::slice::from_raw_parts(
-                                    array.as_ptr() as *const u32,
-                                    dimensions.0 * dimensions.1,
+                                    array.as_ptr(),
+                                    dimensions.0 * dimensions.1 * 4,
                                 )
                             },
                         )?)?;

@@ -42,7 +42,7 @@ def test_udp_encoder_decoder(format_type, events_per_packet, num_events, port):
                 received_events.append(events.copy())
                 if stop_receiver.is_set():
                     break
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             receiver_exception = e
 
     def sender():
@@ -69,36 +69,36 @@ def test_udp_encoder_decoder(format_type, events_per_packet, num_events, port):
 
     # Verify event count
     all_received = np.concatenate(received_events)
-    assert (
-        len(all_received) == num_events
-    ), f"Expected {num_events} events, got {len(all_received)}"
+    assert len(all_received) == num_events, (
+        f"Expected {num_events} events, got {len(all_received)}"
+    )
 
     # Verify event data matches (with consideration for timestamp wraparound in t32 format)
     if format_type == "t64_x16_y16_on8":
         # For t64 format, all fields should match exactly
-        assert np.array_equal(
-            all_received["x"], test_events["x"]
-        ), "X coordinates don't match"
-        assert np.array_equal(
-            all_received["y"], test_events["y"]
-        ), "Y coordinates don't match"
-        assert np.array_equal(
-            all_received["on"], test_events["on"]
-        ), "Polarity doesn't match"
-        assert np.array_equal(
-            all_received["t"], test_events["t"]
-        ), "Timestamps don't match"
+        assert np.array_equal(all_received["x"], test_events["x"]), (
+            "X coordinates don't match"
+        )
+        assert np.array_equal(all_received["y"], test_events["y"]), (
+            "Y coordinates don't match"
+        )
+        assert np.array_equal(all_received["on"], test_events["on"]), (
+            "Polarity doesn't match"
+        )
+        assert np.array_equal(all_received["t"], test_events["t"]), (
+            "Timestamps don't match"
+        )
     else:
         # For t32 format, timestamps are 32-bit so we check modulo 2^32
-        assert np.array_equal(
-            all_received["x"], test_events["x"]
-        ), "X coordinates don't match"
-        assert np.array_equal(
-            all_received["y"], test_events["y"]
-        ), "Y coordinates don't match"
-        assert np.array_equal(
-            all_received["on"], test_events["on"]
-        ), "Polarity doesn't match"
+        assert np.array_equal(all_received["x"], test_events["x"]), (
+            "X coordinates don't match"
+        )
+        assert np.array_equal(all_received["y"], test_events["y"]), (
+            "Y coordinates don't match"
+        )
+        assert np.array_equal(all_received["on"], test_events["on"]), (
+            "Polarity doesn't match"
+        )
         # Check timestamps modulo 2^32
         assert np.array_equal(
             all_received["t"] & 0xFFFFFFFF, test_events["t"] & 0xFFFFFFFF

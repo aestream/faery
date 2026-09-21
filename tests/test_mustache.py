@@ -14,7 +14,7 @@ def test_mustache_template():
         template = template_file.read()
 
     jobs: list[faery.mustache.Job] = []
-    for _ in range(0, 3):
+    for _ in range(3):
         start = 0
         end = 0
         while start >= end:

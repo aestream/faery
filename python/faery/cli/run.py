@@ -1,6 +1,5 @@
 import subprocess
 import sys
-import typing
 
 from . import command
 
@@ -22,5 +21,5 @@ class Command(command.Command):
         )
         parser.add_argument("rest", nargs="*")
         args = parser.parse_args(args=arguments)
-        process = subprocess.run([sys.executable, args.input] + args.rest)
+        process = subprocess.run([sys.executable, args.input] + args.rest, check=False)
         sys.exit(process.returncode)

@@ -22,6 +22,7 @@ pub struct Properties {
 }
 
 impl Properties {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         dimensions: (u16, u16),
         has_header: bool,
@@ -194,6 +195,7 @@ pub enum ReadError {
 
 impl Decoder {
     #[inline(always)]
+    #[allow(clippy::too_many_arguments)]
     fn parse_word(
         properties: &Properties,
         word_index: usize,
@@ -368,6 +370,7 @@ impl Decoder {
         }
     }
 
+    #[allow(clippy::type_complexity)]
     pub fn next(
         &mut self,
     ) -> Result<Option<&'_ Vec<neuromorphic_types::PolarityEvent<u64, u16, u16>>>, ReadError> {
@@ -440,6 +443,6 @@ impl Decoder {
         } else {
             self.raw_buffer_length = 0;
         }
-        return Ok(Some(&self.buffer));
+        Ok(Some(&self.buffer))
     }
 }

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import collections.abc
 import importlib.util
 import logging
@@ -5,7 +7,9 @@ import typing
 
 import numpy as np
 
-import faery.events_stream as events_stream
+from faery import events_stream
+
+logger = logging.getLogger(__name__)
 
 
 def has_event_camera_drivers():
@@ -19,7 +23,7 @@ def has_neuromorphic_drivers():
 class EventCameraDriverStream(events_stream.EventsStream):
     def __init__(
         self,
-        manufacturer: typing.Optional[typing.Literal["Prophesee", "Inivation"]] = None,
+        manufacturer: typing.Literal["Prophesee", "Inivation"] | None = None,
         buffer_size: int = 1024,
     ):
         """Create an events stream using the event-camera-drivers library
@@ -40,17 +44,15 @@ class EventCameraDriverStream(events_stream.EventsStream):
             import event_camera_drivers as evd  # type: ignore
 
             self.camera = evd.InivationCamera(buffer_size=buffer_size)
-        except ImportError as e:
-            logging.error(
-                "The event_camera_drivers library is not available, please install"
-            )
-            raise e
-        except ValueError as e:
-            logging.info("No camera found using libcaer")
-            raise e
+        except ImportError as error:
+            raise ImportError(
+                "event_camera_drivers is not installed, run `pip install event-camera-drivers`"
+            ) from error
+        except ValueError as error:
+            raise ValueError("no camera found using libcaer") from error
 
     def __iter__(self) -> collections.abc.Iterator[np.ndarray]:
-        logging.info(f"Starting streaming from event_camera_drivers: {self.camera}")
+        logger.info("starting streaming from event_camera_drivers: %s", self.camera)
         while self.camera.is_running():
             v = next(self.camera)
             yield v
@@ -70,16 +72,14 @@ class NeuromorphicCameraStream(events_stream.EventsStream):
                 raise RuntimeError(
                     "No event camera found, did you plug it in and install the udev rules?"
                 )
-        except ImportError as e:
-            logging.error(
-                "The neuromorphic_drivers library is not available, please install"
-            )
-        except Exception as e:
-            raise e
+        except ImportError as error:
+            raise ImportError(
+                "neuromorphic_drivers is not installed, run `pip install neuromorphic-drivers`"
+            ) from error
 
     def __iter__(self) -> collections.abc.Iterator[np.ndarray]:
-        logging.info(
-            f"Starting streaming from neuromorphic_drivers: {self.device_list[0]}"
+        logger.info(
+            "starting streaming from neuromorphic_drivers: %s", self.device_list[0]
         )
         with self.nd.open() as device:
             for status, packet in device:
@@ -108,10 +108,9 @@ class NeuromorphicCameraStream(events_stream.EventsStream):
 
 
 def events_stream_from_camera(
-    driver: typing.Optional[
-        typing.Literal["EventCameraDrivers", "NeuromorphicDrivers", "Auto"]
-    ] = None,
-    manufacturer: typing.Optional[typing.Literal["Inivation", "Prophesee"]] = None,
+    driver: typing.Literal["EventCameraDrivers", "NeuromorphicDrivers", "Auto"]
+    | None = None,
+    manufacturer: typing.Literal["Inivation", "Prophesee"] | None = None,
     buffer_size: int = 1024,
 ):
     stream = None
@@ -121,12 +120,12 @@ def events_stream_from_camera(
             stream = EventCameraDriverStream(
                 manufacturer=manufacturer, buffer_size=buffer_size
             )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             error = e
     if driver is None or driver == "NeuromorphicDrivers" or driver == "Auto":
         try:
             stream = NeuromorphicCameraStream()
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             error = e
 
     if stream is None:

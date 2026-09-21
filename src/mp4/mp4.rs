@@ -14,6 +14,7 @@ pub struct Encoder<Writer: std::io::Write + std::io::Seek> {
 }
 
 #[derive(thiserror::Error, Debug)]
+#[allow(clippy::enum_variant_names)]
 pub enum Error {
     #[error(transparent)]
     X264Error(#[from] x264::Error),
@@ -44,13 +45,13 @@ impl<W: std::io::Write + std::io::Seek> Encoder<W> {
             writer: mp4::Mp4Writer::write_start(
                 writer,
                 &mp4::Mp4Config {
-                    major_brand: [b'i', b's', b'o', b'm'].into(),
+                    major_brand: (*b"isom").into(),
                     minor_version: 512,
                     compatible_brands: vec![
-                        [b'i', b's', b'o', b'm'].into(),
-                        [b'i', b's', b'o', b'2'].into(),
-                        [b'a', b'v', b'c', b'1'].into(),
-                        [b'm', b'p', b'4', b'1'].into(),
+                        (*b"isom").into(),
+                        (*b"iso2").into(),
+                        (*b"avc1").into(),
+                        (*b"mp41").into(),
                     ],
                     timescale: TIMESCALE,
                 },

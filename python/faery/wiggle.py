@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 import dataclasses
-import typing
 
 import numpy
 
@@ -31,7 +32,7 @@ class WiggleParameters:
         output_duration: timestamp.TimeOrTimecode = 3.0 * timestamp.s,
         tau_frames: float = 5.0,
         frame_rate: float = 30.0,
-        skip: typing.Optional[int] = None,
+        skip: int | None = None,
     ):
         output_frames = int(
             numpy.ceil(frame_rate * timestamp.parse_time(output_duration).to_seconds())
@@ -41,9 +42,7 @@ class WiggleParameters:
                 skip = int(numpy.ceil(3.0 * tau_frames))
             elif decay == "linear":
                 skip = int(numpy.ceil(2.0 * tau_frames))
-            elif decay == "window":
-                skip = int(numpy.ceil(tau_frames))
-            elif decay == "cumulative":
+            elif decay == "window" or decay == "cumulative":
                 skip = int(numpy.ceil(tau_frames))
             else:
                 raise Exception(f'unknown decay "{decay}"')

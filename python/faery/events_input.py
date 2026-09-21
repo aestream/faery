@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 import pathlib
-import typing
 
 import numpy
 
@@ -14,12 +15,12 @@ def events_stream_from_array(
 
 
 def events_stream_from_file(
-    path: typing.Union[pathlib.Path, str],
-    track_id: typing.Optional[int] = None,
+    path: pathlib.Path | str,
+    track_id: int | None = None,
     dimensions_fallback: tuple[int, int] = (1280, 720),
-    version_fallback: typing.Optional[enums.EventsFileVersion] = None,
+    version_fallback: enums.EventsFileVersion | None = None,
     t0: timestamp.TimeOrTimecode = timestamp.Time(microseconds=0),
-    file_type: typing.Optional[enums.EventsFileType] = None,
+    file_type: enums.EventsFileType | None = None,
     csv_properties: file_decoder.CsvProperties = file_decoder.CsvProperties.default(),
 ) -> events_stream.FiniteEventsStream:
     """An event file decoder (supports .aedat4, .es, .raw, and .dat).
@@ -72,9 +73,7 @@ def events_stream_from_stdin(
 
 def events_stream_from_udp(
     dimensions: tuple[int, int],
-    address: typing.Union[
-        tuple[str, int], tuple[str, int, typing.Optional[int], typing.Optional[str]]
-    ],
+    address: tuple[str, int] | tuple[str, int, int | None, str | None],
     format: enums.UdpFormat = "t64_x16_y16_on8",
 ):
     return udp_decoder.Decoder(

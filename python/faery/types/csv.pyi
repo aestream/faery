@@ -1,6 +1,5 @@
 import pathlib
 import types
-import typing
 
 import numpy
 
@@ -9,7 +8,7 @@ class Decoder:
 
     def __init__(
         self,
-        path: typing.Union[pathlib.Path, str, None],
+        path: pathlib.Path | str | None,
         dimensions: tuple[int, int],
         has_header: bool,
         separator: int,
@@ -26,9 +25,9 @@ class Decoder:
     def __enter__(self) -> Decoder: ...
     def __exit__(
         self,
-        exception_type: typing.Optional[typing.Type[BaseException]],
-        value: typing.Optional[BaseException],
-        traceback: typing.Optional[types.TracebackType],
+        exception_type: type[BaseException] | None,
+        value: BaseException | None,
+        traceback: types.TracebackType | None,
     ) -> bool: ...
     def __iter__(self) -> Decoder: ...
     def __next__(self) -> numpy.ndarray: ...
@@ -36,7 +35,7 @@ class Decoder:
 class Encoder:
     def __init__(
         self,
-        path: typing.Union[pathlib.Path, str, None],
+        path: pathlib.Path | str | None,
         separator: int,
         header: bool,
         dimensions: tuple[int, int],
@@ -45,8 +44,8 @@ class Encoder:
     def __enter__(self) -> Encoder: ...
     def __exit__(
         self,
-        exception_type: typing.Optional[typing.Type[BaseException]],
-        value: typing.Optional[BaseException],
-        traceback: typing.Optional[types.TracebackType],
+        exception_type: type[BaseException] | None,
+        value: BaseException | None,
+        traceback: types.TracebackType | None,
     ) -> bool: ...
     def write(self, events: numpy.ndarray): ...

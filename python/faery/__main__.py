@@ -2,7 +2,7 @@ import sys
 import textwrap
 
 import faery
-import faery.cli as cli
+from faery import cli
 
 
 def help() -> str:
@@ -21,7 +21,7 @@ def help() -> str:
     return "\n".join(
         (
             textwrap.dedent(
-                rf"""
+                r"""
                      __       __      _____
                     /  \     /  \    |  ___|_ _  ___ _ __ _   _
                     | ( \___/ ) |    | |_ / _` |/ _ \ '__| | | |
@@ -37,7 +37,7 @@ def help() -> str:
             )[1:-1],
             *usage,
             textwrap.dedent(
-                rf"""
+                r"""
                     See faery <command> --help for more information on a specific command.
 
                 Examples:

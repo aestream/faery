@@ -83,6 +83,7 @@ enum Function {
         alphas: (f32, f32),
         betas: (f32, f32),
         colormaps: (Vec<u32>, Vec<u32>),
+        #[allow(clippy::type_complexity)]
         ts_and_activities: (Vec<(u64, f32)>, Vec<(u64, f32)>),
         minimum_clip: f32,
         maximum_clip: f32,
@@ -153,7 +154,7 @@ fn parse_diverging_colormap(
     >,
 ) -> PyResult<(Vec<u32>, Vec<u32>)> {
     let dimensions = array.dim();
-    let (mut off_colormap, mut on_colormap) = if dimensions.0 % 2 == 0 {
+    let (mut off_colormap, mut on_colormap) = if dimensions.0.is_multiple_of(2) {
         (
             Vec::with_capacity(dimensions.0 / 2 + 1),
             Vec::with_capacity(dimensions.0 / 2),
@@ -254,6 +255,7 @@ fn clipped_minimum_maximum(
 #[pymethods]
 impl Renderer {
     #[new]
+    #[allow(clippy::too_many_arguments)]
     fn new(
         dimensions: (u16, u16),
         decay: &str,
@@ -848,12 +850,14 @@ impl Renderer {
                                 renderer.dimensions.0 as usize
                                     * renderer.dimensions.1 as usize
                             ];
-                            for pixel_index in 0..unbounded_frame.len() {
+                            for (pixel_index, unbounded_pixel) in
+                                unbounded_frame.iter_mut().enumerate()
+                            {
                                 let (off_t, mut off_activity) = ts_and_activities.0[pixel_index];
                                 off_activity *= ((render_t - off_t) as f32 * upsilon).exp();
                                 let (on_t, mut on_activity) = ts_and_activities.1[pixel_index];
                                 on_activity *= ((render_t - on_t) as f32 * upsilon).exp();
-                                unbounded_frame[pixel_index] = if on_activity > off_activity {
+                                *unbounded_pixel = if on_activity > off_activity {
                                     on_activity
                                 } else {
                                     -off_activity

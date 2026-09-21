@@ -19,42 +19,46 @@ def test_low_level_decoder_encoder(file: assets.File):
     output = data_generated / file.path.name
     if file.format == "aedat4":
         print(f"faery.aedat.Decoder + faery.aedat.Encoder ({file.path.name})")
-        with faery.aedat.Decoder(path=file.path) as decoder:
-            with faery.aedat.Encoder(
+        with (
+            faery.aedat.Decoder(path=file.path) as decoder,
+            faery.aedat.Encoder(
                 path=output,
                 description=decoder.description(),
                 compression=faery.aedat.LZ4_HIGHEST,
-            ) as encoder:
-                for track, packet in decoder:
-                    encoder.write(track.id, packet)
+            ) as encoder,
+        ):
+            for track, packet in decoder:
+                encoder.write(track.id, packet)
     elif file.format == "csv":
         print(f"faery.csv.Decoder + faery.csv.Encoder ({file.path.name})")
         assert file.dimensions is not None
         assert file.t0 is not None
-        with faery.csv.Decoder(
-            path=file.path,
-            dimensions=file.dimensions,
-            has_header=True,
-            separator=b","[0],
-            t_index=0,
-            x_index=1,
-            y_index=2,
-            on_index=3,
-            t_scale=0.0,
-            t0=faery.parse_time(file.t0).to_microseconds(),
-            on_value=b"1",
-            off_value=b"0",
-            skip_errors=False,
-        ) as decoder:
-            with faery.csv.Encoder(
+        with (
+            faery.csv.Decoder(
+                path=file.path,
+                dimensions=file.dimensions,
+                has_header=True,
+                separator=b","[0],
+                t_index=0,
+                x_index=1,
+                y_index=2,
+                on_index=3,
+                t_scale=0.0,
+                t0=faery.parse_time(file.t0).to_microseconds(),
+                on_value=b"1",
+                off_value=b"0",
+                skip_errors=False,
+            ) as decoder,
+            faery.csv.Encoder(
                 path=output,
                 separator=b","[0],
                 header=True,
                 dimensions=file.dimensions,
                 enforce_monotonic=True,
-            ) as encoder:
-                for events in decoder:
-                    encoder.write(events)
+            ) as encoder,
+        ):
+            for events in decoder:
+                encoder.write(events)
     elif file.format == "dat2":
         print(f"faery.dat.Decoder + faery.dat.Encoder ({file.path.name})")
         with faery.dat.Decoder(
@@ -119,50 +123,56 @@ def test_low_level_decoder_encoder(file: assets.File):
                     encoder.write(packet)
     elif file.format == "es-generic":
         print(f"faery.es.Decoder + faery.es.Encoder ({file.path.name})")
-        with faery.es.Decoder(
-            path=file.path,
-            t0=0,
-        ) as decoder:
-            with faery.es.Encoder(
+        with (
+            faery.es.Decoder(
+                path=file.path,
+                t0=0,
+            ) as decoder,
+            faery.es.Encoder(
                 path=output,
                 event_type="generic",
                 zero_t0=True,
                 dimensions=None,
-            ) as encoder:
-                for packet in decoder:
-                    encoder.write(packet)
+            ) as encoder,
+        ):
+            for packet in decoder:
+                encoder.write(packet)
     elif file.format == "evt2":
         print(f"faery.evt.Decoder + faery.evt.Encoder ({file.path.name})")
-        with faery.evt.Decoder(
-            path=file.path,
-            dimensions_fallback=file.dimensions,
-            version_fallback=None,
-        ) as decoder:
-            with faery.evt.Encoder(
+        with (
+            faery.evt.Decoder(
+                path=file.path,
+                dimensions_fallback=file.dimensions,
+                version_fallback=None,
+            ) as decoder,
+            faery.evt.Encoder(
                 path=output,
                 version="evt2",
                 zero_t0=True,
                 dimensions=decoder.dimensions,
                 enforce_monotonic=True,
-            ) as encoder:
-                for packet in decoder:
-                    encoder.write(packet)
+            ) as encoder,
+        ):
+            for packet in decoder:
+                encoder.write(packet)
     elif file.format == "evt3":
         print(f"faery.evt.Decoder + faery.evt.Encoder ({file.path.name})")
-        with faery.evt.Decoder(
-            file.path,
-            dimensions_fallback=None,
-            version_fallback=None,
-        ) as decoder:
-            with faery.evt.Encoder(
+        with (
+            faery.evt.Decoder(
+                file.path,
+                dimensions_fallback=None,
+                version_fallback=None,
+            ) as decoder,
+            faery.evt.Encoder(
                 path=output,
                 version="evt3",
                 zero_t0=True,
                 dimensions=decoder.dimensions,
                 enforce_monotonic=True,
-            ) as encoder:
-                for packet in decoder:
-                    encoder.write(packet)
+            ) as encoder,
+        ):
+            for packet in decoder:
+                encoder.write(packet)
     else:
         raise Exception(f'unknown format "{file.format}"')
     generated_file = file.clone_with(
@@ -203,14 +213,16 @@ def test_aedat_compression(file: assets.File):
             f"faery.aedat.Decoder + faery.aedat.Encoder, {compression}@{level} ({file.path.name})"
         )
         begin = time.monotonic()
-        with faery.aedat.Decoder(path=file.path) as decoder:
-            with faery.aedat.Encoder(
+        with (
+            faery.aedat.Decoder(path=file.path) as decoder,
+            faery.aedat.Encoder(
                 path=output,
                 description=decoder.description(),
-                compression=(compression, level),  # type: ignore
-            ) as encoder:
-                for track, packet in decoder:
-                    encoder.write(track.id, packet)
+                compression=(compression, level),
+            ) as encoder,
+        ):
+            for track, packet in decoder:
+                encoder.write(track.id, packet)
         print(f"decoded + encoded in {time.monotonic() - begin:.3f} s")
         generated_file = file.clone_with(
             path=output,
@@ -255,7 +267,7 @@ def test_high_level_decoder_encoder(file: assets.File):
             version = None
         t0 = stream.to_file(
             output,
-            version=version,  # type: ignore
+            version=version,
         )
         generated_file = file.clone_with(
             path=output,

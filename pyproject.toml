@@ -12,16 +12,13 @@ requires-python = ">=3.9"
 dependencies = ["numpy>=1.26"]
 version = "0.7.0"
 
-[project.optional-dependencies]
-tests = ["pytest==8.4.2"]
-
 [dependency-groups]
+tests = ["pytest==8.4.2"]
 dev = [
+  { include-group = "tests" },
   "maturin==1.15.0",
-  "pytest==8.4.2",
-  "isort==6.1.0",
-  "black==25.11.0",
-  "pyright==1.1.414",
+  "ruff==0.16.8",
+  "ty==0.0.82",
   "jupyter-book==2.1.6",
 ]
 camera = [
@@ -47,15 +44,42 @@ python-source = "python"
 module-name = "faery.extension"
 features = ["pyo3/extension-module"]
 
-[tool.pyright]
-typeCheckingMode = "basic"
-executionEnvironments = [{ root = ".", venv = ".venv" }]
-exclude = ["**/__pycache__", "**/.*", "src"]
+[tool.ruff]
+src = ["python"]
+extend-exclude = ["src", "*.md"]
 
-[tool.isort]
-profile = "black"
-sort_reexports = true
-extend_skip = ["src"]
+[tool.ruff.lint]
+extend-select = ["I"]
+# TRY002 (raise-vanilla-class) flags "raise Exception(...)", which faery uses
+# throughout instead of defining a custom exception hierarchy (19 files)
+# PYI034 (non-self-return-type) wants __enter__ and __iter__ stubs to return Self,
+# which requires typing_extensions on Python 3.9 (8 stubs and udp_decoder.py)
+ignore = ["TRY002", "PYI034"]
 
-[tool.black]
-extend-exclude = "src"
+[tool.ruff.lint.per-file-ignores]
+# UP007 and UP045 rewrite typing.Union and typing.Optional to PEP 604 unions
+# (X | None). faery.cli.list_filters resolves the annotations of these two modules
+# at runtime, and PEP 604 unions cannot be evaluated on Python 3.9
+"python/faery/events_stream.py" = ["UP007", "UP045"]
+"python/faery/frame_stream.py" = ["UP007", "UP045"]
+# PLC0414 (useless-import-alias) flags "import X as X", which is the explicit
+# re-export idiom that type checkers require to treat X as part of the public API
+"python/faery/color.py" = ["PLC0414"]
+# B008 (function-call-in-default-argument) flags the timestamp.Time and
+# CsvProperties defaults, which faery only ever reads
+"python/faery/events_input.py" = ["B008"]
+"python/faery/file_decoder.py" = ["B008"]
+
+[tool.ty.src]
+exclude = ["src"]
+
+[tool.ty.rules]
+# empty-body flags the declaration-only methods of the stream base classes, whose
+# bodies are provided by subclasses
+empty-body = "ignore"
+# unresolved-attribute flags filter_return_annotation, which faery assigns onto
+# filter functions at import time
+unresolved-attribute = "ignore"
+
+[tool.ty.environment]
+python = ".venv"

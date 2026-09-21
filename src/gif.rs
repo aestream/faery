@@ -92,9 +92,9 @@ impl Encoder {
 
     fn write(&mut self, frame: &pyo3::Bound<'_, numpy::PyArray3<u8>>) -> PyResult<()> {
         if !frame.is_contiguous() {
-            return Err(pyo3::exceptions::PyAttributeError::new_err(format!(
-                "the frame's memory must be contiguous"
-            )));
+            return Err(pyo3::exceptions::PyAttributeError::new_err(
+                "the frame's memory must be contiguous",
+            ));
         }
         let readonly_frame = frame.readonly();
         let array = readonly_frame.as_array();
@@ -119,7 +119,9 @@ impl Encoder {
                                 gifski::collector::ImgVec::new(
                                     if dimensions.2 == 3 {
                                         array_slice
-                                            .chunks_exact(3)
+                                            .as_chunks::<3>()
+                                            .0
+                                            .iter()
                                             .map(|chunk| gifski::collector::RGBA8 {
                                                 r: chunk[0],
                                                 g: chunk[1],
@@ -129,7 +131,9 @@ impl Encoder {
                                             .collect()
                                     } else {
                                         array_slice
-                                            .chunks_exact(4)
+                                            .as_chunks::<4>()
+                                            .0
+                                            .iter()
                                             .map(|chunk| gifski::collector::RGBA8 {
                                                 r: chunk[0],
                                                 g: chunk[1],

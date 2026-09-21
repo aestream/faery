@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import collections.abc
 import dataclasses
 import pathlib
@@ -9,7 +11,7 @@ import numpy.lib.recfunctions
 from . import enums, events_stream, timestamp
 
 if typing.TYPE_CHECKING:
-    from .types import aedat, csv, dat, es, evt  # type: ignore
+    from .types import aedat, csv, dat, es, evt
 else:
     from .extension import aedat, csv, dat, es, evt
 
@@ -55,7 +57,7 @@ class TimeRangeCache:
 
     def get_time_range(
         self, path: pathlib.Path, path_hash: int
-    ) -> typing.Optional[tuple[timestamp.Time, timestamp.Time]]:
+    ) -> tuple[timestamp.Time, timestamp.Time] | None:
         if not path in self.path_to_hash_and_time_range:
             return None
         stored_path_hash, time_range = self.path_to_hash_and_time_range[path]
@@ -102,14 +104,14 @@ class Decoder(events_stream.FiniteEventsStream):
 
     def __init__(
         self,
-        path: typing.Union[pathlib.Path, str, None],
-        track_id: typing.Optional[int] = None,
+        path: pathlib.Path | str | None,
+        track_id: int | None = None,
         dimensions_fallback: tuple[int, int] = (1280, 720),
-        version_fallback: typing.Optional[enums.EventsFileVersion] = None,
+        version_fallback: enums.EventsFileVersion | None = None,
         t0: timestamp.TimeOrTimecode = timestamp.Time(microseconds=0),
         csv_properties: CsvProperties = CsvProperties.default(),
-        file_type: typing.Optional[enums.EventsFileType] = None,
-        time_range_cache: typing.Optional[TimeRangeCache] = TIME_RANGE_CACHE,
+        file_type: enums.EventsFileType | None = None,
+        time_range_cache: TimeRangeCache | None = TIME_RANGE_CACHE,
     ):
         super().__init__()
         self.path = None if path is None else pathlib.Path(path)
@@ -135,7 +137,7 @@ class Decoder(events_stream.FiniteEventsStream):
             )
         self.time_range_cache = time_range_cache
         self.inner_dimensions: tuple[int, int]
-        self.event_type: typing.Optional[str] = None
+        self.event_type: str | None = None
         if self.file_type == "aedat":
             assert self.path is not None
             with aedat.Decoder(path=self.path) as decoder:
@@ -160,7 +162,7 @@ class Decoder(events_stream.FiniteEventsStream):
                             break
                 if not found:
                     if self.track_id is None:
-                        raise Exception(f"the file contains no event tracks")
+                        raise Exception("the file contains no event tracks")
                     else:
                         raise Exception(
                             f"track {self.track_id} not found (the available ids are {[track.id for track in decoder.tracks()]})"
@@ -172,10 +174,13 @@ class Decoder(events_stream.FiniteEventsStream):
             assert self.path is not None
             if self.version_fallback is None:
                 self.version_fallback = "dat2"
+            assert self.version_fallback in ("dat1", "dat2"), (
+                f'"{self.version_fallback}" is not a DAT version (expected "dat1" or "dat2")'
+            )
             with dat.Decoder(
                 self.path,
                 self.dimensions_fallback,
-                self.version_fallback,  # type: ignore
+                self.version_fallback,
             ) as decoder:
                 self.event_type = decoder.event_type
                 if self.event_type != "cd":
@@ -201,10 +206,13 @@ class Decoder(events_stream.FiniteEventsStream):
             if self.version_fallback is None:
                 self.version_fallback = "evt3"
             assert self.path is not None
+            assert self.version_fallback in ("evt2", "evt2.1", "evt3"), (
+                f'"{self.version_fallback}" is not an EVT version (expected "evt2", "evt2.1" or "evt3")'
+            )
             with evt.Decoder(
                 self.path,
                 self.dimensions_fallback,
-                self.version_fallback,  # type: ignore
+                self.version_fallback,
             ) as decoder:
                 self.inner_dimensions = decoder.dimensions
         else:
@@ -225,8 +233,8 @@ class Decoder(events_stream.FiniteEventsStream):
                 return time_range
         else:
             path_hash = None
-        start: typing.Optional[int] = None
-        end: typing.Optional[int] = None
+        start: int | None = None
+        end: int | None = None
         for events in self:
             if len(events) > 0:
                 if start is None:
@@ -282,10 +290,13 @@ class Decoder(events_stream.FiniteEventsStream):
                     yield events
         elif self.file_type == "dat":
             assert self.path is not None
+            assert self.version_fallback in ("dat1", "dat2"), (
+                f'"{self.version_fallback}" is not a DAT version (expected "dat1" or "dat2")'
+            )
             with dat.Decoder(
                 path=self.path,
                 dimensions_fallback=self.dimensions_fallback,
-                version_fallback=self.version_fallback,  # type: ignore
+                version_fallback=self.version_fallback,
             ) as decoder:
                 for events in decoder:
                     numpy.clip(events["payload"], 0, 1, events["payload"])
@@ -318,7 +329,15 @@ class Decoder(events_stream.FiniteEventsStream):
                         events["y"] = self.inner_dimensions[1] - 1 - events["y"]
                         yield events
         elif self.file_type == "evt":
-            with evt.Decoder(self.path, self.dimensions_fallback, self.version_fallback) as decoder:  # type: ignore
+            assert self.path is not None
+            assert self.version_fallback in ("evt2", "evt2.1", "evt3"), (
+                f'"{self.version_fallback}" is not an EVT version (expected "evt2", "evt2.1" or "evt3")'
+            )
+            with evt.Decoder(
+                self.path,
+                self.dimensions_fallback,
+                self.version_fallback,
+            ) as decoder:
                 for packet in decoder:
                     if "events" in packet:
                         yield packet["events"]

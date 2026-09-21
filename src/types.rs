@@ -59,11 +59,17 @@ pub enum CheckArrayError {
     ExtraFields { expected: String, actual: String },
 }
 
-impl Into<PyErr> for CheckArrayError {
-    fn into(self) -> PyErr {
-        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(self.to_string())
+impl From<CheckArrayError> for PyErr {
+    fn from(error: CheckArrayError) -> Self {
+        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(error.to_string())
     }
 }
+
+const NATIVE_BYTEORDER: u8 = if cfg!(target_endian = "little") {
+    b'<'
+} else {
+    b'>'
+};
 
 pub fn check_array(
     python: Python,
@@ -112,22 +118,22 @@ pub fn check_array(
         let actual_description = unsafe { pyo3::ffi::PyTuple_GetItem(actual_field, 0) }
             as *mut numpy::npyffi::PyArray_Descr;
         let expected_description = expected_field.dtype(python);
-        unsafe {
-            (*expected_description).byteorder = b'<' as core::ffi::c_char;
-        }
+        let actual_byteorder = unsafe { (*actual_description).byteorder } as u8;
         if unsafe {
             numpy::PY_ARRAY_API.PyArray_EquivTypes(python, expected_description, actual_description)
         } == 0
-            || unsafe { (*expected_description).byteorder != (*actual_description).byteorder }
+            || !matches!(actual_byteorder, b'=' | b'|' | NATIVE_BYTEORDER)
         {
             let error = CheckArrayError::Field {
                 name: expected_field.name(),
                 expected_type: simple_description_to_string(python, expected_description),
                 actual_type: simple_description_to_string(python, actual_description),
             };
+            unsafe { pyo3::ffi::Py_DECREF(expected_description as *mut pyo3::ffi::PyObject) };
             unsafe { pyo3::ffi::Py_DECREF(actual_field) };
             return Err(error.into());
         }
+        unsafe { pyo3::ffi::Py_DECREF(expected_description as *mut pyo3::ffi::PyObject) };
         let actual_offset =
             unsafe { pyo3::ffi::PyLong_AsLong(pyo3::ffi::PyTuple_GetItem(actual_field, 1)) };
         if actual_offset != expected_offset {
@@ -447,7 +453,7 @@ impl Fields {
         index
     }
 
-    pub fn iter(&self) -> FieldIterator {
+    pub fn iter(&self) -> FieldIterator<'_> {
         FieldIterator {
             fields: self,
             index: 0,

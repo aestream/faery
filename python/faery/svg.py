@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import typing
 
 
@@ -6,9 +8,9 @@ class Node:
         self.type = type
         self.attributes = attributes
         self.indent = indent
-        self.children: list[typing.Union[Node, str]] = []
+        self.children: list[Node | str] = []
 
-    def node(self, type: str, attributes: dict[str, typing.Any]) -> "Node":
+    def node(self, type: str, attributes: dict[str, typing.Any]) -> Node:
         child = Node(type=type, attributes=attributes, indent=self.indent + 1)
         self.children.append(child)
         return child
