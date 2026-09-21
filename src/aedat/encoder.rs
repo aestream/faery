@@ -61,7 +61,8 @@ impl Compression {
         match name_and_level {
             Some((name, level)) => match name.as_str() {
                 "lz4" => {
-                    if level < utilities::LZ4_MINIMUM_LEVEL || level > utilities::LZ4_MAXIMUM_LEVEL
+                    if !(utilities::LZ4_MINIMUM_LEVEL..=utilities::LZ4_MAXIMUM_LEVEL)
+                        .contains(&level)
                     {
                         Err(CompressionError::Level {
                             value: level,
@@ -74,8 +75,8 @@ impl Compression {
                     }
                 }
                 "zstd" => {
-                    if level < utilities::ZSTD_MINIMUM_LEVEL
-                        || level > utilities::ZSTD_MAXIMUM_LEVEL
+                    if !(utilities::ZSTD_MINIMUM_LEVEL..=utilities::ZSTD_MAXIMUM_LEVEL)
+                        .contains(&level)
                     {
                         Err(CompressionError::Level {
                             value: level,
@@ -112,8 +113,11 @@ pub enum PacketError {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Format {
     L,
+    L16,
     Bgr,
+    Bgr16,
     Bgra,
+    Bgra16,
 }
 
 #[repr(C, packed)]
@@ -405,6 +409,7 @@ impl Encoder {
         result
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn write_frame_with_builder(
         &mut self,
         track_id: i32,
@@ -426,14 +431,17 @@ impl Encoder {
             builder,
             &common::frame_generated::FrameArgs {
                 t: t as i64,
-                start_t,
+                begin_t: start_t,
                 end_t,
-                exposure_start_t,
+                exposure_begin_t: exposure_start_t,
                 exposure_end_t,
                 format: match format {
                     Format::L => common::frame_generated::FrameFormat::Gray,
+                    Format::L16 => common::frame_generated::FrameFormat::Gray16,
                     Format::Bgr => common::frame_generated::FrameFormat::Bgr,
+                    Format::Bgr16 => common::frame_generated::FrameFormat::Bgr16,
                     Format::Bgra => common::frame_generated::FrameFormat::Bgra,
+                    Format::Bgra16 => common::frame_generated::FrameFormat::Bgra16,
                 },
                 width,
                 height,
@@ -449,6 +457,7 @@ impl Encoder {
         )
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn write_frame(
         &mut self,
         track_id: i32,
@@ -509,26 +518,16 @@ impl Encoder {
         if count == 0 {
             return Ok(());
         }
-        self.buffer.clear();
-        self.buffer.resize(
-            count * std::mem::size_of::<flatbuffers::WIPOffset<common::imus_generated::Imu>>(),
-            0,
-        );
-        let imus_offsets = unsafe {
-            std::slice::from_raw_parts_mut(
-                self.buffer.as_mut_ptr()
-                    as *mut flatbuffers::WIPOffset<common::imus_generated::Imu>,
-                count,
-            )
-        };
+        let mut imus_offsets: Vec<flatbuffers::WIPOffset<common::imus_generated::Imu>> =
+            Vec::with_capacity(count);
         let mut start_t = None;
         let mut end_t = None;
-        for (index, imu) in imus.enumerate() {
+        for imu in imus {
             if start_t.is_none() {
                 start_t = Some(imu.t);
             }
             end_t = Some(imu.t);
-            imus_offsets[index] = common::imus_generated::Imu::create(
+            imus_offsets.push(common::imus_generated::Imu::create(
                 builder,
                 &common::imus_generated::ImuArgs {
                     t: imu.t as i64,
@@ -543,9 +542,9 @@ impl Encoder {
                     magnetometer_y: imu.magnetometer_y,
                     magnetometer_z: imu.magnetometer_z,
                 },
-            );
+            ));
         }
-        let vector = builder.create_vector(imus_offsets);
+        let vector = builder.create_vector(&imus_offsets);
         let packet = common::imus_generated::ImuPacket::create(
             builder,
             &common::imus_generated::ImuPacketArgs {
@@ -598,36 +597,24 @@ impl Encoder {
         if count == 0 {
             return Ok(());
         }
-        self.buffer.clear();
-        self.buffer.resize(
-            count
-                * std::mem::size_of::<flatbuffers::WIPOffset<common::triggers_generated::Trigger>>(
-                ),
-            0,
-        );
-        let triggers_offsets = unsafe {
-            std::slice::from_raw_parts_mut(
-                self.buffer.as_mut_ptr()
-                    as *mut flatbuffers::WIPOffset<common::triggers_generated::Trigger>,
-                count,
-            )
-        };
+        let mut triggers_offsets: Vec<flatbuffers::WIPOffset<common::triggers_generated::Trigger>> =
+            Vec::with_capacity(count);
         let mut start_t = None;
         let mut end_t = None;
-        for (index, trigger) in triggers.enumerate() {
+        for trigger in triggers {
             if start_t.is_none() {
                 start_t = Some(trigger.t);
             }
             end_t = Some(trigger.t);
-            triggers_offsets[index] = common::triggers_generated::Trigger::create(
+            triggers_offsets.push(common::triggers_generated::Trigger::create(
                 builder,
                 &common::triggers_generated::TriggerArgs {
                     t: trigger.t as i64,
                     source: common::triggers_generated::TriggerSource(trigger.source as i8),
                 },
-            );
+            ));
         }
-        let vector = builder.create_vector(triggers_offsets);
+        let vector = builder.create_vector(&triggers_offsets);
         let packet = common::triggers_generated::TriggerPacket::create(
             builder,
             &common::triggers_generated::TriggerPacketArgs {
@@ -668,25 +655,11 @@ impl Encoder {
         &mut self,
         builder: &mut flatbuffers::FlatBufferBuilder,
     ) -> Result<(), PacketError> {
-        self.buffer.clear();
-        self.buffer.resize(
-            self.file_data_definitions.len()
-                * std::mem::size_of::<
-                    flatbuffers::WIPOffset<common::file_data_table_generated::FileDataDefinition>,
-                >(),
-            0,
-        );
-        let file_data_definitions_offsets = unsafe {
-            std::slice::from_raw_parts_mut(
-                self.buffer.as_mut_ptr()
-                    as *mut flatbuffers::WIPOffset<
-                        common::file_data_table_generated::FileDataDefinition,
-                    >,
-                self.file_data_definitions.len(),
-            )
-        };
-        for (index, file_data_definition) in self.file_data_definitions.iter().enumerate() {
-            file_data_definitions_offsets[index] =
+        let mut file_data_definitions_offsets: Vec<
+            flatbuffers::WIPOffset<common::file_data_table_generated::FileDataDefinition>,
+        > = Vec::with_capacity(self.file_data_definitions.len());
+        for file_data_definition in self.file_data_definitions.iter() {
+            file_data_definitions_offsets.push(
                 common::file_data_table_generated::FileDataDefinition::create(
                     builder,
                     &common::file_data_table_generated::FileDataDefinitionArgs {
@@ -699,9 +672,10 @@ impl Encoder {
                         start_t: file_data_definition.start_t,
                         end_t: file_data_definition.end_t,
                     },
-                );
+                ),
+            );
         }
-        let vector = builder.create_vector(file_data_definitions_offsets);
+        let vector = builder.create_vector(&file_data_definitions_offsets);
         let packet = common::file_data_table_generated::FileDataTable::create(
             builder,
             &common::file_data_table_generated::FileDataTableArgs {

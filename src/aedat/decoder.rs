@@ -55,7 +55,7 @@ impl Decoder {
             file.read_exact(&mut bytes)?;
             u32::from_le_bytes(bytes)
         } as usize;
-        let mut raw_buffer = std::vec![0; length as usize];
+        let mut raw_buffer = std::vec![0; length];
         file.read_exact(&mut raw_buffer)?;
         let io_header =
             unsafe { common::io_header_generated::root_as_ioheader_unchecked(&raw_buffer) };
@@ -166,6 +166,9 @@ pub enum ReadError {
     #[error("unknown frame format")]
     UnknownFrameFormat,
 
+    #[error("the pixels of a 16-bit frame span {0} bytes, which is not a multiple of 2")]
+    OddSixteenBitsFrameLength(usize),
+
     #[error("unknown trigger source")]
     UnknownTriggerSource,
 
@@ -177,7 +180,7 @@ pub enum ReadError {
 }
 
 impl Decoder {
-    pub fn next(&mut self) -> Result<Option<Packet>, ReadError> {
+    pub fn next(&mut self) -> Result<Option<Packet<'_>>, ReadError> {
         if self.file_data_position > -1 && self.position == self.file_data_position {
             return Ok(None);
         }

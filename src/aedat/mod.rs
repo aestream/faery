@@ -16,6 +16,43 @@ impl From<decoder::Error> for PyErr {
     }
 }
 
+fn check_frame_dimensions(
+    frame_dimensions: (usize, usize),
+    sensor_dimensions: (u16, u16),
+) -> PyResult<()> {
+    if frame_dimensions.0 > sensor_dimensions.0 as usize {
+        return Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+            "the frame width ({}) cannot be larger than the sensor width ({})",
+            frame_dimensions.0, sensor_dimensions.0
+        )));
+    }
+    if frame_dimensions.1 > sensor_dimensions.1 as usize {
+        return Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+            "the frame height ({}) cannot be larger than the sensor height ({})",
+            frame_dimensions.1, sensor_dimensions.1
+        )));
+    }
+    Ok(())
+}
+
+fn little_endian_u16(bytes: &[u8]) -> Result<Vec<u16>, decoder::ReadError> {
+    if !bytes.len().is_multiple_of(2) {
+        return Err(decoder::ReadError::OddSixteenBitsFrameLength(bytes.len()));
+    }
+    Ok(bytes
+        .as_chunks::<2>()
+        .0
+        .iter()
+        .map(|chunk| u16::from_le_bytes(*chunk))
+        .collect())
+}
+
+fn blue_green_red_to_red_green_blue<T>(pixels: &mut [T], channels: usize) {
+    for index in 0..(pixels.len() / channels) {
+        pixels.swap(index * channels, index * channels + 2);
+    }
+}
+
 impl From<decoder::ReadError> for PyErr {
     fn from(error: decoder::ReadError) -> Self {
         PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(error.to_string())
@@ -259,7 +296,7 @@ pub struct DescriptionNode {
     #[pyo3(get, set)]
     pub name: String,
     #[pyo3(get, set)]
-    pub path: String,
+    pub path: Option<String>,
     #[pyo3(get, set)]
     pub attributes: std::collections::HashMap<String, DescriptionAttribute>,
     #[pyo3(get, set)]
@@ -299,9 +336,10 @@ impl From<DescriptionNode> for common::DescriptionNode {
 #[pymethods]
 impl DescriptionNode {
     #[new]
+    #[pyo3(signature = (name, path, attributes, nodes))]
     fn new(
         name: String,
-        path: String,
+        path: Option<String>,
         attributes: std::collections::HashMap<String, DescriptionAttribute>,
         nodes: Vec<DescriptionNode>,
     ) -> Self {
@@ -317,9 +355,12 @@ impl DescriptionNode {
         let mut key_and_attribute: Vec<_> = self.attributes.iter().collect();
         key_and_attribute.sort_by(|a, b| a.0.cmp(b.0));
         format!(
-            "faery.aedat.DescriptionNode(name=\"{}\", path=\"{}\", attributes={{{}}}, nodes=[{}])",
+            "faery.aedat.DescriptionNode(name=\"{}\", path={}, attributes={{{}}}, nodes=[{}])",
             self.name,
-            self.path,
+            match &self.path {
+                Some(path) => format!("\"{path}\""),
+                None => "None".to_owned(),
+            },
             key_and_attribute
                 .iter()
                 .map(|(key, attribute)| format!("'{}': {}", key, attribute.__repr__()))
@@ -337,6 +378,19 @@ impl DescriptionNode {
 #[pyclass]
 pub struct Decoder {
     inner: Option<decoder::Decoder>,
+    warned_unknown_frame_format: bool,
+}
+
+fn warn_unknown_frame_format(python: Python<'_>, format_code: i8) -> PyResult<()> {
+    PyErr::warn(
+        python,
+        &python.get_type::<pyo3::exceptions::PyUserWarning>(),
+        &std::ffi::CString::new(format!(
+            "skipping frames whose format is unsupported (OpenCV type code {format_code})"
+        ))
+        .expect("the warning message has no null byte"),
+        1,
+    )
 }
 
 #[pymethods]
@@ -345,6 +399,7 @@ impl Decoder {
     fn new(path: &pyo3::Bound<'_, pyo3::types::PyAny>) -> PyResult<Self> {
         Ok(Decoder {
             inner: Some(decoder::Decoder::new(types::python_path_to_string(path)?)?),
+            warned_unknown_frame_format: false,
         })
     }
 
@@ -428,13 +483,28 @@ impl Decoder {
     }
 
     fn __next__(mut shell: PyRefMut<Self>) -> PyResult<Option<(Track, Py<PyAny>)>> {
+        loop {
+            let already_warned = shell.warned_unknown_frame_format;
+            let decoded = Self::decode_next(&mut shell, already_warned)?;
+            match decoded {
+                Some(Some(track_and_packet)) => return Ok(Some(track_and_packet)),
+                Some(None) => shell.warned_unknown_frame_format = true,
+                None => return Ok(None),
+            }
+        }
+    }
+}
+
+impl Decoder {
+    #[allow(clippy::type_complexity)]
+    fn decode_next(
+        shell: &mut PyRefMut<Self>,
+        already_warned: bool,
+    ) -> PyResult<Option<Option<(Track, Py<PyAny>)>>> {
         let packet = match shell.inner {
-            Some(ref mut decoder) => match decoder.next() {
-                Ok(result) => match result {
-                    Some(result) => result,
-                    None => return Ok(None),
-                },
-                Err(result) => return Err(result.into()),
+            Some(ref mut decoder) => match decoder.next()? {
+                Some(result) => result,
+                None => return Ok(None),
             },
             None => {
                 return Err(pyo3::exceptions::PyException::new_err(
@@ -442,7 +512,7 @@ impl Decoder {
                 ))
             }
         };
-        Python::attach(|python| -> PyResult<Option<(Track, Py<PyAny>)>> {
+        Python::attach(|python| -> PyResult<Option<Option<(Track, Py<PyAny>)>>> {
             let track = Track {
                 id: packet.track_id,
                 data_type: packet.track.to_data_type().to_owned(),
@@ -486,9 +556,9 @@ impl Decoder {
                                 .into());
                             }
                             let mut event_array = [0u8; 13];
-                            event_array[0..8].copy_from_slice(&t.to_le_bytes());
-                            event_array[8..10].copy_from_slice(&(x as u16).to_le_bytes());
-                            event_array[10..12].copy_from_slice(&(y as u16).to_le_bytes());
+                            event_array[0..8].copy_from_slice(&t.to_ne_bytes());
+                            event_array[8..10].copy_from_slice(&(x as u16).to_ne_bytes());
+                            event_array[10..12].copy_from_slice(&(y as u16).to_ne_bytes());
                             event_array[12] = if event.on() { 1 } else { 0 };
                             std::ptr::copy(event_array.as_ptr(), event_cell, event_array.len());
                         }
@@ -512,68 +582,109 @@ impl Decoder {
                     *previous_t = t;
                     Frame {
                         t,
-                        start_t: frame.start_t(),
+                        start_t: frame.begin_t(),
                         end_t: frame.end_t(),
-                        exposure_start_t: frame.exposure_start_t(),
+                        exposure_start_t: frame.exposure_begin_t(),
                         exposure_end_t: frame.exposure_end_t(),
                         format: match frame.format() {
                             common::frame_generated::FrameFormat::Gray => "L".to_owned(),
-                            common::frame_generated::FrameFormat::Bgr => "RGB".to_owned(),
-                            common::frame_generated::FrameFormat::Bgra => "RGBA".to_owned(),
-                            _ => return Err(PyErr::from(decoder::ReadError::UnknownFrameFormat)),
+                            common::frame_generated::FrameFormat::Gray16 => "I;16".to_owned(),
+                            common::frame_generated::FrameFormat::Bgr
+                            | common::frame_generated::FrameFormat::Bgr16 => "RGB".to_owned(),
+                            common::frame_generated::FrameFormat::Bgra
+                            | common::frame_generated::FrameFormat::Bgra16 => "RGBA".to_owned(),
+                            unsupported => {
+                                if !already_warned {
+                                    warn_unknown_frame_format(python, unsupported.0)?;
+                                }
+                                return Ok(Some(None));
+                            }
                         },
                         offset_x: frame.offset_x(),
                         offset_y: frame.offset_y(),
-                        pixels: match frame.format() {
-                            common::frame_generated::FrameFormat::Gray => {
+                        pixels: {
+                            let (channels, sixteen_bits) = match frame.format() {
+                                common::frame_generated::FrameFormat::Gray => (1_usize, false),
+                                common::frame_generated::FrameFormat::Gray16 => (1_usize, true),
+                                common::frame_generated::FrameFormat::Bgr => (3_usize, false),
+                                common::frame_generated::FrameFormat::Bgr16 => (3_usize, true),
+                                common::frame_generated::FrameFormat::Bgra => (4_usize, false),
+                                common::frame_generated::FrameFormat::Bgra16 => (4_usize, true),
+                                _ => {
+                                    return Err(PyErr::from(decoder::ReadError::UnknownFrameFormat))
+                                }
+                            };
+                            let bytes = frame.pixels().map(|pixels| pixels.bytes());
+                            if channels == 1 {
                                 let dimensions = [frame.height() as usize, frame.width() as usize]
                                     .into_dimension();
-                                match frame.pixels() {
-                                    Some(result) => result
-                                        .bytes()
-                                        .to_pyarray(python)
-                                        .reshape(dimensions)?
-                                        .unbind()
-                                        .into_any(),
-                                    None => numpy::array::PyArray2::<u8>::zeros(
-                                        python, dimensions, false,
-                                    )
-                                    .unbind()
-                                    .into_any(),
-                                }
-                            }
-                            common::frame_generated::FrameFormat::Bgr
-                            | common::frame_generated::FrameFormat::Bgra => {
-                                let channels = if frame.format()
-                                    == common::frame_generated::FrameFormat::Bgr
-                                {
-                                    3_usize
-                                } else {
-                                    4_usize
-                                };
-                                let dimensions =
-                                    [frame.height() as usize, frame.width() as usize, channels]
-                                        .into_dimension();
-                                match frame.pixels() {
-                                    Some(result) => {
-                                        let mut pixels = result.bytes().to_owned();
-                                        for index in 0..(pixels.len() / channels) {
-                                            pixels.swap(index * channels, index * channels + 2);
-                                        }
-                                        pixels
+                                if sixteen_bits {
+                                    match bytes {
+                                        Some(bytes) => little_endian_u16(bytes)?
                                             .to_pyarray(python)
                                             .reshape(dimensions)?
                                             .unbind()
-                                            .into_any()
+                                            .into_any(),
+                                        None => numpy::array::PyArray2::<u16>::zeros(
+                                            python, dimensions, false,
+                                        )
+                                        .unbind()
+                                        .into_any(),
                                     }
-                                    None => numpy::array::PyArray3::<u8>::zeros(
-                                        python, dimensions, false,
-                                    )
-                                    .unbind()
-                                    .into_any(),
+                                } else {
+                                    match bytes {
+                                        Some(bytes) => bytes
+                                            .to_pyarray(python)
+                                            .reshape(dimensions)?
+                                            .unbind()
+                                            .into_any(),
+                                        None => numpy::array::PyArray2::<u8>::zeros(
+                                            python, dimensions, false,
+                                        )
+                                        .unbind()
+                                        .into_any(),
+                                    }
+                                }
+                            } else {
+                                let dimensions =
+                                    [frame.height() as usize, frame.width() as usize, channels]
+                                        .into_dimension();
+                                if sixteen_bits {
+                                    match bytes {
+                                        Some(bytes) => {
+                                            let mut pixels = little_endian_u16(bytes)?;
+                                            blue_green_red_to_red_green_blue(&mut pixels, channels);
+                                            pixels
+                                                .to_pyarray(python)
+                                                .reshape(dimensions)?
+                                                .unbind()
+                                                .into_any()
+                                        }
+                                        None => numpy::array::PyArray3::<u16>::zeros(
+                                            python, dimensions, false,
+                                        )
+                                        .unbind()
+                                        .into_any(),
+                                    }
+                                } else {
+                                    match bytes {
+                                        Some(bytes) => {
+                                            let mut pixels = bytes.to_owned();
+                                            blue_green_red_to_red_green_blue(&mut pixels, channels);
+                                            pixels
+                                                .to_pyarray(python)
+                                                .reshape(dimensions)?
+                                                .unbind()
+                                                .into_any()
+                                        }
+                                        None => numpy::array::PyArray3::<u8>::zeros(
+                                            python, dimensions, false,
+                                        )
+                                        .unbind()
+                                        .into_any(),
+                                    }
                                 }
                             }
-                            _ => return Err(PyErr::from(decoder::ReadError::UnknownFrameFormat)),
                         },
                     }
                     .into_pyobject(python)?
@@ -595,31 +706,29 @@ impl Decoder {
                     let length = imus.len() as numpy::npyffi::npy_intp;
                     let array = types::ArrayType::AedatImu.new_array(python, length);
                     unsafe {
-                        let mut index = 0;
-                        for imu in imus {
+                        for (index, imu) in imus.into_iter().enumerate() {
                             let t = imu.t().max(*previous_t as i64) as u64;
                             *previous_t = t;
-                            let imu_cell = types::array_at(python, array, index);
+                            let imu_cell = types::array_at(python, array, index as isize);
                             let mut imu_array = [0u8; 48];
-                            imu_array[0..8].copy_from_slice(&t.to_le_bytes());
-                            imu_array[8..12].copy_from_slice(&(imu.temperature()).to_le_bytes());
+                            imu_array[0..8].copy_from_slice(&t.to_ne_bytes());
+                            imu_array[8..12].copy_from_slice(&(imu.temperature()).to_ne_bytes());
                             imu_array[12..16]
-                                .copy_from_slice(&(imu.accelerometer_x()).to_le_bytes());
+                                .copy_from_slice(&(imu.accelerometer_x()).to_ne_bytes());
                             imu_array[16..20]
-                                .copy_from_slice(&(imu.accelerometer_y()).to_le_bytes());
+                                .copy_from_slice(&(imu.accelerometer_y()).to_ne_bytes());
                             imu_array[20..24]
-                                .copy_from_slice(&(imu.accelerometer_z()).to_le_bytes());
-                            imu_array[24..28].copy_from_slice(&(imu.gyroscope_x()).to_le_bytes());
-                            imu_array[28..32].copy_from_slice(&(imu.gyroscope_y()).to_le_bytes());
-                            imu_array[32..36].copy_from_slice(&(imu.gyroscope_z()).to_le_bytes());
+                                .copy_from_slice(&(imu.accelerometer_z()).to_ne_bytes());
+                            imu_array[24..28].copy_from_slice(&(imu.gyroscope_x()).to_ne_bytes());
+                            imu_array[28..32].copy_from_slice(&(imu.gyroscope_y()).to_ne_bytes());
+                            imu_array[32..36].copy_from_slice(&(imu.gyroscope_z()).to_ne_bytes());
                             imu_array[36..40]
-                                .copy_from_slice(&(imu.magnetometer_x()).to_le_bytes());
+                                .copy_from_slice(&(imu.magnetometer_x()).to_ne_bytes());
                             imu_array[40..44]
-                                .copy_from_slice(&(imu.magnetometer_y()).to_le_bytes());
+                                .copy_from_slice(&(imu.magnetometer_y()).to_ne_bytes());
                             imu_array[44..48]
-                                .copy_from_slice(&(imu.magnetometer_z()).to_le_bytes());
+                                .copy_from_slice(&(imu.magnetometer_z()).to_ne_bytes());
                             std::ptr::copy(imu_array.as_ptr(), imu_cell, imu_array.len());
-                            index += 1;
                         }
                         pyo3::Bound::from_owned_ptr(python, array as *mut pyo3::ffi::PyObject)
                             .unbind()
@@ -645,13 +754,12 @@ impl Decoder {
                     let length = triggers.len() as numpy::npyffi::npy_intp;
                     let array = types::ArrayType::AedatTrigger.new_array(python, length);
                     unsafe {
-                        let mut index = 0;
-                        for trigger in triggers {
+                        for (index, trigger) in triggers.into_iter().enumerate() {
                             let t = trigger.t().max(*previous_t as i64) as u64;
                             *previous_t = t;
-                            let trigger_cell = types::array_at(python, array, index);
+                            let trigger_cell = types::array_at(python, array, index as isize);
                             let mut trigger_array = [0u8; 9];
-                            trigger_array[0..8].copy_from_slice(&t.to_le_bytes());
+                            trigger_array[0..8].copy_from_slice(&t.to_ne_bytes());
                             use common::triggers_generated::TriggerSource;
                             trigger_array[8] = match trigger.source() {
                                 TriggerSource::TimestampReset => 0_u8,
@@ -675,14 +783,13 @@ impl Decoder {
                                 trigger_cell,
                                 trigger_array.len(),
                             );
-                            index += 1;
                         }
                         pyo3::Bound::from_owned_ptr(python, array as *mut pyo3::ffi::PyObject)
                             .unbind()
                     }
                 }
             };
-            Ok(Some((track, packet)))
+            Ok(Some(Some((track, packet))))
         })
     }
 }
@@ -810,90 +917,96 @@ impl Encoder {
                                     .into());
                                 }
                                 self.frame_buffer.clear();
+                                let sixteen_bits = frame
+                                    .pixels
+                                    .bind(python)
+                                    .cast::<numpy::PyUntypedArray>()?
+                                    .dtype()
+                                    .is_equiv_to(&numpy::dtype::<u16>(python));
                                 let (frame_format, frame_dimensions) = match frame.format.as_str() {
                                     "L" => {
                                         let array_bound = frame.pixels.cast_bound::<numpy::PyArray2<u8>>(python)?.readonly();
                                         let array = array_bound.as_array();
                                         let array_dim = array.dim();
-                                        if array_dim.1 > dimensions.0 as usize {
-                                            return Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
-                                                "the frame width ({}) cannot be larger than the sensor width ({})",
-                                                array.dim().1,
-                                                dimensions.0
-                                            )));
-                                        }
-                                        if array_dim.0 > dimensions.1 as usize {
-                                            return Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
-                                                "the frame height ({}) cannot be larger than the sensor height ({})",
-                                                array.dim().0,
-                                                dimensions.1
-                                            )));
-                                        }
+                                        check_frame_dimensions((array_dim.1, array_dim.0), *dimensions)?;
                                         self.frame_buffer.reserve(array.len());
                                         for row in array.rows() {
                                             self.frame_buffer.extend(row.iter());
                                         }
                                         (encoder::Format::L, (array_dim.1, array_dim.0))
                                     },
-                                    "RGB" | "RGBA" => {
-                                        let array_bound = frame.pixels.cast_bound::<numpy::PyArray3<u8>>(python)?.readonly();
+                                    "I;16" => {
+                                        let array_bound = frame.pixels.cast_bound::<numpy::PyArray2<u16>>(python)?.readonly();
                                         let array = array_bound.as_array();
                                         let array_dim = array.dim();
-                                        if array_dim.1 > dimensions.0 as usize {
-                                            return Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
-                                                "the frame width ({}) cannot be larger than the sensor width ({})",
-                                                array.dim().1,
-                                                dimensions.0
-                                            )));
+                                        check_frame_dimensions((array_dim.1, array_dim.0), *dimensions)?;
+                                        self.frame_buffer.reserve(array.len() * 2);
+                                        for row in array.rows() {
+                                            for value in row.iter() {
+                                                self.frame_buffer.extend(value.to_le_bytes());
+                                            }
                                         }
-                                        if array_dim.0 > dimensions.1 as usize {
-                                            return Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
-                                                "the frame height ({}) cannot be larger than the sensor height ({})",
-                                                array.dim().0,
-                                                dimensions.1
-                                            )));
-                                        }
-                                        if frame.format.as_str() == "RGB" {
-                                            if array_dim.2 != 3 {
+                                        (encoder::Format::L16, (array_dim.1, array_dim.0))
+                                    },
+                                    "RGB" | "RGBA" => {
+                                        let channels = if frame.format.as_str() == "RGB" { 3_usize } else { 4_usize };
+                                        let array_dim = if sixteen_bits {
+                                            let array_bound = frame.pixels.cast_bound::<numpy::PyArray3<u16>>(python)?.readonly();
+                                            let array = array_bound.as_array();
+                                            let array_dim = array.dim();
+                                            if array_dim.2 != channels {
                                                 return Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
-                                                    "the frame must have 3 channels (got {})",
-                                                    array.dim().2,
+                                                    "the frame must have {channels} channels (got {})",
+                                                    array_dim.2,
                                                 )));
                                             }
-                                            self.frame_buffer.reserve(array.len());
+                                            check_frame_dimensions((array_dim.1, array_dim.0), *dimensions)?;
+                                            self.frame_buffer.reserve(array.len() * 2);
                                             for subview in array.outer_iter() {
                                                 for pixel in subview.rows() {
-                                                    self.frame_buffer.extend(&[
-                                                        pixel[2],
-                                                        pixel[0],
-                                                        pixel[1]
-                                                    ])
+                                                    self.frame_buffer.extend(pixel[2].to_le_bytes());
+                                                    self.frame_buffer.extend(pixel[1].to_le_bytes());
+                                                    self.frame_buffer.extend(pixel[0].to_le_bytes());
+                                                    if channels == 4 {
+                                                        self.frame_buffer.extend(pixel[3].to_le_bytes());
+                                                    }
                                                 }
                                             }
-                                            (encoder::Format::Bgr, (array_dim.1, array_dim.0))
+                                            array_dim
                                         } else {
-                                            if array_dim.2 != 4 {
+                                            let array_bound = frame.pixels.cast_bound::<numpy::PyArray3<u8>>(python)?.readonly();
+                                            let array = array_bound.as_array();
+                                            let array_dim = array.dim();
+                                            if array_dim.2 != channels {
                                                 return Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
-                                                    "the frame must have 4 channels (got {})",
-                                                    array.dim().2,
+                                                    "the frame must have {channels} channels (got {})",
+                                                    array_dim.2,
                                                 )));
                                             }
+                                            check_frame_dimensions((array_dim.1, array_dim.0), *dimensions)?;
                                             self.frame_buffer.reserve(array.len());
                                             for subview in array.outer_iter() {
                                                 for pixel in subview.rows() {
-                                                    self.frame_buffer.extend(&[
-                                                        pixel[2],
-                                                        pixel[0],
-                                                        pixel[1],
-                                                        pixel[3],
-                                                    ])
+                                                    self.frame_buffer.extend(&[pixel[2], pixel[1], pixel[0]]);
+                                                    if channels == 4 {
+                                                        self.frame_buffer.push(pixel[3]);
+                                                    }
                                                 }
                                             }
-                                            (encoder::Format::Bgra, (array_dim.1, array_dim.0))
-                                        }
+                                            array_dim
+                                        };
+                                        (
+                                            match (channels, sixteen_bits) {
+                                                (3, false) => encoder::Format::Bgr,
+                                                (3, true) => encoder::Format::Bgr16,
+                                                (_, false) => encoder::Format::Bgra,
+                                                (_, true) => encoder::Format::Bgra16,
+                                            },
+                                            (array_dim.1, array_dim.0),
+                                        )
                                     },
                                     frame_format => return Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
-                                        "unknown format \"{frame_format}\" (expected \"L\", \"RGB\", or \"RGBA\")"
+                                        "unknown format \"{frame_format}\" (expected \"L\", \"I;16\", \"RGB\", or \"RGBA\")"
                                     ))),
                                 };
                                 *previous_t = frame.t;
