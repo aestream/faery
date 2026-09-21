@@ -31,6 +31,7 @@ env:
 
   # cibuildhweel Windows configuration
   CIBW_ARCHS_WINDOWS: native
+  CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: delvewheel repair --exclude ext-ms-win-dx-ddraw-l1-1-0.dll -w {dest_dir} -v {wheel}
 
 jobs:
   build_wheels:
