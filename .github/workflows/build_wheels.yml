@@ -31,7 +31,7 @@ env:
 
   # cibuildhweel Windows configuration
   CIBW_ARCHS_WINDOWS: native
-  CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: delvewheel repair --exclude ext-ms-* -w {dest_dir} -v {wheel}
+  CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: delvewheel repair --exclude ext-ms-* --exclude opengl32.dll --exclude glu32.dll -w {dest_dir} -v {wheel}
 
 jobs:
   build_wheels:
