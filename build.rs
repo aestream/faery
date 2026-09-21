@@ -1,3 +1,18 @@
+#[cfg(unix)]
+fn set_executable(path: impl AsRef<std::path::Path>) {
+    use std::os::unix::fs::PermissionsExt;
+    let path = path.as_ref();
+    let expect_message = format!("{:?} exists", path);
+    let mut permissions = std::fs::metadata(path)
+        .expect(&expect_message)
+        .permissions();
+    permissions.set_mode(permissions.mode() | 0o111);
+    std::fs::set_permissions(path, permissions).expect(&expect_message);
+}
+
+#[cfg(not(unix))]
+fn set_executable(_path: impl AsRef<std::path::Path>) {}
+
 fn copy_directory(
     source: impl AsRef<std::path::Path> + std::fmt::Debug,
     destination: impl AsRef<std::path::Path>,
@@ -10,7 +25,9 @@ fn copy_directory(
         if file_type.is_dir() {
             copy_directory(entry.path(), destination.as_ref().join(entry.file_name()));
         } else {
-            std::fs::copy(entry.path(), destination.as_ref().join(entry.file_name())).unwrap();
+            let destination = destination.as_ref().join(entry.file_name());
+            std::fs::copy(entry.path(), &destination).unwrap();
+            set_executable(destination);
         }
     }
 }
