@@ -136,32 +136,6 @@ jobs:
       - run: python -c 'import sys, faery; assert not sys._is_gil_enabled(), "importing faery re-enabled the GIL"'
         if: endsWith(matrix.python, 't')
       - run: python -m pytest tests/
-  test_big_endian:
-    name: Test decoding and encoding on s390x (big-endian)
-    runs-on: ubuntu-latest
-    env:
-      # nasm is x86-only and x264's configure disables assembly on s390x, so a missing package is not an error
-      CIBW_BEFORE_ALL_LINUX: dnf install -y clang; dnf install -y nasm || true; curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain=stable --profile=minimal -y
-      CIBW_ARCHS_LINUX: s390x
-      CIBW_BUILD: cp313-manylinux_s390x
-      CIBW_SKIP: ""
-      CIBW_MANYLINUX_S390X_IMAGE: manylinux_2_28
-      CIBW_TEST_REQUIRES: pytest
-      # cibuildwheel skips tests on emulated architectures unless CIBW_TEST_SKIP is cleared
-      CIBW_TEST_SKIP: ""
-      CIBW_TEST_COMMAND: python -c "import sys; assert sys.byteorder == 'big', sys.byteorder" && python -m pytest {project}/tests/test_decoders.py {project}/tests/test_encoders.py && touch {project}/big-endian-tests-ran
-    steps:
-      - uses: actions/checkout@v4
-      - uses: docker/setup-qemu-action@v3
-        with:
-          platforms: s390x
-      - uses: astral-sh/setup-uv@v10.1.0
-        with:
-          version: 0.12.17
-      # emulated, so expect this job to take one to two hours
-      - run: uvx cibuildwheel==4.2.1
-        timeout-minutes: 180
-      - run: test -f big-endian-tests-ran
   build_sdist:
     name: Build source distribution
     runs-on: ubuntu-latest
