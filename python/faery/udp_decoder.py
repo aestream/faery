@@ -19,7 +19,7 @@ class Receiver:
                 read = self.socket.recv_into(self.buffer)
                 if read > 0:
                     self.queue.append(bytes(self.buffer[0:read]))
-            except TimeoutError:
+            except socket.timeout:
                 pass
 
     def __init__(
