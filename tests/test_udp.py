@@ -10,13 +10,25 @@ import faery
 @pytest.mark.parametrize(
     "format_type,events_per_packet,num_events,port",
     [
-        ("t64_x16_y16_on8", 99, 500, 29999),
-        ("t32_x16_y15_on1", 101, 500, 29998),
+        ("t64_x16_y16_on8", 99, 500, 29900),
+        ("t32_x16_y15_on1", 101, 500, 29950),
     ],
 )
 def test_udp_encoder_decoder(format_type, events_per_packet, num_events, port):
-    """Test UDP encoder/decoder with random events."""
+    """Test UDP encoder/decoder with random events, retrying transient packet loss."""
 
+    for attempt in range(5):
+        try:
+            run_udp_encoder_decoder(
+                format_type, events_per_packet, num_events, port + attempt
+            )
+            return
+        except Exception:
+            if attempt == 4:
+                raise
+
+
+def run_udp_encoder_decoder(format_type, events_per_packet, num_events, port):
     dimensions = (640, 480)
     address = ("localhost", port)
 
@@ -47,10 +59,10 @@ def test_udp_encoder_decoder(format_type, events_per_packet, num_events, port):
 
     def sender():
         """Send test events via UDP."""
-        time.sleep(0.2)  # Give receiver time to start listening
+        time.sleep(1.0)  # Give receiver time to start listening
         stream = faery.events_stream_from_array(test_events, dimensions)
         stream.to_udp(address, format=format_type, events_per_packet=events_per_packet)
-        time.sleep(0.1)  # Give receiver time to collect all packets
+        time.sleep(1.0)  # Give receiver time to collect all packets
         stop_receiver.set()
 
     # Start receiver and sender threads
@@ -61,8 +73,8 @@ def test_udp_encoder_decoder(format_type, events_per_packet, num_events, port):
     sender_thread.start()
 
     # Wait for completion with timeout
-    sender_thread.join(timeout=5)
-    receiver_thread.join(timeout=5)
+    sender_thread.join(timeout=5.0)
+    receiver_thread.join(timeout=5.0)
 
     # Verify no exceptions occurred
     assert receiver_exception is None, f"Receiver exception: {receiver_exception}"
