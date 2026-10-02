@@ -12,6 +12,7 @@ set -euo pipefail
 label="${1:?usage: benchmarks/run.sh <label> [pytest args...]}"
 shift
 # BENCH_REPO measures another checkout (e.g. a worktree at an older commit).
+# BENCH_DATA mounts a directory of recordings read-only (test_decode.py).
 here="$(cd "$(dirname "$0")/.." && pwd)"
 repo="${BENCH_REPO:-$here}"
 
@@ -30,6 +31,11 @@ cache="$(printf '%s' "$repo" | sha1sum | cut -c1-8)"
 dirty=0
 [[ -n "$(git -C "$repo" status --porcelain --untracked-files=no)" ]] && dirty=1
 
+data_args=()
+if [[ -n "${BENCH_DATA:-}" ]]; then
+    data_args=(-v "$(cd "$BENCH_DATA" && pwd):/data:ro" -e BENCH_DATA=/data)
+fi
+
 # Pin to a fixed set of cores so runs are comparable (BENCH_CPUS to override).
 docker run --rm --gpus all --cpuset-cpus="${BENCH_CPUS:-2-5}" \
     -e HOST_UID="$(id -u)" -e HOST_GID="$(id -g)" \
@@ -41,6 +47,7 @@ docker run --rm --gpus all --cpuset-cpus="${BENCH_CPUS:-2-5}" \
     -v faery-venv:/faery/.venv \
     -v "faery-target-$cache:/faery/target" \
     -v "faery-x264-$cache:/faery/src/mp4/x264-build" \
+    "${data_args[@]}" \
     faery \
     pytest benchmarks \
     --benchmark-storage=file://benchmarks/results \

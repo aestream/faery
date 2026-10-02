@@ -4,6 +4,31 @@ One entry per saved run, newest last. Paste the output of
 `python3 benchmarks/compare.py <previous> <this>` under each entry. Raw runs are
 the JSON files next to this log; see _docs/dev.md_ for how to produce them.
 
+## 0006_decode-before, 0005_decode-after
+
+Decoding a 1280x720 recording (Prophesee `driving_sample`, 111,484,516 events,
+12.5 s) from DAT and from an AEDAT 4 transcode, with `benchmarks/test_decode.py`
+(`BENCH_DATA` pointing at the recordings). Before is 6e8528b; after adds the
+DAT decoder writing `EVENTS_DTYPE` directly (no clip/astype, one memcpy per
+packet) and `time_range()` without decoding (AEDAT 4 file data table, DAT
+timestamp-only scan). Times are per round, one round = the whole recording
+(the "ms/packet" header is compare.py's default label).
+
+```
+`0006_decode-before` (6e8528b9) → `0005_decode-after` (6e8528b9+dirty)
+
+| benchmark | before (ms/packet) | after (ms/packet) | change |
+|---|---:|---:|---:|
+| test_regularize_cold[driving_sample.aedat4] | 3758.0096 | 2004.3264 | -46.7% |
+| test_regularize_cold[driving_sample.dat] | 4092.8248 | 781.8833 | -80.9% |
+| test_decode[driving_sample.aedat4] | 1775.1457 | 1822.8090 | +2.7% |
+| test_decode[driving_sample.dat] | 1995.6216 | 484.8121 | -75.7% |
+| test_regularize[driving_sample.aedat4] | 1968.2525 | 2033.3914 | +3.3% |
+| test_regularize[driving_sample.dat] | 2065.4958 | 614.8083 | -70.2% |
+| test_time_range[driving_sample.aedat4] | 1778.6633 | 14.3458 | -99.2% |
+| test_time_range[driving_sample.dat] | 1930.1206 | 161.6581 | -91.6% |
+```
+
 ## 0001_baseline, 0002_baseline-repeat — noise floor
 
 Same commit twice on a quiet machine (load < 3, pinned to cores 2-5): CPU rows
