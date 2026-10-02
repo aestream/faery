@@ -110,6 +110,7 @@ fn faery(python: Python<'_>, module: &pyo3::Bound<'_, pyo3::types::PyModule>) ->
     {
         let submodule = PyModule::new(python, "dlpack")?;
         submodule.add_function(wrap_pyfunction!(dlpack::rasterize_to_frame, &submodule)?)?;
+        submodule.add_function(wrap_pyfunction!(dlpack::linear_indices, &submodule)?)?;
         module.add_submodule(&submodule)?;
     }
     {

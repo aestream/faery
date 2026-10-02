@@ -9,9 +9,11 @@ The pipeline, step by step:
 1. Open an event stream (a file here; swap in a camera below).
 2. `regularize` chops the stream into fixed-duration packets, one per frame.
 3. `to_dlpack_frame` rasterizes each packet in Rust to a (2, height, width)
-   polarity-split count frame that exposes `__dlpack__`.
-4. `torch.from_dlpack` wraps that frame zero-copy, and a Conv2d runs on it —
-   on the GPU if one is available.
+   polarity-split u16 count frame that exposes `__dlpack__`.
+4. `torch.from_dlpack` wraps that frame zero-copy; it is moved to the GPU (if
+   one is available), converted to float32 there, and a Conv2d runs on it.
+   Uploading u16 and converting on the device moves half the bytes of an f32
+   frame (u16 saturates at 65535 events per pixel per packet).
 
 Requires: pip install torch
 """
@@ -50,9 +52,9 @@ convolution = convolution.to(DEVICE)
 
 # --- 4. Stream frames through the convolution ---------------------------------
 with torch.inference_mode():
-    for index, frame_np in enumerate(stream.to_dlpack_frame(dtype="f32")):
+    for index, frame_np in enumerate(stream.to_dlpack_frame(dtype="u16")):
         # frame has shape (2, height, width): OFF counts and ON counts.
-        frame = torch.from_dlpack(frame_np).to(DEVICE, non_blocking=True)
+        frame = torch.from_dlpack(frame_np).to(DEVICE).float()
         # Merge polarities into a single input channel, add a batch dimension.
         tensor = frame.sum(dim=0).view(1, 1, height, width)
         # filtered has shape (1, 2, H', W'): horizontal and vertical edge maps.

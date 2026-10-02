@@ -1,0 +1,2292 @@
+{
+    "machine_info": {
+        "node": "3a9c9a828428",
+        "processor": "",
+        "machine": "x86_64",
+        "python_compiler": "GCC 15.3.0",
+        "python_implementation": "CPython",
+        "python_implementation_version": "3.12.14",
+        "python_version": "3.12.14",
+        "python_build": [
+            "main",
+            "Aug 12 2026 13:57:54"
+        ],
+        "release": "6.8.0-138-generic",
+        "system": "Linux",
+        "cpu": {
+            "python_version": "3.12.14.final.0 (64 bit)",
+            "cpuinfo_version": [
+                10,
+                1,
+                1
+            ],
+            "cpuinfo_version_string": "10.1.1",
+            "arch": "X86_64",
+            "bits": 64,
+            "count": 48,
+            "arch_string_raw": "x86_64",
+            "vendor_id_raw": "AuthenticAMD",
+            "brand_raw": "AMD Ryzen Threadripper 3960X 24-Core Processor",
+            "hz_advertised_friendly": "2.2000 GHz",
+            "hz_actual_friendly": "2.2000 GHz",
+            "hz_advertised": [
+                2200000000,
+                0
+            ],
+            "hz_actual": [
+                2200000000,
+                0
+            ],
+            "model": 49,
+            "family": 23,
+            "flags": [
+                "3dnowext",
+                "3dnowprefetch",
+                "abm",
+                "adx",
+                "aes",
+                "aperfmperf",
+                "apic",
+                "arat",
+                "avic",
+                "avx",
+                "avx2",
+                "bmi1",
+                "bmi2",
+                "bpext",
+                "cat_l3",
+                "cdp_l3",
+                "clflush",
+                "clflushopt",
+                "clwb",
+                "clzero",
+                "cmov",
+                "cmp_legacy",
+                "constant_tsc",
+                "cpb",
+                "cpuid",
+                "cqm",
+                "cqm_llc",
+                "cqm_mbm_local",
+                "cqm_mbm_total",
+                "cqm_occup_llc",
+                "cr8_legacy",
+                "cx16",
+                "cx8",
+                "dbx",
+                "de",
+                "decodeassists",
+                "extapic",
+                "extd_apicid",
+                "f16c",
+                "flushbyasid",
+                "fma",
+                "fpu",
+                "fsgsbase",
+                "fxsr",
+                "fxsr_opt",
+                "ht",
+                "hw_pstate",
+                "ibpb",
+                "ibpb_exit_to_user",
+                "ibs",
+                "irperf",
+                "lahf_lm",
+                "lbrv",
+                "lm",
+                "mba",
+                "mca",
+                "mce",
+                "misalignsse",
+                "mmx",
+                "mmxext",
+                "monitor",
+                "movbe",
+                "msr",
+                "mtrr",
+                "mwaitx",
+                "nonstop_tsc",
+                "nopl",
+                "npt",
+                "nrip_save",
+                "nx",
+                "osvw",
+                "osxsave",
+                "overflow_recov",
+                "pae",
+                "pat",
+                "pausefilter",
+                "pci_l2i",
+                "pclmulqdq",
+                "pdpe1gb",
+                "perfctr_core",
+                "perfctr_llc",
+                "perfctr_nb",
+                "pfthreshold",
+                "pge",
+                "pni",
+                "popcnt",
+                "pqe",
+                "pqm",
+                "pse",
+                "pse36",
+                "rapl",
+                "rdpid",
+                "rdpru",
+                "rdrand",
+                "rdrnd",
+                "rdseed",
+                "rdt_a",
+                "rdtscp",
+                "rep_good",
+                "sep",
+                "sev",
+                "sev_es",
+                "sha",
+                "sha_ni",
+                "skinit",
+                "smap",
+                "smca",
+                "smep",
+                "ssbd",
+                "sse",
+                "sse2",
+                "sse4_1",
+                "sse4_2",
+                "sse4a",
+                "ssse3",
+                "stibp",
+                "succor",
+                "svm",
+                "svm_lock",
+                "syscall",
+                "tce",
+                "topoext",
+                "tsc",
+                "tsc_scale",
+                "umip",
+                "v_spec_ctrl",
+                "v_vmsave_vmload",
+                "vgif",
+                "vmcb_clean",
+                "vme",
+                "vmmcall",
+                "wbnoinvd",
+                "wdt",
+                "xgetbv1",
+                "xsave",
+                "xsavec",
+                "xsaveerptr",
+                "xsaveopt",
+                "xsaves"
+            ],
+            "l3_cache_size": 524288,
+            "l2_cache_size": 65536,
+            "l2_cache_line_size": 512,
+            "l2_cache_associativity": 6
+        },
+        "torch": "2.14.1+cu130",
+        "gpu": "NVIDIA GeForce RTX 3090",
+        "cuda": "13.0"
+    },
+    "commit_info": {
+        "id": "6ad7b586b62f041697b7174f4ad55db69418a8b8",
+        "branch": "dlpack-export",
+        "dirty": false,
+        "project": "faery"
+    },
+    "benchmarks": [
+        {
+            "group": "cpu",
+            "name": "test_cpu_frame[dvs.es-u16]",
+            "fullname": "benchmarks/test_handoff.py::test_cpu_frame[dvs.es-u16]",
+            "params": {
+                "workload": "dvs.es",
+                "dtype": "u16"
+            },
+            "param": "dvs.es-u16",
+            "extra_info": {
+                "packets": 60,
+                "events": 473225,
+                "dimensions": [
+                    320,
+                    240
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.0018555730057414621,
+                "max": 0.0018805640283972025,
+                "mean": 0.0018686368071939795,
+                "stddev": 7.718246606663082e-06,
+                "rounds": 10,
+                "median": 0.001870848995167762,
+                "iqr": 1.077001797966659e-05,
+                "q1": 0.0018622640054672956,
+                "q3": 0.0018730340234469622,
+                "iqr_outliers": 0,
+                "stddev_outliers": 3,
+                "outliers": "3;0",
+                "ld15iqr": 0.0018555730057414621,
+                "hd15iqr": 0.0018805640283972025,
+                "ops": 535.1494716095422,
+                "total": 0.018686368071939796,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cpu",
+            "name": "test_cpu_frame[dvs.es-f32]",
+            "fullname": "benchmarks/test_handoff.py::test_cpu_frame[dvs.es-f32]",
+            "params": {
+                "workload": "dvs.es",
+                "dtype": "f32"
+            },
+            "param": "dvs.es-f32",
+            "extra_info": {
+                "packets": 60,
+                "events": 473225,
+                "dimensions": [
+                    320,
+                    240
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.0011308440007269382,
+                "max": 0.0011360050120856613,
+                "mean": 0.0011327437998261303,
+                "stddev": 1.934788510718099e-06,
+                "rounds": 10,
+                "median": 0.0011322699865559116,
+                "iqr": 2.6300258468836546e-06,
+                "q1": 0.0011310749978292733,
+                "q3": 0.001133705023676157,
+                "iqr_outliers": 0,
+                "stddev_outliers": 2,
+                "outliers": "2;0",
+                "ld15iqr": 0.0011308440007269382,
+                "hd15iqr": 0.0011360050120856613,
+                "ops": 882.812159425189,
+                "total": 0.011327437998261303,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cpu",
+            "name": "test_cpu_frame[synthetic-1000-u16]",
+            "fullname": "benchmarks/test_handoff.py::test_cpu_frame[synthetic-1000-u16]",
+            "params": {
+                "workload": "synthetic-1000",
+                "dtype": "u16"
+            },
+            "param": "synthetic-1000-u16",
+            "extra_info": {
+                "packets": 30,
+                "events": 30000,
+                "dimensions": [
+                    1280,
+                    720
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.004536519001703709,
+                "max": 0.004576281004119664,
+                "mean": 0.004558977196575142,
+                "stddev": 1.2680613965104743e-05,
+                "rounds": 10,
+                "median": 0.004557455002213828,
+                "iqr": 2.204100019298494e-05,
+                "q1": 0.004548169992631301,
+                "q3": 0.004570210992824286,
+                "iqr_outliers": 0,
+                "stddev_outliers": 3,
+                "outliers": "3;0",
+                "ld15iqr": 0.004536519001703709,
+                "hd15iqr": 0.004576281004119664,
+                "ops": 219.34744502587856,
+                "total": 0.045589771965751424,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cpu",
+            "name": "test_cpu_frame[synthetic-1000-f32]",
+            "fullname": "benchmarks/test_handoff.py::test_cpu_frame[synthetic-1000-f32]",
+            "params": {
+                "workload": "synthetic-1000",
+                "dtype": "f32"
+            },
+            "param": "synthetic-1000-f32",
+            "extra_info": {
+                "packets": 30,
+                "events": 30000,
+                "dimensions": [
+                    1280,
+                    720
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.006855840998468921,
+                "max": 0.006980406993534416,
+                "mean": 0.006909951494890265,
+                "stddev": 3.8409837182202175e-05,
+                "rounds": 10,
+                "median": 0.0068988629936939105,
+                "iqr": 5.752197466790676e-05,
+                "q1": 0.006881903012981638,
+                "q3": 0.006939424987649545,
+                "iqr_outliers": 0,
+                "stddev_outliers": 3,
+                "outliers": "3;0",
+                "ld15iqr": 0.006855840998468921,
+                "hd15iqr": 0.006980406993534416,
+                "ops": 144.71881615080434,
+                "total": 0.06909951494890265,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cpu",
+            "name": "test_cpu_frame[synthetic-10000-u16]",
+            "fullname": "benchmarks/test_handoff.py::test_cpu_frame[synthetic-10000-u16]",
+            "params": {
+                "workload": "synthetic-10000",
+                "dtype": "u16"
+            },
+            "param": "synthetic-10000-u16",
+            "extra_info": {
+                "packets": 30,
+                "events": 300000,
+                "dimensions": [
+                    1280,
+                    720
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.002678275981452316,
+                "max": 0.00270729698240757,
+                "mean": 0.0026925174985080957,
+                "stddev": 8.932983072714776e-06,
+                "rounds": 10,
+                "median": 0.0026936470094369724,
+                "iqr": 9.920011507347226e-06,
+                "q1": 0.0026883069949690253,
+                "q3": 0.0026982270064763725,
+                "iqr_outliers": 0,
+                "stddev_outliers": 3,
+                "outliers": "3;0",
+                "ld15iqr": 0.002678275981452316,
+                "hd15iqr": 0.00270729698240757,
+                "ops": 371.3996289918608,
+                "total": 0.026925174985080957,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cpu",
+            "name": "test_cpu_frame[synthetic-10000-f32]",
+            "fullname": "benchmarks/test_handoff.py::test_cpu_frame[synthetic-10000-f32]",
+            "params": {
+                "workload": "synthetic-10000",
+                "dtype": "f32"
+            },
+            "param": "synthetic-10000-f32",
+            "extra_info": {
+                "packets": 30,
+                "events": 300000,
+                "dimensions": [
+                    1280,
+                    720
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.007687734003411606,
+                "max": 0.007967994984937832,
+                "mean": 0.007750793496961705,
+                "stddev": 8.79331718367661e-05,
+                "rounds": 10,
+                "median": 0.0077157054911367595,
+                "iqr": 8.038303349167109e-05,
+                "q1": 0.007690963975619525,
+                "q3": 0.007771347009111196,
+                "iqr_outliers": 1,
+                "stddev_outliers": 1,
+                "outliers": "1;1",
+                "ld15iqr": 0.007687734003411606,
+                "hd15iqr": 0.007967994984937832,
+                "ops": 129.01904822931974,
+                "total": 0.07750793496961705,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cpu",
+            "name": "test_cpu_frame[synthetic-100000-u16]",
+            "fullname": "benchmarks/test_handoff.py::test_cpu_frame[synthetic-100000-u16]",
+            "params": {
+                "workload": "synthetic-100000",
+                "dtype": "u16"
+            },
+            "param": "synthetic-100000-u16",
+            "extra_info": {
+                "packets": 30,
+                "events": 3000000,
+                "dimensions": [
+                    1280,
+                    720
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.015886138018686324,
+                "max": 0.015982771990820765,
+                "mean": 0.015929331100778654,
+                "stddev": 3.256995113211237e-05,
+                "rounds": 10,
+                "median": 0.015929100001812913,
+                "iqr": 4.200098919682205e-05,
+                "q1": 0.015906490007182583,
+                "q3": 0.015948490996379405,
+                "iqr_outliers": 0,
+                "stddev_outliers": 4,
+                "outliers": "4;0",
+                "ld15iqr": 0.015886138018686324,
+                "hd15iqr": 0.015982771990820765,
+                "ops": 62.77727505777805,
+                "total": 0.15929331100778654,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cpu",
+            "name": "test_cpu_frame[synthetic-100000-f32]",
+            "fullname": "benchmarks/test_handoff.py::test_cpu_frame[synthetic-100000-f32]",
+            "params": {
+                "workload": "synthetic-100000",
+                "dtype": "f32"
+            },
+            "param": "synthetic-100000-f32",
+            "extra_info": {
+                "packets": 30,
+                "events": 3000000,
+                "dimensions": [
+                    1280,
+                    720
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.018020262010395527,
+                "max": 0.019359875994268805,
+                "mean": 0.01847351869510021,
+                "stddev": 0.000590151827102654,
+                "rounds": 10,
+                "median": 0.018100025481544435,
+                "iqr": 0.0011823060049209744,
+                "q1": 0.01806004499667324,
+                "q3": 0.019242351001594216,
+                "iqr_outliers": 0,
+                "stddev_outliers": 3,
+                "outliers": "3;0",
+                "ld15iqr": 0.018020262010395527,
+                "hd15iqr": 0.019359875994268805,
+                "ops": 54.131539123904595,
+                "total": 0.1847351869510021,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cpu",
+            "name": "test_cpu_frame[synthetic-1000000-u16]",
+            "fullname": "benchmarks/test_handoff.py::test_cpu_frame[synthetic-1000000-u16]",
+            "params": {
+                "workload": "synthetic-1000000",
+                "dtype": "u16"
+            },
+            "param": "synthetic-1000000-u16",
+            "extra_info": {
+                "packets": 30,
+                "events": 30000000,
+                "dimensions": [
+                    1280,
+                    720
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.1498310969909653,
+                "max": 0.15372970097814687,
+                "mean": 0.1524795795965474,
+                "stddev": 0.001443666985427834,
+                "rounds": 10,
+                "median": 0.1532607624976663,
+                "iqr": 0.00187398397247307,
+                "q1": 0.151712941005826,
+                "q3": 0.15358692497829907,
+                "iqr_outliers": 0,
+                "stddev_outliers": 2,
+                "outliers": "2;0",
+                "ld15iqr": 0.1498310969909653,
+                "hd15iqr": 0.15372970097814687,
+                "ops": 6.558255227657009,
+                "total": 1.524795795965474,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cpu",
+            "name": "test_cpu_frame[synthetic-1000000-f32]",
+            "fullname": "benchmarks/test_handoff.py::test_cpu_frame[synthetic-1000000-f32]",
+            "params": {
+                "workload": "synthetic-1000000",
+                "dtype": "f32"
+            },
+            "param": "synthetic-1000000-f32",
+            "extra_info": {
+                "packets": 30,
+                "events": 30000000,
+                "dimensions": [
+                    1280,
+                    720
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.0947785489843227,
+                "max": 0.10621349199209362,
+                "mean": 0.09930008319206536,
+                "stddev": 0.00361605152522565,
+                "rounds": 10,
+                "median": 0.0986176164878998,
+                "iqr": 0.00481773100909777,
+                "q1": 0.09648132699658163,
+                "q3": 0.1012990580056794,
+                "iqr_outliers": 0,
+                "stddev_outliers": 3,
+                "outliers": "3;0",
+                "ld15iqr": 0.0947785489843227,
+                "hd15iqr": 0.10621349199209362,
+                "ops": 10.070485017276457,
+                "total": 0.9930008319206536,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cpu",
+            "name": "test_cpu_indices[dvs.es]",
+            "fullname": "benchmarks/test_handoff.py::test_cpu_indices[dvs.es]",
+            "params": {
+                "workload": "dvs.es"
+            },
+            "param": "dvs.es",
+            "extra_info": {
+                "packets": 60,
+                "events": 473225,
+                "dimensions": [
+                    320,
+                    240
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.0007017670141067356,
+                "max": 0.0007178189989645034,
+                "mean": 0.0007100749993696809,
+                "stddev": 4.933815344462211e-06,
+                "rounds": 10,
+                "median": 0.0007113134925020859,
+                "iqr": 7.760012522339821e-06,
+                "q1": 0.0007053779845591635,
+                "q3": 0.0007131379970815033,
+                "iqr_outliers": 0,
+                "stddev_outliers": 3,
+                "outliers": "3;0",
+                "ld15iqr": 0.0007017670141067356,
+                "hd15iqr": 0.0007178189989645034,
+                "ops": 1408.3019411860432,
+                "total": 0.007100749993696809,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cpu",
+            "name": "test_cpu_indices[synthetic-1000]",
+            "fullname": "benchmarks/test_handoff.py::test_cpu_indices[synthetic-1000]",
+            "params": {
+                "workload": "synthetic-1000"
+            },
+            "param": "synthetic-1000",
+            "extra_info": {
+                "packets": 30,
+                "events": 30000,
+                "dimensions": [
+                    1280,
+                    720
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 6.318298983387649e-05,
+                "max": 6.34320022072643e-05,
+                "mean": 6.333849742077292e-05,
+                "stddev": 7.933104123148816e-08,
+                "rounds": 10,
+                "median": 6.333750206977129e-05,
+                "iqr": 1.1999509297311306e-07,
+                "q1": 6.328299059532583e-05,
+                "q3": 6.340298568829894e-05,
+                "iqr_outliers": 0,
+                "stddev_outliers": 3,
+                "outliers": "3;0",
+                "ld15iqr": 6.318298983387649e-05,
+                "hd15iqr": 6.34320022072643e-05,
+                "ops": 15788.18634355594,
+                "total": 0.0006333849742077291,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cpu",
+            "name": "test_cpu_indices[synthetic-10000]",
+            "fullname": "benchmarks/test_handoff.py::test_cpu_indices[synthetic-10000]",
+            "params": {
+                "workload": "synthetic-10000"
+            },
+            "param": "synthetic-10000",
+            "extra_info": {
+                "packets": 30,
+                "events": 300000,
+                "dimensions": [
+                    1280,
+                    720
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.00044085702393203974,
+                "max": 0.00046734799980185926,
+                "mean": 0.0004474148008739576,
+                "stddev": 8.105115557534193e-06,
+                "rounds": 10,
+                "median": 0.00044363799679558724,
+                "iqr": 7.460999768227339e-06,
+                "q1": 0.00044308698852546513,
+                "q3": 0.00045054798829369247,
+                "iqr_outliers": 1,
+                "stddev_outliers": 1,
+                "outliers": "1;1",
+                "ld15iqr": 0.00044085702393203974,
+                "hd15iqr": 0.00046734799980185926,
+                "ops": 2235.062403046681,
+                "total": 0.004474148008739576,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cpu",
+            "name": "test_cpu_indices[synthetic-100000]",
+            "fullname": "benchmarks/test_handoff.py::test_cpu_indices[synthetic-100000]",
+            "params": {
+                "workload": "synthetic-100000"
+            },
+            "param": "synthetic-100000",
+            "extra_info": {
+                "packets": 30,
+                "events": 3000000,
+                "dimensions": [
+                    1280,
+                    720
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.004461896023713052,
+                "max": 0.004513778985710815,
+                "mean": 0.004483811595127918,
+                "stddev": 1.6287536364515944e-05,
+                "rounds": 10,
+                "median": 0.004484382501686923,
+                "iqr": 2.3621018044650555e-05,
+                "q1": 0.004466936981771141,
+                "q3": 0.004490557999815792,
+                "iqr_outliers": 0,
+                "stddev_outliers": 5,
+                "outliers": "5;0",
+                "ld15iqr": 0.004461896023713052,
+                "hd15iqr": 0.004513778985710815,
+                "ops": 223.02453588518168,
+                "total": 0.04483811595127918,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cpu",
+            "name": "test_cpu_indices[synthetic-1000000]",
+            "fullname": "benchmarks/test_handoff.py::test_cpu_indices[synthetic-1000000]",
+            "params": {
+                "workload": "synthetic-1000000"
+            },
+            "param": "synthetic-1000000",
+            "extra_info": {
+                "packets": 30,
+                "events": 30000000,
+                "dimensions": [
+                    1280,
+                    720
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.04488095600390807,
+                "max": 0.045018081000307575,
+                "mean": 0.04496660069271456,
+                "stddev": 4.868258935972857e-05,
+                "rounds": 10,
+                "median": 0.04497848349274136,
+                "iqr": 9.203399531543255e-05,
+                "q1": 0.04492256700177677,
+                "q3": 0.0450146009970922,
+                "iqr_outliers": 0,
+                "stddev_outliers": 4,
+                "outliers": "4;0",
+                "ld15iqr": 0.04488095600390807,
+                "hd15iqr": 0.045018081000307575,
+                "ops": 22.238727957971232,
+                "total": 0.44966600692714565,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cpu",
+            "name": "test_cpu_sparse[dvs.es]",
+            "fullname": "benchmarks/test_handoff.py::test_cpu_sparse[dvs.es]",
+            "params": {
+                "workload": "dvs.es"
+            },
+            "param": "dvs.es",
+            "extra_info": {
+                "packets": 60,
+                "events": 473225,
+                "dimensions": [
+                    320,
+                    240
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.0005747029790654778,
+                "max": 0.0005854229966644198,
+                "mean": 0.0005809189984574914,
+                "stddev": 3.7113605432195737e-06,
+                "rounds": 10,
+                "median": 0.0005825330008519813,
+                "iqr": 4.650006303563714e-06,
+                "q1": 0.0005786129913758487,
+                "q3": 0.0005832629976794124,
+                "iqr_outliers": 0,
+                "stddev_outliers": 3,
+                "outliers": "3;0",
+                "ld15iqr": 0.0005747029790654778,
+                "hd15iqr": 0.0005854229966644198,
+                "ops": 1721.410390528267,
+                "total": 0.005809189984574914,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cpu",
+            "name": "test_cpu_sparse[synthetic-1000]",
+            "fullname": "benchmarks/test_handoff.py::test_cpu_sparse[synthetic-1000]",
+            "params": {
+                "workload": "synthetic-1000"
+            },
+            "param": "synthetic-1000",
+            "extra_info": {
+                "packets": 30,
+                "events": 30000,
+                "dimensions": [
+                    1280,
+                    720
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 8.92429961822927e-05,
+                "max": 9.447400225326419e-05,
+                "mean": 9.032949456013739e-05,
+                "stddev": 1.5878574348988324e-06,
+                "rounds": 10,
+                "median": 8.982798317447305e-05,
+                "iqr": 8.289935067296028e-07,
+                "q1": 8.937402162700891e-05,
+                "q3": 9.020301513373852e-05,
+                "iqr_outliers": 2,
+                "stddev_outliers": 1,
+                "outliers": "1;2",
+                "ld15iqr": 8.92429961822927e-05,
+                "hd15iqr": 9.14539850782603e-05,
+                "ops": 11070.581152585151,
+                "total": 0.0009032949456013739,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cpu",
+            "name": "test_cpu_sparse[synthetic-10000]",
+            "fullname": "benchmarks/test_handoff.py::test_cpu_sparse[synthetic-10000]",
+            "params": {
+                "workload": "synthetic-10000"
+            },
+            "param": "synthetic-10000",
+            "extra_info": {
+                "packets": 30,
+                "events": 300000,
+                "dimensions": [
+                    1280,
+                    720
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.0003447239869274199,
+                "max": 0.00035956400097347796,
+                "mean": 0.00034996889589820055,
+                "stddev": 5.451126188367596e-06,
+                "rounds": 10,
+                "median": 0.00034869399678427726,
+                "iqr": 7.639988325536251e-06,
+                "q1": 0.00034548400435596704,
+                "q3": 0.0003531239926815033,
+                "iqr_outliers": 0,
+                "stddev_outliers": 2,
+                "outliers": "2;0",
+                "ld15iqr": 0.0003447239869274199,
+                "hd15iqr": 0.00035956400097347796,
+                "ops": 2857.396790744745,
+                "total": 0.0034996889589820057,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cpu",
+            "name": "test_cpu_sparse[synthetic-100000]",
+            "fullname": "benchmarks/test_handoff.py::test_cpu_sparse[synthetic-100000]",
+            "params": {
+                "workload": "synthetic-100000"
+            },
+            "param": "synthetic-100000",
+            "extra_info": {
+                "packets": 30,
+                "events": 3000000,
+                "dimensions": [
+                    1280,
+                    720
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.004682555008912459,
+                "max": 0.004757129005156457,
+                "mean": 0.0047192607977194715,
+                "stddev": 2.485685141413862e-05,
+                "rounds": 10,
+                "median": 0.0047142364928731695,
+                "iqr": 4.243198782205582e-05,
+                "q1": 0.004702525999164209,
+                "q3": 0.004744957986986265,
+                "iqr_outliers": 0,
+                "stddev_outliers": 4,
+                "outliers": "4;0",
+                "ld15iqr": 0.004682555008912459,
+                "hd15iqr": 0.004757129005156457,
+                "ops": 211.89759219987133,
+                "total": 0.04719260797719471,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cpu",
+            "name": "test_cpu_sparse[synthetic-1000000]",
+            "fullname": "benchmarks/test_handoff.py::test_cpu_sparse[synthetic-1000000]",
+            "params": {
+                "workload": "synthetic-1000000"
+            },
+            "param": "synthetic-1000000",
+            "extra_info": {
+                "packets": 30,
+                "events": 30000000,
+                "dimensions": [
+                    1280,
+                    720
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.053915312979370356,
+                "max": 0.05696778302080929,
+                "mean": 0.05509486030496191,
+                "stddev": 0.001381688086921598,
+                "rounds": 10,
+                "median": 0.054194803509744816,
+                "iqr": 0.0026329149841330945,
+                "q1": 0.053930243011564016,
+                "q3": 0.05656315799569711,
+                "iqr_outliers": 0,
+                "stddev_outliers": 3,
+                "outliers": "3;0",
+                "ld15iqr": 0.053915312979370356,
+                "hd15iqr": 0.05696778302080929,
+                "ops": 18.15051339571032,
+                "total": 0.5509486030496191,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "gpu",
+            "name": "test_gpu_frame[dvs.es-u16]",
+            "fullname": "benchmarks/test_handoff.py::test_gpu_frame[dvs.es-u16]",
+            "params": {
+                "workload": "dvs.es",
+                "dtype": "u16"
+            },
+            "param": "dvs.es-u16",
+            "extra_info": {
+                "packets": 60,
+                "events": 473225,
+                "dimensions": [
+                    320,
+                    240
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.004160193988354877,
+                "max": 0.004233686981024221,
+                "mean": 0.004179135095910169,
+                "stddev": 2.254239656315623e-05,
+                "rounds": 10,
+                "median": 0.004171799999312498,
+                "iqr": 2.6002031518146396e-05,
+                "q1": 0.004163563979091123,
+                "q3": 0.004189566010609269,
+                "iqr_outliers": 1,
+                "stddev_outliers": 1,
+                "outliers": "1;1",
+                "ld15iqr": 0.004160193988354877,
+                "hd15iqr": 0.004233686981024221,
+                "ops": 239.28396116666124,
+                "total": 0.04179135095910169,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "gpu",
+            "name": "test_gpu_frame[dvs.es-f32]",
+            "fullname": "benchmarks/test_handoff.py::test_gpu_frame[dvs.es-f32]",
+            "params": {
+                "workload": "dvs.es",
+                "dtype": "f32"
+            },
+            "param": "dvs.es-f32",
+            "extra_info": {
+                "packets": 60,
+                "events": 473225,
+                "dimensions": [
+                    320,
+                    240
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.0036021419800817966,
+                "max": 0.003628483973443508,
+                "mean": 0.0036165480938507243,
+                "stddev": 8.523411188598539e-06,
+                "rounds": 10,
+                "median": 0.0036180730094201863,
+                "iqr": 1.0101008228957653e-05,
+                "q1": 0.003611992986407131,
+                "q3": 0.0036220939946360886,
+                "iqr_outliers": 0,
+                "stddev_outliers": 4,
+                "outliers": "4;0",
+                "ld15iqr": 0.0036021419800817966,
+                "hd15iqr": 0.003628483973443508,
+                "ops": 276.5067611572251,
+                "total": 0.036165480938507244,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "gpu",
+            "name": "test_gpu_frame[synthetic-1000-u16]",
+            "fullname": "benchmarks/test_handoff.py::test_gpu_frame[synthetic-1000-u16]",
+            "params": {
+                "workload": "synthetic-1000",
+                "dtype": "u16"
+            },
+            "param": "synthetic-1000-u16",
+            "extra_info": {
+                "packets": 30,
+                "events": 30000,
+                "dimensions": [
+                    1280,
+                    720
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.007291638001333922,
+                "max": 0.00774588601780124,
+                "mean": 0.007365116302389651,
+                "stddev": 0.0001365440101925765,
+                "rounds": 10,
+                "median": 0.007319984491914511,
+                "iqr": 4.809201345779002e-05,
+                "q1": 0.007303898979444057,
+                "q3": 0.007351990992901847,
+                "iqr_outliers": 1,
+                "stddev_outliers": 1,
+                "outliers": "1;1",
+                "ld15iqr": 0.007291638001333922,
+                "hd15iqr": 0.00774588601780124,
+                "ops": 135.77518112993607,
+                "total": 0.07365116302389652,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "gpu",
+            "name": "test_gpu_frame[synthetic-1000-f32]",
+            "fullname": "benchmarks/test_handoff.py::test_gpu_frame[synthetic-1000-f32]",
+            "params": {
+                "workload": "synthetic-1000",
+                "dtype": "f32"
+            },
+            "param": "synthetic-1000-f32",
+            "extra_info": {
+                "packets": 30,
+                "events": 30000,
+                "dimensions": [
+                    1280,
+                    720
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.01891252800123766,
+                "max": 0.01936905598267913,
+                "mean": 0.019063077997998334,
+                "stddev": 0.00015164087590966634,
+                "rounds": 10,
+                "median": 0.019000856496859342,
+                "iqr": 0.0002172189997509122,
+                "q1": 0.018938719003926963,
+                "q3": 0.019155938003677875,
+                "iqr_outliers": 0,
+                "stddev_outliers": 2,
+                "outliers": "2;0",
+                "ld15iqr": 0.01891252800123766,
+                "hd15iqr": 0.01936905598267913,
+                "ops": 52.45742582100342,
+                "total": 0.19063077997998334,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "gpu",
+            "name": "test_gpu_frame[synthetic-10000-u16]",
+            "fullname": "benchmarks/test_handoff.py::test_gpu_frame[synthetic-10000-u16]",
+            "params": {
+                "workload": "synthetic-10000",
+                "dtype": "u16"
+            },
+            "param": "synthetic-10000-u16",
+            "extra_info": {
+                "packets": 30,
+                "events": 300000,
+                "dimensions": [
+                    1280,
+                    720
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.008607841009506956,
+                "max": 0.008661101979669183,
+                "mean": 0.008625791204394773,
+                "stddev": 1.8910491025337544e-05,
+                "rounds": 10,
+                "median": 0.008619436004664749,
+                "iqr": 3.212099545635283e-05,
+                "q1": 0.008610121003584936,
+                "q3": 0.008642241999041289,
+                "iqr_outliers": 0,
+                "stddev_outliers": 2,
+                "outliers": "2;0",
+                "ld15iqr": 0.008607841009506956,
+                "hd15iqr": 0.008661101979669183,
+                "ops": 115.93139415321204,
+                "total": 0.08625791204394773,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "gpu",
+            "name": "test_gpu_frame[synthetic-10000-f32]",
+            "fullname": "benchmarks/test_handoff.py::test_gpu_frame[synthetic-10000-f32]",
+            "params": {
+                "workload": "synthetic-10000",
+                "dtype": "f32"
+            },
+            "param": "synthetic-10000-f32",
+            "extra_info": {
+                "packets": 30,
+                "events": 300000,
+                "dimensions": [
+                    1280,
+                    720
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.020443518995307386,
+                "max": 0.026106841978617013,
+                "mean": 0.021897491096751764,
+                "stddev": 0.0017183346064248441,
+                "rounds": 10,
+                "median": 0.021544357005041093,
+                "iqr": 0.0015626709791831672,
+                "q1": 0.020461500011151657,
+                "q3": 0.022024170990334824,
+                "iqr_outliers": 1,
+                "stddev_outliers": 1,
+                "outliers": "1;1",
+                "ld15iqr": 0.020443518995307386,
+                "hd15iqr": 0.026106841978617013,
+                "ops": 45.66733218803949,
+                "total": 0.21897491096751764,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "gpu",
+            "name": "test_gpu_frame[synthetic-100000-u16]",
+            "fullname": "benchmarks/test_handoff.py::test_gpu_frame[synthetic-100000-u16]",
+            "params": {
+                "workload": "synthetic-100000",
+                "dtype": "u16"
+            },
+            "param": "synthetic-100000-u16",
+            "extra_info": {
+                "packets": 30,
+                "events": 3000000,
+                "dimensions": [
+                    1280,
+                    720
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.022052382002584636,
+                "max": 0.022391445992980152,
+                "mean": 0.022163477799040265,
+                "stddev": 0.00010924343524730324,
+                "rounds": 10,
+                "median": 0.022127975011244416,
+                "iqr": 0.00015813604113645852,
+                "q1": 0.022087103978265077,
+                "q3": 0.022245240019401535,
+                "iqr_outliers": 0,
+                "stddev_outliers": 2,
+                "outliers": "2;0",
+                "ld15iqr": 0.022052382002584636,
+                "hd15iqr": 0.022391445992980152,
+                "ops": 45.11927275435548,
+                "total": 0.22163477799040265,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "gpu",
+            "name": "test_gpu_frame[synthetic-100000-f32]",
+            "fullname": "benchmarks/test_handoff.py::test_gpu_frame[synthetic-100000-f32]",
+            "params": {
+                "workload": "synthetic-100000",
+                "dtype": "f32"
+            },
+            "param": "synthetic-100000-f32",
+            "extra_info": {
+                "packets": 30,
+                "events": 3000000,
+                "dimensions": [
+                    1280,
+                    720
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.035466353001538664,
+                "max": 0.03588157900958322,
+                "mean": 0.0356739991955692,
+                "stddev": 0.00014358678681602338,
+                "rounds": 10,
+                "median": 0.035677341496921144,
+                "iqr": 0.00026090897154062986,
+                "q1": 0.03555407701060176,
+                "q3": 0.03581498598214239,
+                "iqr_outliers": 0,
+                "stddev_outliers": 3,
+                "outliers": "3;0",
+                "ld15iqr": 0.035466353001538664,
+                "hd15iqr": 0.03588157900958322,
+                "ops": 28.031620299083336,
+                "total": 0.35673999195569195,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "gpu",
+            "name": "test_gpu_frame[synthetic-1000000-u16]",
+            "fullname": "benchmarks/test_handoff.py::test_gpu_frame[synthetic-1000000-u16]",
+            "params": {
+                "workload": "synthetic-1000000",
+                "dtype": "u16"
+            },
+            "param": "synthetic-1000000-u16",
+            "extra_info": {
+                "packets": 30,
+                "events": 30000000,
+                "dimensions": [
+                    1280,
+                    720
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.15988336398731917,
+                "max": 0.16094724700087681,
+                "mean": 0.1602821361972019,
+                "stddev": 0.0003772332863436677,
+                "rounds": 10,
+                "median": 0.16023894348472822,
+                "iqr": 0.0006241959927137941,
+                "q1": 0.1599370260082651,
+                "q3": 0.1605612220009789,
+                "iqr_outliers": 0,
+                "stddev_outliers": 3,
+                "outliers": "3;0",
+                "ld15iqr": 0.15988336398731917,
+                "hd15iqr": 0.16094724700087681,
+                "ops": 6.238998454385818,
+                "total": 1.602821361972019,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "gpu",
+            "name": "test_gpu_frame[synthetic-1000000-f32]",
+            "fullname": "benchmarks/test_handoff.py::test_gpu_frame[synthetic-1000000-f32]",
+            "params": {
+                "workload": "synthetic-1000000",
+                "dtype": "f32"
+            },
+            "param": "synthetic-1000000-f32",
+            "extra_info": {
+                "packets": 30,
+                "events": 30000000,
+                "dimensions": [
+                    1280,
+                    720
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.12381541801732965,
+                "max": 0.12570858199615031,
+                "mean": 0.12451655360637233,
+                "stddev": 0.0005808218930234423,
+                "rounds": 10,
+                "median": 0.12433541851351038,
+                "iqr": 0.0007149679877329618,
+                "q1": 0.12415601100656204,
+                "q3": 0.124870978994295,
+                "iqr_outliers": 0,
+                "stddev_outliers": 3,
+                "outliers": "3;0",
+                "ld15iqr": 0.12381541801732965,
+                "hd15iqr": 0.12570858199615031,
+                "ops": 8.031060698654155,
+                "total": 1.2451655360637233,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "gpu",
+            "name": "test_gpu_sparse_index_put[dvs.es]",
+            "fullname": "benchmarks/test_handoff.py::test_gpu_sparse_index_put[dvs.es]",
+            "params": {
+                "workload": "dvs.es"
+            },
+            "param": "dvs.es",
+            "extra_info": {
+                "packets": 60,
+                "events": 473225,
+                "dimensions": [
+                    320,
+                    240
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.019308534014271572,
+                "max": 0.019486759993014857,
+                "mean": 0.019372287299484016,
+                "stddev": 5.413712061292695e-05,
+                "rounds": 10,
+                "median": 0.019361591010238044,
+                "iqr": 5.661099567078054e-05,
+                "q1": 0.01934313599485904,
+                "q3": 0.01939974699052982,
+                "iqr_outliers": 1,
+                "stddev_outliers": 4,
+                "outliers": "4;1",
+                "ld15iqr": 0.019308534014271572,
+                "hd15iqr": 0.019486759993014857,
+                "ops": 51.6201305783151,
+                "total": 0.19372287299484015,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "gpu",
+            "name": "test_gpu_sparse_index_put[synthetic-1000]",
+            "fullname": "benchmarks/test_handoff.py::test_gpu_sparse_index_put[synthetic-1000]",
+            "params": {
+                "workload": "synthetic-1000"
+            },
+            "param": "synthetic-1000",
+            "extra_info": {
+                "packets": 30,
+                "events": 30000,
+                "dimensions": [
+                    1280,
+                    720
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.008704363979632035,
+                "max": 0.008986125991214067,
+                "mean": 0.008911153607186861,
+                "stddev": 9.310052282650839e-05,
+                "rounds": 10,
+                "median": 0.008938233513617888,
+                "iqr": 9.470302029512823e-05,
+                "q1": 0.00888739200308919,
+                "q3": 0.008982095023384318,
+                "iqr_outliers": 1,
+                "stddev_outliers": 2,
+                "outliers": "2;1",
+                "ld15iqr": 0.008794118009973317,
+                "hd15iqr": 0.008986125991214067,
+                "ops": 112.21891621231826,
+                "total": 0.08911153607186861,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "gpu",
+            "name": "test_gpu_sparse_index_put[synthetic-10000]",
+            "fullname": "benchmarks/test_handoff.py::test_gpu_sparse_index_put[synthetic-10000]",
+            "params": {
+                "workload": "synthetic-10000"
+            },
+            "param": "synthetic-10000",
+            "extra_info": {
+                "packets": 30,
+                "events": 300000,
+                "dimensions": [
+                    1280,
+                    720
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.010155741998460144,
+                "max": 0.010270456987200305,
+                "mean": 0.010192213303525932,
+                "stddev": 3.1528415781845673e-05,
+                "rounds": 10,
+                "median": 0.010181327990721911,
+                "iqr": 1.528000575490296e-05,
+                "q1": 0.010180133016547188,
+                "q3": 0.010195413022302091,
+                "iqr_outliers": 2,
+                "stddev_outliers": 2,
+                "outliers": "2;2",
+                "ld15iqr": 0.010170221998123452,
+                "hd15iqr": 0.010270456987200305,
+                "ops": 98.1141161610164,
+                "total": 0.10192213303525932,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "gpu",
+            "name": "test_gpu_sparse_index_put[synthetic-100000]",
+            "fullname": "benchmarks/test_handoff.py::test_gpu_sparse_index_put[synthetic-100000]",
+            "params": {
+                "workload": "synthetic-100000"
+            },
+            "param": "synthetic-100000",
+            "extra_info": {
+                "packets": 30,
+                "events": 3000000,
+                "dimensions": [
+                    1280,
+                    720
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.015018183999927714,
+                "max": 0.015868307993514463,
+                "mean": 0.015288967799278907,
+                "stddev": 0.00032970946084139995,
+                "rounds": 10,
+                "median": 0.01510356250219047,
+                "iqr": 0.0005847630382049829,
+                "q1": 0.015090946981217712,
+                "q3": 0.015675710019422695,
+                "iqr_outliers": 0,
+                "stddev_outliers": 3,
+                "outliers": "3;0",
+                "ld15iqr": 0.015018183999927714,
+                "hd15iqr": 0.015868307993514463,
+                "ops": 65.40663916155047,
+                "total": 0.15288967799278907,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "gpu",
+            "name": "test_gpu_sparse_index_put[synthetic-1000000]",
+            "fullname": "benchmarks/test_handoff.py::test_gpu_sparse_index_put[synthetic-1000000]",
+            "params": {
+                "workload": "synthetic-1000000"
+            },
+            "param": "synthetic-1000000",
+            "extra_info": {
+                "packets": 30,
+                "events": 30000000,
+                "dimensions": [
+                    1280,
+                    720
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.08579422399634495,
+                "max": 0.0864156780007761,
+                "mean": 0.08605009380262345,
+                "stddev": 0.00019566798299190097,
+                "rounds": 10,
+                "median": 0.08603902350296266,
+                "iqr": 0.00027843101997859776,
+                "q1": 0.08589012798620388,
+                "q3": 0.08616855900618248,
+                "iqr_outliers": 0,
+                "stddev_outliers": 2,
+                "outliers": "2;0",
+                "ld15iqr": 0.08579422399634495,
+                "hd15iqr": 0.0864156780007761,
+                "ops": 11.621137825761586,
+                "total": 0.8605009380262345,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "gpu",
+            "name": "test_gpu_indices_bincount[dvs.es]",
+            "fullname": "benchmarks/test_handoff.py::test_gpu_indices_bincount[dvs.es]",
+            "params": {
+                "workload": "dvs.es"
+            },
+            "param": "dvs.es",
+            "extra_info": {
+                "packets": 60,
+                "events": 473225,
+                "dimensions": [
+                    320,
+                    240
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.005844850995345041,
+                "max": 0.005896413000300527,
+                "mean": 0.005870187099208124,
+                "stddev": 1.7590875327140766e-05,
+                "rounds": 10,
+                "median": 0.005869112006621435,
+                "iqr": 2.9701011953875422e-05,
+                "q1": 0.005855701980181038,
+                "q3": 0.005885402992134914,
+                "iqr_outliers": 0,
+                "stddev_outliers": 4,
+                "outliers": "4;0",
+                "ld15iqr": 0.005844850995345041,
+                "hd15iqr": 0.005896413000300527,
+                "ops": 170.3523215017964,
+                "total": 0.05870187099208124,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "gpu",
+            "name": "test_gpu_indices_bincount[synthetic-1000]",
+            "fullname": "benchmarks/test_handoff.py::test_gpu_indices_bincount[synthetic-1000]",
+            "params": {
+                "workload": "synthetic-1000"
+            },
+            "param": "synthetic-1000",
+            "extra_info": {
+                "packets": 30,
+                "events": 30000,
+                "dimensions": [
+                    1280,
+                    720
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.0028081310156267136,
+                "max": 0.0028456129948608577,
+                "mean": 0.002818055701209232,
+                "stddev": 1.1230030336003816e-05,
+                "rounds": 10,
+                "median": 0.0028153614985058084,
+                "iqr": 9.390991181135178e-06,
+                "q1": 0.002810851001413539,
+                "q3": 0.0028202419925946742,
+                "iqr_outliers": 1,
+                "stddev_outliers": 1,
+                "outliers": "1;1",
+                "ld15iqr": 0.0028081310156267136,
+                "hd15iqr": 0.0028456129948608577,
+                "ops": 354.85458984039894,
+                "total": 0.028180557012092322,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "gpu",
+            "name": "test_gpu_indices_bincount[synthetic-10000]",
+            "fullname": "benchmarks/test_handoff.py::test_gpu_indices_bincount[synthetic-10000]",
+            "params": {
+                "workload": "synthetic-10000"
+            },
+            "param": "synthetic-10000",
+            "extra_info": {
+                "packets": 30,
+                "events": 300000,
+                "dimensions": [
+                    1280,
+                    720
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.0032293480180669576,
+                "max": 0.0032775599975138903,
+                "mean": 0.0032468384044477714,
+                "stddev": 1.4505270405006352e-05,
+                "rounds": 10,
+                "median": 0.003246353502618149,
+                "iqr": 1.775001874193549e-05,
+                "q1": 0.0032337779994122684,
+                "q3": 0.003251528018154204,
+                "iqr_outliers": 0,
+                "stddev_outliers": 3,
+                "outliers": "3;0",
+                "ld15iqr": 0.0032293480180669576,
+                "hd15iqr": 0.0032775599975138903,
+                "ops": 307.9919218123459,
+                "total": 0.032468384044477716,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "gpu",
+            "name": "test_gpu_indices_bincount[synthetic-100000]",
+            "fullname": "benchmarks/test_handoff.py::test_gpu_indices_bincount[synthetic-100000]",
+            "params": {
+                "workload": "synthetic-100000"
+            },
+            "param": "synthetic-100000",
+            "extra_info": {
+                "packets": 30,
+                "events": 3000000,
+                "dimensions": [
+                    1280,
+                    720
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.008030418015550822,
+                "max": 0.008130861009703949,
+                "mean": 0.008090142102446407,
+                "stddev": 2.786714262902549e-05,
+                "rounds": 10,
+                "median": 0.00808842500555329,
+                "iqr": 2.9560993425548077e-05,
+                "q1": 0.008080769999651238,
+                "q3": 0.008110330993076786,
+                "iqr_outliers": 1,
+                "stddev_outliers": 2,
+                "outliers": "2;1",
+                "ld15iqr": 0.008071349991951138,
+                "hd15iqr": 0.008130861009703949,
+                "ops": 123.60722312870207,
+                "total": 0.08090142102446407,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "gpu",
+            "name": "test_gpu_indices_bincount[synthetic-1000000]",
+            "fullname": "benchmarks/test_handoff.py::test_gpu_indices_bincount[synthetic-1000000]",
+            "params": {
+                "workload": "synthetic-1000000"
+            },
+            "param": "synthetic-1000000",
+            "extra_info": {
+                "packets": 30,
+                "events": 30000000,
+                "dimensions": [
+                    1280,
+                    720
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.05800967401592061,
+                "max": 0.06168877999880351,
+                "mean": 0.05880186890135519,
+                "stddev": 0.0013570426038144623,
+                "rounds": 10,
+                "median": 0.058247389504686,
+                "iqr": 0.00020844899700023234,
+                "q1": 0.05808375700144097,
+                "q3": 0.058292205998441204,
+                "iqr_outliers": 2,
+                "stddev_outliers": 2,
+                "outliers": "2;2",
+                "ld15iqr": 0.05800967401592061,
+                "hd15iqr": 0.06101713300449774,
+                "ops": 17.00626219342755,
+                "total": 0.5880186890135519,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "gpu",
+            "name": "test_gpu_indices_index_add[dvs.es]",
+            "fullname": "benchmarks/test_handoff.py::test_gpu_indices_index_add[dvs.es]",
+            "params": {
+                "workload": "dvs.es"
+            },
+            "param": "dvs.es",
+            "extra_info": {
+                "packets": 60,
+                "events": 473225,
+                "dimensions": [
+                    320,
+                    240
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.00395267698331736,
+                "max": 0.004001558991149068,
+                "mean": 0.003967512096278369,
+                "stddev": 1.4257972582285574e-05,
+                "rounds": 10,
+                "median": 0.003965676994994283,
+                "iqr": 1.663001603446901e-05,
+                "q1": 0.00395743697299622,
+                "q3": 0.003974066989030689,
+                "iqr_outliers": 1,
+                "stddev_outliers": 2,
+                "outliers": "2;1",
+                "ld15iqr": 0.00395267698331736,
+                "hd15iqr": 0.004001558991149068,
+                "ops": 252.0471206472253,
+                "total": 0.039675120962783694,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "gpu",
+            "name": "test_gpu_indices_index_add[synthetic-1000]",
+            "fullname": "benchmarks/test_handoff.py::test_gpu_indices_index_add[synthetic-1000]",
+            "params": {
+                "workload": "synthetic-1000"
+            },
+            "param": "synthetic-1000",
+            "extra_info": {
+                "packets": 30,
+                "events": 30000,
+                "dimensions": [
+                    1280,
+                    720
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.0016378250147681683,
+                "max": 0.0016629059973638505,
+                "mean": 0.0016468579997308552,
+                "stddev": 7.1812038583835765e-06,
+                "rounds": 10,
+                "median": 0.0016461944906041026,
+                "iqr": 9.029987268149853e-06,
+                "q1": 0.0016413950070273131,
+                "q3": 0.001650424994295463,
+                "iqr_outliers": 0,
+                "stddev_outliers": 3,
+                "outliers": "3;0",
+                "ld15iqr": 0.0016378250147681683,
+                "hd15iqr": 0.0016629059973638505,
+                "ops": 607.2168943305551,
+                "total": 0.016468579997308552,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "gpu",
+            "name": "test_gpu_indices_index_add[synthetic-10000]",
+            "fullname": "benchmarks/test_handoff.py::test_gpu_indices_index_add[synthetic-10000]",
+            "params": {
+                "workload": "synthetic-10000"
+            },
+            "param": "synthetic-10000",
+            "extra_info": {
+                "packets": 30,
+                "events": 300000,
+                "dimensions": [
+                    1280,
+                    720
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.0020858120115008205,
+                "max": 0.002111312991473824,
+                "mean": 0.002094968699384481,
+                "stddev": 9.025525649864653e-06,
+                "rounds": 10,
+                "median": 0.0020927479927195236,
+                "iqr": 1.2279982911422849e-05,
+                "q1": 0.002086863009026274,
+                "q3": 0.002099142991937697,
+                "iqr_outliers": 0,
+                "stddev_outliers": 3,
+                "outliers": "3;0",
+                "ld15iqr": 0.0020858120115008205,
+                "hd15iqr": 0.002111312991473824,
+                "ops": 477.3341006449444,
+                "total": 0.020949686993844807,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "gpu",
+            "name": "test_gpu_indices_index_add[synthetic-100000]",
+            "fullname": "benchmarks/test_handoff.py::test_gpu_indices_index_add[synthetic-100000]",
+            "params": {
+                "workload": "synthetic-100000"
+            },
+            "param": "synthetic-100000",
+            "extra_info": {
+                "packets": 30,
+                "events": 3000000,
+                "dimensions": [
+                    1280,
+                    720
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.00671189499553293,
+                "max": 0.006780897994758561,
+                "mean": 0.006743535702116788,
+                "stddev": 2.432996918769077e-05,
+                "rounds": 10,
+                "median": 0.006740361495758407,
+                "iqr": 4.587098374031484e-05,
+                "q1": 0.0067218760086689144,
+                "q3": 0.006767746992409229,
+                "iqr_outliers": 0,
+                "stddev_outliers": 3,
+                "outliers": "3;0",
+                "ld15iqr": 0.00671189499553293,
+                "hd15iqr": 0.006780897994758561,
+                "ops": 148.29016174498807,
+                "total": 0.06743535702116787,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "gpu",
+            "name": "test_gpu_indices_index_add[synthetic-1000000]",
+            "fullname": "benchmarks/test_handoff.py::test_gpu_indices_index_add[synthetic-1000000]",
+            "params": {
+                "workload": "synthetic-1000000"
+            },
+            "param": "synthetic-1000000",
+            "extra_info": {
+                "packets": 30,
+                "events": 30000000,
+                "dimensions": [
+                    1280,
+                    720
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.056568847998278216,
+                "max": 0.05844724099733867,
+                "mean": 0.05689801859552972,
+                "stddev": 0.0005701779369779081,
+                "rounds": 10,
+                "median": 0.05668681699899025,
+                "iqr": 0.00022349899518303573,
+                "q1": 0.056638420006493106,
+                "q3": 0.05686191900167614,
+                "iqr_outliers": 1,
+                "stddev_outliers": 1,
+                "outliers": "1;1",
+                "ld15iqr": 0.056568847998278216,
+                "hd15iqr": 0.05844724099733867,
+                "ops": 17.57530446022538,
+                "total": 0.5689801859552972,
+                "iterations": 1
+            }
+        }
+    ],
+    "datetime": "2026-10-02T20:13:42.813572+00:00",
+    "version": "5.3.0"
+}

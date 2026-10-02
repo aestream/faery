@@ -33,10 +33,20 @@ docs = [
   "torch",
   "jax",
 ]
+bench = [
+  "torch",
+  "pytest-benchmark",
+]
+
+[tool.uv]
+# docs and bench resolve torch from different indexes (CPU vs CUDA).
+conflicts = [[{ group = "docs" }, { group = "bench" }]]
 
 [tool.uv.sources]
-# CPU wheels for the docs build; GPU installs are managed outside the lock.
-torch = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
+# CPU wheels for the docs build; the bench group uses the default (CUDA) wheels.
+torch = [
+  { index = "pytorch-cpu", group = "docs", marker = "sys_platform == 'linux'" },
+]
 
 [[tool.uv.index]]
 name = "pytorch-cpu"

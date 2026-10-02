@@ -124,3 +124,98 @@ def test_dlpack_capsule_roundtrip_via_numpy():
     round_tripped = numpy.from_dlpack(frame)
     assert round_tripped.shape == frame.shape
     numpy.testing.assert_array_equal(round_tripped, frame)
+
+
+def test_to_dlpack_frame_negative_stride():
+    packet = _make_packet()
+    stream = _FixedStream([packet[::-1]], dimensions=(10, 8))
+    reference = next(iter(_FixedStream([packet], (10, 8)).to_dlpack_frame()))
+    frame = next(iter(stream.to_dlpack_frame()))
+    numpy.testing.assert_array_equal(frame, reference)
+
+
+def test_to_dlpack_frame_non_canonical_polarity_bytes():
+    """Bool bytes other than 0/1 count as ON and never index past the frame."""
+    packet = _make_packet()
+    raw = packet.view(numpy.uint8).reshape(len(packet), EVENTS_DTYPE.itemsize)
+    raw[:, EVENTS_DTYPE.fields["on"][1]] *= 200  # True -> 200, False stays 0
+    stream = _FixedStream([packet], dimensions=(10, 8))
+    frame = next(iter(stream.to_dlpack_frame()))
+    assert frame.sum() == len(packet)
+    assert frame[1, 2, 1] == 2
+    assert frame[0, 2, 1] == 1
+
+
+def test_to_dlpack_indices_matches_frame():
+    packet = _make_packet()
+    stream = _FixedStream([packet], dimensions=(10, 8))
+    indices = next(iter(stream.to_dlpack_indices()))
+    assert indices.dtype == numpy.int32
+    assert indices.shape == (len(packet),)
+    numpy.testing.assert_array_equal(
+        indices,
+        packet["on"].astype(numpy.int32) * 80 + packet["y"] * 10 + packet["x"],
+    )
+    frame = next(iter(stream.to_dlpack_frame(dtype="u32")))
+    numpy.testing.assert_array_equal(
+        numpy.bincount(indices, minlength=2 * 8 * 10).reshape(2, 8, 10), frame
+    )
+
+
+def test_to_dlpack_indices_empty_and_reversed():
+    packet = _make_packet()
+    empty = next(iter(_FixedStream([packet[:0]], (10, 8)).to_dlpack_indices()))
+    assert empty.shape == (0,)
+    forward = next(iter(_FixedStream([packet], (10, 8)).to_dlpack_indices()))
+    reverse = next(iter(_FixedStream([packet[::-1]], (10, 8)).to_dlpack_indices()))
+    numpy.testing.assert_array_equal(reverse, forward[::-1])
+
+
+def test_to_dlpack_indices_rejects_out_of_bounds():
+    bad = numpy.array([(0, 3, 9, True)], dtype=EVENTS_DTYPE)
+    with pytest.raises(ValueError):
+        list(_FixedStream([bad], dimensions=(10, 8)).to_dlpack_indices())
+
+
+def test_to_dlpack_frame_u16_saturates():
+    hot = numpy.zeros(70_000, dtype=EVENTS_DTYPE)
+    hot["x"], hot["y"], hot["on"] = 3, 4, True
+    frame = next(iter(_FixedStream([hot], dimensions=(10, 8)).to_dlpack_frame()))
+    assert frame[1, 4, 3] == 65535
+    assert frame.sum() == 65535
+
+
+def test_to_dlpack_frame_out_reuses_buffers():
+    packets = [_make_packet(), _make_packet()[:2], _make_packet()[3:]]
+    stream = _FixedStream(packets, dimensions=(10, 8))
+    expected = [frame.copy() for frame in stream.to_dlpack_frame(dtype="f32")]
+    buffers = [numpy.full((2, 8, 10), 7, dtype=numpy.float32) for _ in range(2)]
+    for index, frame in enumerate(stream.to_dlpack_frame(dtype="f32", out=buffers)):
+        assert frame is buffers[index % 2]
+        numpy.testing.assert_array_equal(frame, expected[index])
+    single = numpy.empty((2, 8, 10), dtype=numpy.float32)
+    frames = [f.sum() for f in stream.to_dlpack_frame(dtype="f32", out=single)]
+    assert frames == [len(p) for p in packets]
+
+
+@pytest.mark.parametrize(
+    "buffer",
+    [
+        numpy.zeros((2, 8, 10), dtype=numpy.float32),  # wrong dtype for u16
+        numpy.zeros((2, 10, 8), dtype=numpy.uint16),  # wrong shape
+        numpy.zeros((2, 8, 20), dtype=numpy.uint16)[:, :, ::2],  # not contiguous
+        numpy.zeros((2, 8, 10), dtype=numpy.uint16, order="F"),  # not C order
+    ],
+)
+def test_to_dlpack_frame_out_rejects_bad_buffers(buffer):
+    stream = _FixedStream([_make_packet()], dimensions=(10, 8))
+    with pytest.raises(ValueError):
+        list(stream.to_dlpack_frame(out=buffer))
+
+
+def test_to_dlpack_frame_out_rejects_read_only():
+    buffer = numpy.zeros((2, 8, 10), dtype=numpy.uint16)
+    buffer.flags.writeable = False
+    stream = _FixedStream([_make_packet()], dimensions=(10, 8))
+    with pytest.raises(ValueError):
+        list(stream.to_dlpack_frame(out=buffer))

@@ -250,14 +250,43 @@ class Output(typing.Generic[OutputState]):
                     f'unknown field "{field}" (expected "t", "x", "y", or "p")'
                 )
         for events in self:
-            yield {
-                field: numpy.ascontiguousarray(events[key_map[field]])
-                for field in fields
-            }
+            # .copy(), not ascontiguousarray: numpy flags any array with at most
+            # one element as contiguous regardless of its stride, so for 0- or
+            # 1-event packets ascontiguousarray returns the strided field view
+            # itself (stride = record size), which torch.from_numpy rejects.
+            yield {field: events[key_map[field]].copy() for field in fields}
+
+    def to_dlpack_indices(self) -> collections.abc.Iterator[numpy.ndarray]:
+        """
+        Yields per-packet flat frame indices as 1-D int32 numpy arrays.
+
+        Each event becomes `p * height * width + y * width + x` (p = 0 for OFF,
+        1 for ON), an index into a flattened `(2, height, width)` frame. This
+        is the most compact way to ship a packet to a GPU (4 bytes per event, a
+        single transfer), and one scatter rebuilds the frame there:
+
+            indices = torch.from_dlpack(indices_np).to("cuda")
+            frame = torch.zeros(2 * height * width, device="cuda")
+            frame.index_add_(0, indices, torch.ones(len(indices), device="cuda"))
+            frame = frame.view(2, height, width)
+
+        index_add_ benchmarks faster than torch.bincount, which returns int64
+        counts that still need converting.
+
+        Arrays expose `__dlpack__`. Events outside the sensor raise a ValueError.
+        """
+        from .extension import dlpack
+
+        width, height = self.dimensions()
+        for events in self:
+            yield dlpack.linear_indices(events, width, height)
 
     def to_dlpack_frame(
         self,
         dtype: typing.Literal["u16", "u32", "f32"] = "u16",
+        out: typing.Union[
+            numpy.ndarray, collections.abc.Sequence[numpy.ndarray], None
+        ] = None,
     ) -> collections.abc.Iterator[numpy.ndarray]:
         """
         Yields per-packet `(2, height, width)` frames as numpy arrays.
@@ -270,14 +299,41 @@ class Output(typing.Generic[OutputState]):
         u16 saturates at 65535 (hot pixels in long packets may saturate);
         u32 and f32 are safe from saturation.
 
+        By default every packet allocates a new frame. Pass `out` to reuse
+        buffers instead: one array, or a sequence of arrays used in turn.
+        Each must be a writeable, C-contiguous `(2, height, width)` array of
+        the requested dtype. A yielded frame *is* one of these buffers, and is
+        overwritten when its turn comes again, so finish with it (or copy it)
+        by then. Two pinned host buffers allow asynchronous GPU uploads:
+
+            # torch has limited uint16 support, so stage u16 frames as int16
+            # (exact for counts below 32768).
+            buffers = [torch.empty((2, h, w), dtype=torch.int16, pin_memory=True)
+                       for _ in range(2)]
+            out = [buffer.numpy().view(numpy.uint16) for buffer in buffers]
+            for index, frame in enumerate(stream.to_dlpack_frame(out=out)):
+                device_frame.copy_(buffers[index % 2], non_blocking=True)
+                ...  # wait for the copy from buffer (index + 1) % 2 before
+                     # the next iteration overwrites it (e.g. a CUDA event)
+
         Args:
             dtype: Output dtype, one of "u16" (default), "u32", or "f32".
+            out: Optional buffer, or sequence of buffers, to rasterize into.
         """
         from .extension import dlpack
 
         width, height = self.dimensions()
-        for events in self:
-            yield dlpack.rasterize_to_frame(events, width, height, dtype)
+        if out is None:
+            for events in self:
+                yield dlpack.rasterize_to_frame(events, width, height, dtype)
+            return
+        buffers = [out] if isinstance(out, numpy.ndarray) else list(out)
+        if len(buffers) == 0:
+            raise ValueError("out must contain at least one buffer")
+        for index, events in enumerate(self):
+            yield dlpack.rasterize_to_frame(
+                events, width, height, dtype, buffers[index % len(buffers)]
+            )
 
 
 class EventsStream(

@@ -1,0 +1,11 @@
+.git
+.venv
+target
+src/mp4/x264-build
+tests/data_generated
+.benchmarks
+**/__pycache__
+**/*.so
+.pytest_cache
+.claude
+docs/_build

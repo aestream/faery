@@ -16,8 +16,8 @@ Event cameras produce sparse, asynchronous streams of events rather than frames.
 To feed them to a conventional deep learning model, we need to (1) chop the stream
 into fixed-rate packets and (2) hand each packet to the ML framework without
 copying data around. Faery does both: `regularize` produces fixed-duration
-packets, and the DLPack exporters (`to_dlpack_frame` and `to_dlpack_sparse`)
-expose each packet through the [DLPack protocol](https://dmlc.github.io/dlpack/latest/)
+packets, and the DLPack exporters (`to_dlpack_frame`, `to_dlpack_indices`, and
+`to_dlpack_sparse`) expose each packet through the [DLPack protocol](https://dmlc.github.io/dlpack/latest/)
 that PyTorch, JAX, TensorFlow, and CuPy all understand.
 
 In this tutorial we run a convolutional edge detector over a live event stream.
@@ -77,14 +77,17 @@ import torch
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
-frame = next(iter(stream.to_dlpack_frame(dtype="f32")))
+frame = next(iter(stream.to_dlpack_frame(dtype="u16")))
 tensor = torch.from_dlpack(frame)
 tensor.shape, tensor.dtype, int(tensor.sum())
 ```
 
 The `dtype` argument selects the frame's element type: `"u16"` (default,
-saturates at 65535), `"u32"`, or `"f32"`. For feeding a network, `"f32"` is
-usually what you want — no cast needed on the framework side.
+saturates at 65535), `"u32"`, or `"f32"`. A network wants float32, but it is
+cheaper to upload the u16 frame and call `.float()` on the device than to ask
+faery for `"f32"`: half the bytes cross the PCIe bus, which made it about 2.6x
+faster in our benchmarks at low event counts. The cost is saturation at 65535
+events per pixel per packet, which only matters for hot pixels in long packets.
 
 ## An edge-detection convolution
 
@@ -113,16 +116,17 @@ convolution = convolution.to(DEVICE)
 Iterating `to_dlpack_frame` yields one frame per packet, indefinitely for a
 live camera and until end-of-file for a recording.
 Each frame goes zero-copy into PyTorch, onto the GPU if one is available, and through the convolution.
-We process two seconds ($60\ \mathrm{frames} \times 2$) here:
+We process one second ($60\ \mathrm{frames}$), the whole of this recording;
+`itertools.islice` is also how you would bound a live camera stream:
 
 ```{code-cell} python
 import itertools
 
 with torch.inference_mode():
     for index, frame in enumerate(
-        itertools.islice(stream.to_dlpack_frame(dtype="f32"), 120)
+        itertools.islice(stream.to_dlpack_frame(dtype="u16"), 60)
     ):
-        tensor = torch.from_dlpack(frame).to(DEVICE, non_blocking=True)
+        tensor = torch.from_dlpack(frame).to(DEVICE).float()
         # Merge OFF and ON counts into one input channel, add a batch dimension.
         tensor = tensor.sum(dim=0).view(1, 1, height, width)
         # filtered has shape (1, 2, H', W'): horizontal and vertical edge maps.
@@ -167,9 +171,10 @@ def edge_filter(tensor):
 
 stream = faery.events_stream_from_file(PATH).regularize(frequency_hz=60.0)
 for index, frame in enumerate(
-    itertools.islice(stream.to_dlpack_frame(dtype="f32"), 120)
+    itertools.islice(stream.to_dlpack_frame(dtype="u16"), 60)
 ):
-    tensor = jax.dlpack.from_dlpack(frame).sum(axis=0).reshape(1, 1, height, width)
+    tensor = jax.dlpack.from_dlpack(frame).astype(jnp.float32)
+    tensor = tensor.sum(axis=0).reshape(1, 1, height, width)
     filtered = edge_filter(tensor)
     if index % 30 == 0:
         print(
@@ -181,20 +186,42 @@ for index, frame in enumerate(
 
 ## Sparse export
 
-Rasterizing to frames is convenient for convolutions, but some models — event
-GNNs, point-cloud networks, custom CUDA kernels — consume raw events.
-`to_dlpack_sparse` yields each packet as a dict of contiguous per-field arrays
-instead, again DLPack-compatible:
+Rasterizing in Rust is convenient, but a packet usually holds far fewer events
+than the frame has pixels, so it is often faster to ship the events and build
+the frame on the GPU. `to_dlpack_indices` turns each event into a single int32
+index into a flattened `(2, height, width)` frame
+(`p * height * width + y * width + x`): one compact array per packet, and one
+`index_add_` on the device rebuilds the frame:
 
 ```{code-cell} python
 stream = faery.events_stream_from_file(PATH).regularize(frequency_hz=60.0)
-packet = next(iter(stream.to_dlpack_sparse(fields=("x", "y", "p"))))
+indices_np = next(iter(stream.to_dlpack_indices()))
+
+indices = torch.from_dlpack(indices_np).to(DEVICE)
+sparse_frame = torch.zeros(2 * height * width, device=DEVICE)
+sparse_frame.index_add_(0, indices, torch.ones(len(indices), device=DEVICE))
+sparse_frame = sparse_frame.view(2, height, width)
+
+dense_frame = torch.from_dlpack(next(iter(stream.to_dlpack_frame()))).float()
+torch.equal(sparse_frame.cpu(), dense_frame)
+```
+
+In our benchmarks this was 1.5 to 5.1 times faster than uploading x, y, and p
+separately and scattering with `index_put_`, and faster than uploading a dense
+u16 frame on 1280x720 sensors (on par for this 320x240 recording). In a loop, preallocate the ones on the device, sized
+to the largest packet, and slice them (`ones[: len(indices)]`).
+
+Some models — event GNNs, point-cloud networks, custom CUDA kernels — need the
+raw event fields, timestamps included. `to_dlpack_sparse` yields each packet as
+a dict of contiguous per-field arrays instead, again DLPack-compatible:
+
+```{code-cell} python
+packet = next(iter(stream.to_dlpack_sparse(fields=("t", "x", "y", "p"))))
 {field: (torch.from_dlpack(array).shape, torch.from_dlpack(array).dtype)
  for field, array in packet.items()}
 ```
 
-For a continuously streaming consumer, timestamps are implicit in the packet
-cadence, so `fields=("x", "y", "p")` skips copying `t` entirely.
+Only the listed fields are copied, so pass the subset you need.
 
 ## Going live
 

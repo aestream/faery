@@ -42,15 +42,18 @@
               uv pip install --group dev .
               autoPatchelf ./.venv
             '';
-            postShellHook = ''
+            # Runs before postVenvCreation, which already builds faery (and x264).
+            preShellHook = ''
               export AS="nasm" # build assembly optimizations in x264
               export CC="gcc" # use gcc to compile x264
+            '';
+            postShellHook = ''
               export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath [
                 pkgs.libGL pkgs.libxkbcommon pkgs.wayland pkgs.fontconfig
                 pkgs.stdenv.cc.cc.lib pkgs.zlib
               ]}:$LD_LIBRARY_PATH"
               source .venv/bin/activate
-              maturin develop --release
+              maturin develop --release --uv
             '';
           };
       in
