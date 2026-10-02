@@ -78,6 +78,18 @@ class TimeRangeCache:
 TIME_RANGE_CACHE: TimeRangeCache = TimeRangeCache()
 
 
+def _time_range_from(
+    start: int | None, end: int | None
+) -> tuple[timestamp.Time, timestamp.Time]:
+    """A file's time range from its first and last event timestamps."""
+    if start is None or end is None:
+        return (timestamp.Time(microseconds=0), timestamp.Time(microseconds=1))
+    return (
+        timestamp.Time(microseconds=int(start)),
+        timestamp.Time(microseconds=int(end) + 1),
+    )
+
+
 class Decoder(events_stream.FiniteEventsStream):
     """
     An event file decoder (supports .aedat4, .es, .raw, and .dat).
@@ -221,6 +233,43 @@ class Decoder(events_stream.FiniteEventsStream):
     def dimensions(self) -> tuple[int, int]:
         return self.inner_dimensions
 
+    def _time_range_without_decoding(self) -> tuple[int | None, int | None]:
+        """First and last event timestamps, read without decoding events.
+
+        A finite stream's time range is part of what its type promises before
+        any data is read, so it should not cost a full decode. Returns
+        (None, None) when the format offers no cheaper way, and time_range()
+        then falls back to decoding. The values are the ones a full decode
+        yields: the first and last events in file order.
+        """
+        assert self.path is not None
+        if self.file_type == "aedat":
+            # AEDAT 4's trailing FileDataTable records each packet's first and
+            # last timestamps. It is optional, hence the fallback.
+            with aedat.Decoder(path=self.path) as decoder:
+                definitions = sorted(
+                    (
+                        definition
+                        for definition in decoder.file_data_definitions()
+                        if definition.track_id == self.track_id
+                        and definition.elements_count > 0
+                    ),
+                    key=lambda definition: definition.byte_offset,
+                )
+            if len(definitions) > 0:
+                return definitions[0].start_t, definitions[-1].end_t
+        elif self.file_type == "dat":
+            # DAT has no index; a pass over the timestamp words is enough.
+            with dat.Decoder(
+                path=self.path,
+                dimensions_fallback=self.dimensions_fallback,
+                version_fallback=self.version_fallback,
+            ) as decoder:
+                time_range = decoder.time_range()
+            if time_range is not None:
+                return time_range
+        return None, None
+
     def time_range(self) -> tuple[timestamp.Time, timestamp.Time]:
         if self.path is None:
             raise NotImplementedError()
@@ -233,23 +282,14 @@ class Decoder(events_stream.FiniteEventsStream):
                 return time_range
         else:
             path_hash = None
-        start: int | None = None
-        end: int | None = None
-        for events in self:
-            if len(events) > 0:
-                if start is None:
-                    start = events["t"][0]
-                end = events["t"][-1]
+        start, end = self._time_range_without_decoding()
         if start is None or end is None:
-            time_range = (
-                timestamp.Time(microseconds=0),
-                timestamp.Time(microseconds=1),
-            )
-        else:
-            time_range = (
-                timestamp.Time(microseconds=int(start)),
-                timestamp.Time(microseconds=(int(end) + 1)),
-            )
+            for events in self:
+                if len(events) > 0:
+                    if start is None:
+                        start = events["t"][0]
+                    end = events["t"][-1]
+        time_range = _time_range_from(start, end)
         if path_hash is not None:
             assert self.time_range_cache is not None
             self.time_range_cache.set_time_range(
@@ -260,6 +300,26 @@ class Decoder(events_stream.FiniteEventsStream):
         return time_range
 
     def __iter__(self) -> collections.abc.Iterator[numpy.ndarray]:
+        # A complete pass sees the first and last events anyway, so it records
+        # the time range for free. A pass the consumer abandons records nothing.
+        cache = None if self.path is None else self.time_range_cache
+        path_hash = None if cache is None else cache.path_hash(path=self.path)  # type: ignore
+        start: int | None = None
+        end: int | None = None
+        for events in self._packets():
+            if len(events) > 0:
+                if start is None:
+                    start = int(events["t"][0])
+                end = int(events["t"][-1])
+            yield events
+        if cache is not None and path_hash is not None:
+            cache.set_time_range(
+                path=self.path,  # type: ignore
+                path_hash=path_hash,
+                time_range=_time_range_from(start, end),
+            )
+
+    def _packets(self) -> collections.abc.Iterator[numpy.ndarray]:
         if self.file_type == "aedat":
             assert self.path is not None
             with aedat.Decoder(path=self.path) as decoder:
@@ -293,18 +353,17 @@ class Decoder(events_stream.FiniteEventsStream):
             assert self.version_fallback in ("dat1", "dat2"), (
                 f'"{self.version_fallback}" is not a DAT version (expected "dat1" or "dat2")'
             )
+            # as_events: the decoder writes EVENTS_DTYPE records directly
+            # (payload as 0/1 in the `on` field), so packets need no clip or
+            # structured astype, each of which copied every event.
             with dat.Decoder(
                 path=self.path,
                 dimensions_fallback=self.dimensions_fallback,
                 version_fallback=self.version_fallback,
+                as_events=True,
             ) as decoder:
                 for events in decoder:
-                    numpy.clip(events["payload"], 0, 1, events["payload"])
-                    yield events.astype(
-                        dtype=events_stream.EVENTS_DTYPE,
-                        casting="unsafe",
-                        copy=False,
-                    )
+                    yield events
         elif self.file_type == "es":
             assert self.path is not None
             with es.Decoder(path=self.path, t0=self.t0.to_microseconds()) as decoder:
