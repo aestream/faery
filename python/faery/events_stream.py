@@ -216,6 +216,42 @@ class Output(typing.Generic[OutputState]):
             on_progress=on_progress,  # type: ignore
         )
 
+    def _dlpack_batches(
+        self, batch_events: typing.Optional[int]
+    ) -> collections.abc.Iterator[list[numpy.ndarray]]:
+        """Consecutive packets grouped until each group holds >= batch_events.
+
+        Without batch_events, every packet is its own group. Batching only
+        re-partitions the stream, which changes nothing about a non-regular
+        stream (its packet boundaries carry no meaning). A regular stream's
+        packets are time bins, and merging them would change the result, so
+        batching a regular stream is refused.
+        """
+        if batch_events is None:
+            for events in self:
+                yield [events]
+            return
+        if batch_events < 1:
+            raise ValueError(f"batch_events must be at least 1 (got {batch_events})")
+        if isinstance(self, (RegularEventsStream, FiniteRegularEventsStream)):
+            raise ValueError(
+                "batch_events would merge the packets (time bins) of a regular stream; "
+                "batch a non-regular stream, e.g. before regularize()"
+            )
+        pending: list[numpy.ndarray] = []
+        pending_events = 0
+        for events in self:
+            if len(events) == 0:
+                continue
+            pending.append(events)
+            pending_events += len(events)
+            if pending_events >= batch_events:
+                yield pending
+                pending = []
+                pending_events = 0
+        if len(pending) > 0:
+            yield pending
+
     def to_dlpack_sparse(
         self,
         fields: collections.abc.Sequence[typing.Literal["t", "x", "y", "p"]] = (
@@ -224,6 +260,7 @@ class Output(typing.Generic[OutputState]):
             "y",
             "p",
         ),
+        batch_events: typing.Optional[int] = None,
     ) -> collections.abc.Iterator[dict[str, numpy.ndarray]]:
         """
         Yields events per packet as a dict of contiguous arrays (by default {"t", "x", "y", "p"}).
@@ -237,11 +274,21 @@ class Output(typing.Generic[OutputState]):
         Dtypes match the event packet:
             t: uint64, x: uint16, y: uint16, p: bool
 
+        Each yielded array is one GPU upload. Packets decoded from a file are
+        small (8192 events from DAT), and a transfer from pageable memory
+        blocks, so per-packet uploads are dominated by their fixed cost:
+        `batch_events` concatenates consecutive packets until each yielded
+        array holds at least that many events. About 262144 (2^18) was fastest
+        on a 1280x720 recording; one upload per packet was 1.8x slower. Only
+        non-regular streams can be batched (see `_dlpack_batches`).
+
         Args:
             fields: Fields to extract, any subset of ("t", "x", "y", "p").
                 Fields not listed are not copied. A continuously streaming GPU
                 consumer typically only needs ("x", "y", "p") — timestamps are
                 implicit in the packet cadence.
+            batch_events: Minimum events per yielded array, or None (default)
+                for one array per packet.
         """
         key_map = {"t": "t", "x": "x", "y": "y", "p": "on"}
         for field in fields:
@@ -249,14 +296,25 @@ class Output(typing.Generic[OutputState]):
                 raise ValueError(
                     f'unknown field "{field}" (expected "t", "x", "y", or "p")'
                 )
-        for events in self:
-            # .copy(), not ascontiguousarray: numpy flags any array with at most
-            # one element as contiguous regardless of its stride, so for 0- or
-            # 1-event packets ascontiguousarray returns the strided field view
-            # itself (stride = record size), which torch.from_numpy rejects.
-            yield {field: events[key_map[field]].copy() for field in fields}
+        for batch in self._dlpack_batches(batch_events):
+            if len(batch) == 1:
+                # .copy(), not ascontiguousarray: numpy flags any array with at
+                # most one element as contiguous regardless of its stride, so for
+                # 0- or 1-event packets ascontiguousarray returns the strided
+                # field view itself (stride = record size), which
+                # torch.from_numpy rejects.
+                yield {field: batch[0][key_map[field]].copy() for field in fields}
+            else:
+                # Concatenating the field views copies each event once, into a
+                # new contiguous array.
+                yield {
+                    field: numpy.concatenate([events[key_map[field]] for events in batch])
+                    for field in fields
+                }
 
-    def to_dlpack_indices(self) -> collections.abc.Iterator[numpy.ndarray]:
+    def to_dlpack_indices(
+        self, batch_events: typing.Optional[int] = None
+    ) -> collections.abc.Iterator[numpy.ndarray]:
         """
         Yields per-packet flat frame indices as 1-D int32 numpy arrays.
 
@@ -274,12 +332,25 @@ class Output(typing.Generic[OutputState]):
         counts that still need converting.
 
         Arrays expose `__dlpack__`. Events outside the sensor raise a ValueError.
+
+        `batch_events` concatenates consecutive packets until each yielded
+        array holds at least that many events, as for `to_dlpack_sparse`: fewer,
+        larger uploads. Only non-regular streams can be batched.
+
+        Args:
+            batch_events: Minimum events per yielded array, or None (default)
+                for one array per packet.
         """
         from .extension import dlpack
 
         width, height = self.dimensions()
-        for events in self:
-            yield dlpack.linear_indices(events, width, height)
+        for batch in self._dlpack_batches(batch_events):
+            if len(batch) == 1:
+                yield dlpack.linear_indices(batch[0], width, height)
+            else:
+                yield numpy.concatenate(
+                    [dlpack.linear_indices(events, width, height) for events in batch]
+                )
 
     def to_dlpack_frame(
         self,

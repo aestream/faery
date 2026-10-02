@@ -219,3 +219,54 @@ def test_to_dlpack_frame_out_rejects_read_only():
     stream = _FixedStream([_make_packet()], dimensions=(10, 8))
     with pytest.raises(ValueError):
         list(stream.to_dlpack_frame(out=buffer))
+
+
+def _batch_packets():
+    packet = _make_packet()
+    return [packet, packet[:2], packet[:0], packet[3:], packet[1:4]]
+
+
+@pytest.mark.parametrize("batch_events", [1, 4, 7, 100])
+def test_to_dlpack_sparse_batches_concatenate_packets(batch_events):
+    stream = _FixedStream(_batch_packets(), dimensions=(10, 8))
+    unbatched = list(stream.to_dlpack_sparse())
+    batched = list(stream.to_dlpack_sparse(batch_events=batch_events))
+    for field in ("t", "x", "y", "p"):
+        numpy.testing.assert_array_equal(
+            numpy.concatenate([b[field] for b in batched]),
+            numpy.concatenate([u[field] for u in unbatched]),
+        )
+        assert all(b[field].flags.c_contiguous for b in batched)
+    # Every array but the last reaches batch_events; empty packets are dropped.
+    sizes = [len(b["t"]) for b in batched]
+    assert all(size >= batch_events for size in sizes[:-1])
+    assert all(size > 0 for size in sizes)
+
+
+@pytest.mark.parametrize("batch_events", [1, 6, 100])
+def test_to_dlpack_indices_batches_concatenate_packets(batch_events):
+    stream = _FixedStream(_batch_packets(), dimensions=(10, 8))
+    unbatched = numpy.concatenate(list(stream.to_dlpack_indices()))
+    batched = list(stream.to_dlpack_indices(batch_events=batch_events))
+    numpy.testing.assert_array_equal(numpy.concatenate(batched), unbatched)
+    assert all(b.dtype == numpy.int32 for b in batched)
+
+
+def test_dlpack_batching_refuses_regular_streams():
+    import faery
+
+    regular = faery.events_stream_from_array(
+        _make_packet(), dimensions=(10, 8)
+    ).regularize(frequency_hz=1e5)
+    with pytest.raises(ValueError, match="regular"):
+        next(regular.to_dlpack_sparse(batch_events=4))
+    with pytest.raises(ValueError, match="regular"):
+        next(regular.to_dlpack_indices(batch_events=4))
+    # Without batching, regular streams are unaffected.
+    assert sum(len(p["t"]) for p in regular.to_dlpack_sparse()) == 5
+
+
+def test_dlpack_batching_rejects_non_positive():
+    stream = _FixedStream(_batch_packets(), dimensions=(10, 8))
+    with pytest.raises(ValueError):
+        next(stream.to_dlpack_indices(batch_events=0))
