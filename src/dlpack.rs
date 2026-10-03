@@ -274,25 +274,34 @@ fn rasterize_into<T: Rasterize>(
 /// With `out` (a writeable, C-contiguous 1-D int32 array with room for every
 /// event), the indices are written to its start and `out[:len(events)]` is
 /// returned instead of a new array.
+///
+/// `frame` adds `frame * 2 * height * width` to every index: the indices then
+/// point into frame `frame` of a flattened `(frames, 2, height, width)` stack,
+/// so one scatter can build several frames.
 #[pyfunction]
-#[pyo3(signature = (events, width, height, out=None))]
+#[pyo3(signature = (events, width, height, out=None, frame=0))]
 pub fn linear_indices(
     events: &pyo3::Bound<'_, pyo3::types::PyAny>,
     width: u16,
     height: u16,
     out: Option<&pyo3::Bound<'_, pyo3::types::PyAny>>,
+    frame: u32,
 ) -> PyResult<Py<PyAny>> {
     check_dimensions(width, height)?;
-    if 2 * width as u64 * height as u64 > i32::MAX as u64 {
+    let frame_size = 2 * width as u64 * height as u64;
+    if (frame as u64 + 1) * frame_size > i32::MAX as u64 + 1 {
         return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
-            "2 x {} x {} frame elements do not fit in int32 indices",
-            width, height
+            "{} frames of 2 x {} x {} elements do not fit in int32 indices",
+            frame as u64 + 1,
+            width,
+            height
         )));
     }
+    let base = (frame as u64 * frame_size) as usize;
     let python = events.py();
     let (array, length) = types::check_array(python, types::ArrayType::Dvs, events)?;
     if let Some(out) = out {
-        return linear_indices_into(array, length, width, height, out);
+        return linear_indices_into(array, length, width, height, base, out);
     }
     let mut dimensions = [length];
     unsafe {
@@ -301,7 +310,7 @@ pub fn linear_indices(
         let data = SendPtr(data);
         python.detach(move || {
             for_each_event(events, width, height, |index, linear| {
-                *data.get().add(index) = linear as i32;
+                *data.get().add(index) = (base + linear) as i32;
             })
         })?;
         Ok(indices.unbind())
@@ -313,6 +322,7 @@ fn linear_indices_into(
     length: numpy::npyffi::npy_intp,
     width: u16,
     height: u16,
+    base: usize,
     out: &pyo3::Bound<'_, pyo3::types::PyAny>,
 ) -> PyResult<Py<PyAny>> {
     use numpy::{PyArrayMethods, PyUntypedArrayMethods};
@@ -335,7 +345,7 @@ fn linear_indices_into(
         let data = SendPtr(data.as_mut_ptr());
         unsafe {
             for_each_event(events, width, height, |index, linear| {
-                *data.get().add(index) = linear as i32;
+                *data.get().add(index) = (base + linear) as i32;
             })
         }
     })?;

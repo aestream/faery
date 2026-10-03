@@ -403,3 +403,97 @@ def test_prefetch_indices_out_buffers_not_overwritten_while_held(prefetch):
         numpy.testing.assert_array_equal(indices, expected[index])
     with pytest.raises(ValueError, match=f"at least {prefetch + 2}"):
         next(stream.to_dlpack_indices(out=buffers[:-1], prefetch=prefetch))
+
+
+def test_linear_indices_frame_offset():
+    from faery.extension import dlpack
+
+    packet = _make_packet()
+    base = dlpack.linear_indices(packet, 10, 8)
+    numpy.testing.assert_array_equal(
+        dlpack.linear_indices(packet, 10, 8, frame=3), base + 3 * 2 * 10 * 8
+    )
+    out = numpy.zeros(len(packet), dtype=numpy.int32)
+    dlpack.linear_indices(packet, 10, 8, out, 2)
+    numpy.testing.assert_array_equal(out, base + 2 * 2 * 10 * 8)
+
+
+def test_linear_indices_frame_offset_overflow():
+    from faery.extension import dlpack
+
+    # 2 x 1280 x 720 = 1,843,200 elements: 1,165 frames fit in int32, 1,166 do not.
+    packet = numpy.zeros(1, dtype=EVENTS_DTYPE)
+    last = dlpack.linear_indices(packet, 1280, 720, frame=1164)
+    assert last[0] == 1164 * 1_843_200
+    with pytest.raises(ValueError, match="int32"):
+        dlpack.linear_indices(packet, 1280, 720, frame=1165)
+
+
+def _windowed_stream():
+    """A regular stream of 1 ms windows over 20 ms, with empty windows."""
+    import faery
+
+    generator = numpy.random.default_rng(7)
+    events = numpy.zeros(2_000, dtype=EVENTS_DTYPE)
+    t = numpy.sort(generator.integers(0, 20_000, len(events)))
+    t[0] = 0  # regularize starts the first window at the first event
+    t = t[(t < 5_000) | (t >= 8_000)]  # windows 5, 6 and 7 are empty
+    events = events[: len(t)]
+    events["t"] = t
+    events["x"] = generator.integers(0, 10, len(events))
+    events["y"] = generator.integers(0, 8, len(events))
+    events["p"] = generator.integers(0, 2, len(events)).astype(bool)
+    return (
+        faery.events_stream_from_array(events, dimensions=(10, 8))
+        .chunks(97)
+        .regularize(frequency_hz=1000.0)
+    )
+
+
+def _frames_from_batches(batches):
+    frames = []
+    for indices, windows in batches:
+        assert indices.dtype == numpy.int32
+        counts = numpy.bincount(indices, minlength=windows * 2 * 10 * 8)
+        assert len(counts) == windows * 2 * 10 * 8
+        frames.extend(counts.reshape(windows, 2, 8, 10))
+    return frames
+
+
+@pytest.mark.parametrize("windows_per_batch", [1, 3, 7, 100])
+def test_windows_per_batch_matches_frames(windows_per_batch):
+    stream = _windowed_stream()
+    expected = [frame.astype(numpy.int64) for frame in stream.to_dlpack_frame(dtype="u32")]
+    batches = list(stream.to_dlpack_indices(windows_per_batch=windows_per_batch))
+    assert [windows for _, windows in batches[:-1]] == [windows_per_batch] * (len(batches) - 1)
+    frames = _frames_from_batches(batches)
+    assert len(frames) == len(expected)
+    assert sum(frame.sum() for frame in frames[5:8]) == 0
+    for frame, reference in zip(frames, expected):
+        numpy.testing.assert_array_equal(frame, reference)
+
+
+@pytest.mark.parametrize("prefetch", [0, 2])
+def test_windows_per_batch_out_buffers(prefetch):
+    stream = _windowed_stream()
+    expected = _frames_from_batches(stream.to_dlpack_indices(windows_per_batch=4))
+    out = [numpy.empty(4_000, dtype=numpy.int32) for _ in range(prefetch + 2)]
+    batches = stream.to_dlpack_indices(windows_per_batch=4, out=out, prefetch=prefetch)
+    # Count each batch before the generator may reuse its buffer.
+    frames = []
+    for batch in batches:
+        frames.extend(_frames_from_batches([batch]))
+    assert len(frames) == len(expected)
+    for frame, reference in zip(frames, expected):
+        numpy.testing.assert_array_equal(frame, reference)
+
+
+def test_windows_per_batch_refusals():
+    stream = _FixedStream(_batch_packets(), dimensions=(10, 8))
+    with pytest.raises(ValueError, match="regular"):
+        next(stream.to_dlpack_indices(windows_per_batch=2))
+    regular = _windowed_stream()
+    with pytest.raises(ValueError, match="exclusive"):
+        next(regular.to_dlpack_indices(batch_events=4, windows_per_batch=2))
+    with pytest.raises(ValueError, match="at least 1"):
+        next(regular.to_dlpack_indices(windows_per_batch=0))

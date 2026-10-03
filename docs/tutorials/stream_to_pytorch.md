@@ -216,6 +216,51 @@ separately and scattering with `index_put_`, and faster than uploading a dense
 u16 frame on 1280x720 sensors (on par for this 320x240 recording). In a loop, preallocate the ones on the device, sized
 to the largest packet, and slice them (`ones[: len(indices)]`).
 
+### High frame rates: one scatter for several windows
+
+Every upload and every `index_add_` has a fixed cost, about 0.1 ms with
+PyTorch on an RTX 3090. At 60 Hz that is noise, but at 1 kHz it is paid
+1,000 times per second, and it dominated our benchmark: building 1 ms frames
+from a 1280x720 recording took twice as long as with a pre-decoded file.
+`windows_per_batch` groups the windows instead. It yields `(indices, windows)`
+pairs, with window `j` of each group offset by `j` frames, so a single upload
+and a single `index_add_` build a stack of `windows` frames:
+
+```{code-cell} python
+fast_stream = faery.events_stream_from_file(PATH).regularize(frequency_hz=1000.0)
+ones = torch.ones(1 << 16, device=DEVICE)  # grown below if a group needs more
+
+frames = []
+for group, windows in fast_stream.to_dlpack_indices(windows_per_batch=16):
+    if len(group) > len(ones):
+        ones = torch.ones(len(group), device=DEVICE)
+    group = torch.from_dlpack(group).to(DEVICE)
+    stack = torch.zeros(windows * 2 * height * width, device=DEVICE)
+    stack.index_add_(0, group, ones[: len(group)])
+    frames.extend(stack.view(windows, 2, height, width))
+
+dense = [torch.from_dlpack(frame).float() for frame in fast_stream.to_dlpack_frame()]
+len(frames), all(torch.equal(a.cpu(), b) for a, b in zip(frames, dense))
+```
+
+With groups of 16 windows, the 1 kHz benchmark ran twice as fast, level with
+the pre-decoded file. The price is latency: a frame waits for the rest of its
+group (up to 15 ms here). At video rates, where the fixed costs are small,
+leave `windows_per_batch` off: at 60 Hz, groups of 16 gained 5% and delayed
+the first frame from 7 ms to 66 ms. `windows` is the group's size except for
+the last group, and empty windows still count as frames.
+
+### Pinned buffers and prefetching
+
+For the fastest uploads, pass `out=` buffers in pinned memory: faery writes
+the indices (or frames, with `to_dlpack_frame`) directly where the GPU's copy
+engine reads them, and `.to(DEVICE, non_blocking=True)` returns at once. The
+docstrings of `to_dlpack_indices` and `to_dlpack_frame` show the pattern,
+including when a buffer may be reused. Both methods also take `prefetch=`,
+which prepares the next packets in a background thread. It rarely pays:
+faery's per-window work is now small, and in our benchmarks prefetching was
+4% faster at 60 Hz and 13% slower at 1 kHz. Measure before you enable it.
+
 Indices are also the fastest route in JAX: 1.4x faster than uploading the
 dense frame for this recording, and 1.3 to 6 times faster at 1280x720 (the
 gap narrows as packets fill up). There is one catch: JAX compiles a jitted

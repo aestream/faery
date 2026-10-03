@@ -343,6 +343,22 @@ class Output(typing.Generic[OutputState]):
         if len(pending) > 0:
             yield pending
 
+    def _dlpack_window_batches(
+        self, windows_per_batch: int
+    ) -> collections.abc.Iterator[list[numpy.ndarray]]:
+        """Consecutive packets (time windows) of a regular stream, K at a time.
+
+        Unlike _dlpack_batches, empty packets are kept: each is a frame.
+        """
+        pending: list[numpy.ndarray] = []
+        for events in self:
+            pending.append(events)
+            if len(pending) == windows_per_batch:
+                yield pending
+                pending = []
+        if len(pending) > 0:
+            yield pending
+
     def to_dlpack_sparse(
         self,
         fields: collections.abc.Sequence[typing.Literal["t", "x", "y", "p"]] = (
@@ -412,7 +428,10 @@ class Output(typing.Generic[OutputState]):
             numpy.ndarray, collections.abc.Sequence[numpy.ndarray], None
         ] = None,
         prefetch: int = 0,
-    ) -> collections.abc.Iterator[numpy.ndarray]:
+        windows_per_batch: typing.Optional[int] = None,
+    ) -> collections.abc.Iterator[
+        typing.Union[numpy.ndarray, tuple[numpy.ndarray, int]]
+    ]:
         """
         Yields per-packet flat frame indices as 1-D int32 numpy arrays.
 
@@ -460,56 +479,104 @@ class Output(typing.Generic[OutputState]):
         prefetching 3.5x slower than not prefetching. As for
         `to_dlpack_frame`, `out` needs at least `prefetch + 2` buffers.
 
+        `windows_per_batch` groups the packets of a regular stream (its time
+        windows) instead, K at a time, and yields `(indices, windows)`
+        tuples: window j of the group has its indices offset by
+        `j * 2 * height * width`, so one scatter builds every frame of the
+        group:
+
+            for indices, windows in stream.to_dlpack_indices(windows_per_batch=16):
+                gpu = torch.from_dlpack(indices).to("cuda")
+                frames = torch.zeros(windows * 2 * height * width, device="cuda")
+                frames.index_add_(0, gpu, torch.ones(len(gpu), device="cuda"))
+                for frame in frames.view(windows, 2, height, width):
+                    ...
+
+        Every upload and scatter has a fixed cost (about 0.1 ms with PyTorch
+        on an RTX 3090), which dominates at high frame rates: grouping 16
+        windows of 1 ms halved the time from file to frames. Frames arrive in
+        groups, so a window waits for up to K - 1 later windows: at video
+        rates, where per-window costs are small, the added latency
+        outweighs the gain. `windows` is K except for the last group, and
+        empty windows still count. Only regular streams can be grouped this
+        way, and it excludes `batch_events`.
+
         Args:
             batch_events: Minimum events per yielded array, or None (default)
                 for one array per packet.
             out: Optional buffer, or sequence of buffers, to write into.
             prefetch: Arrays to prepare ahead in a background thread
                 (0 disables the thread).
+            windows_per_batch: Windows of a regular stream per yielded
+                array, or None (default) for one array per packet.
         """
         if prefetch < 0:
             raise ValueError(f"prefetch must be at least 0 (got {prefetch})")
+        if windows_per_batch is not None:
+            if batch_events is not None:
+                raise ValueError("batch_events and windows_per_batch are exclusive")
+            if windows_per_batch < 1:
+                raise ValueError(
+                    f"windows_per_batch must be at least 1 (got {windows_per_batch})"
+                )
+            if not isinstance(self, (RegularEventsStream, FiniteRegularEventsStream)):
+                raise ValueError(
+                    "windows_per_batch groups the time windows of a regular stream; "
+                    "call regularize() first"
+                )
         if prefetch > 0:
             _check_prefetch_buffers(out, prefetch)
-            yield from _prefetched(self.to_dlpack_indices(batch_events, out), prefetch)
+            yield from _prefetched(
+                self.to_dlpack_indices(
+                    batch_events, out, windows_per_batch=windows_per_batch
+                ),
+                prefetch,
+            )
             return
         from .extension import dlpack
 
         width, height = self.dimensions()
-        if out is None:
-            for batch in self._dlpack_batches(batch_events):
-                if len(batch) == 1:
-                    yield dlpack.linear_indices(batch[0], width, height)
-                else:
-                    yield numpy.concatenate(
-                        [
-                            dlpack.linear_indices(events, width, height)
-                            for events in batch
-                        ]
-                    )
-            return
-        buffers = [out] if isinstance(out, numpy.ndarray) else list(out)
-        if len(buffers) == 0:
-            raise ValueError("out must contain at least one buffer")
-        for index, batch in enumerate(self._dlpack_batches(batch_events)):
-            buffer = buffers[index % len(buffers)]
+        if windows_per_batch is None:
+            batches = self._dlpack_batches(batch_events)
+        else:
+            batches = self._dlpack_window_batches(windows_per_batch)
+        buffers = None
+        if out is not None:
+            buffers = [out] if isinstance(out, numpy.ndarray) else list(out)
+            if len(buffers) == 0:
+                raise ValueError("out must contain at least one buffer")
+        for index, batch in enumerate(batches):
+            if windows_per_batch is None and buffers is None and len(batch) == 1:
+                yield dlpack.linear_indices(batch[0], width, height)
+                continue
             total = sum(len(events) for events in batch)
-            if (
-                not isinstance(buffer, numpy.ndarray)
-                or buffer.ndim != 1
-                or len(buffer) < total
-            ):
-                raise ValueError(
-                    f"out must be a writeable, C-contiguous 1-D numpy array with "
-                    f"dtype int32 and at least {total} elements"
-                )
+            if buffers is None:
+                buffer = numpy.empty(total, dtype=numpy.int32)
+            else:
+                buffer = buffers[index % len(buffers)]
+                if (
+                    not isinstance(buffer, numpy.ndarray)
+                    or buffer.ndim != 1
+                    or len(buffer) < total
+                ):
+                    raise ValueError(
+                        f"out must be a writeable, C-contiguous 1-D numpy array with "
+                        f"dtype int32 and at least {total} elements"
+                    )
             offset = 0
-            for events in batch:
+            for frame, events in enumerate(batch):
                 dlpack.linear_indices(
-                    events, width, height, buffer[offset : offset + len(events)]
+                    events,
+                    width,
+                    height,
+                    buffer[offset : offset + len(events)],
+                    frame if windows_per_batch is not None else 0,
                 )
                 offset += len(events)
-            yield buffer[:total]
+            if windows_per_batch is None:
+                yield buffer[:total]
+            else:
+                yield buffer[:total], len(batch)
 
     def to_dlpack_frame(
         self,
