@@ -145,9 +145,14 @@ whole recipe: `regularize` → `to_dlpack_frame` → `from_dlpack` → forward p
 
 ## The same pipeline in JAX
 
-DLPack is framework-agnostic, so the faery side is identical — only the
-consumer changes. `jax.dlpack.from_dlpack` imports each frame, and
-`lax.conv_general_dilated` applies the same dilated kernel:
+The faery side is identical — only the consumer changes. One difference
+from PyTorch: JAX runs a jitted function on the device its inputs live on, and
+`jax.dlpack.from_dlpack` wraps a numpy frame as a *CPU* array, so the
+convolution would silently run on the CPU. `jax.device_put` moves each frame to
+the default device (the GPU, if JAX has one) instead; it accepts the numpy
+frame directly, which was about 20% faster than going through `from_dlpack`
+first in our benchmarks. `lax.conv_general_dilated` applies the same dilated
+kernel:
 
 ```{code-cell} python
 import jax
@@ -173,12 +178,12 @@ stream = faery.events_stream_from_file(PATH).regularize(frequency_hz=60.0)
 for index, frame in enumerate(
     itertools.islice(stream.to_dlpack_frame(dtype="u16"), 60)
 ):
-    tensor = jax.dlpack.from_dlpack(frame).astype(jnp.float32)
+    tensor = jax.device_put(frame).astype(jnp.float32)
     tensor = tensor.sum(axis=0).reshape(1, 1, height, width)
     filtered = edge_filter(tensor)
     if index % 30 == 0:
         print(
-            f"frame {index:3d}: "
+            f"frame {index:3d} on {filtered.device}: "
             f"edge energy horizontal={jnp.abs(filtered[0, 0]).sum():9.1f} "
             f"vertical={jnp.abs(filtered[0, 1]).sum():9.1f}"
         )
@@ -210,6 +215,39 @@ In our benchmarks this was 1.5 to 5.1 times faster than uploading x, y, and p
 separately and scattering with `index_put_`, and faster than uploading a dense
 u16 frame on 1280x720 sensors (on par for this 320x240 recording). In a loop, preallocate the ones on the device, sized
 to the largest packet, and slice them (`ones[: len(indices)]`).
+
+Indices are also the fastest route in JAX: 1.4x faster than uploading the
+dense frame for this recording, and 1.3 to 6 times faster at 1280x720 (the
+gap narrows as packets fill up). There is one catch: JAX compiles a jitted
+function once per input shape, and every packet has a different length. Scattering the raw indices recompiles on nearly every
+packet (about 58 ms each on an RTX 3090). Pad each packet to a power-of-two
+size with an out-of-range index instead, and let `mode="drop"` discard the
+padding; there are then only a handful of shapes to compile:
+
+```{code-cell} python
+import numpy
+
+
+@jax.jit
+def scatter(indices):
+    flat = jnp.zeros(2 * height * width, jnp.float32)
+    flat = flat.at[indices].add(1.0, mode="drop")
+    return flat.reshape(2, height, width)
+
+
+def pad(indices):
+    size = max(1024, 1 << (len(indices) - 1).bit_length())
+    padded = numpy.full(size, 2 * height * width, dtype=numpy.int32)
+    padded[: len(indices)] = indices
+    return padded
+
+
+jax_frame = scatter(jax.device_put(pad(indices_np)))
+bool((jax_frame == jnp.asarray(dense_frame.numpy())).all())
+```
+
+Even so, PyTorch's `index_add_` was 1.5 to 3 times faster than this in our
+benchmarks (about 0.1 ms more per packet at low event counts).
 
 Some models — event GNNs, point-cloud networks, custom CUDA kernels — need the
 raw event fields, timestamps included. `to_dlpack_sparse` yields each packet as

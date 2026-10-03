@@ -193,3 +193,38 @@ back to 0.054 ms with no change to that path: confirms GPU-side noise.
 | test_gpu_frame_pinned[synthetic-10000] | — | 0.1841 | new |
 | test_gpu_frame_pinned[synthetic-1000] | — | 0.1833 | new |
 ```
+
+## 0011_jax-gpu — JAX on the GPU (benchmarks/test_handoff_jax.py)
+
+jax[cuda13] 0.11.2 (matches torch 2.14.1+cu130) in the bench group. The
+torch gpu group ran in the same session for comparison (on a tree dirty with
+the in-progress GIL-release/prefetch work, which doesn't touch those paths;
+all within noise of 0009/0010 except the noisy small-packet u16/pinned rows).
+
+Recompilation: jit compiles per input shape, and packet lengths vary.
+Scattering exact-length indices cost 57.6 ms/packet (10k events,
+recompiling almost every packet) vs 1.05 ms with one compilation. The
+scatter variants pad to power-of-two buckets (>= 1024) with an out-of-range
+sentinel dropped by `mode="drop"`: <= 2x padding, a few compilations per
+workload, all in warmup.
+
+ms/packet, best JAX variant vs best PyTorch variant:
+
+| workload | jax_frame | jax_frame_dlpack | jax_indices_bucketed | jax_sparse_bucketed | torch index_add_ | torch pinned |
+|---|---:|---:|---:|---:|---:|---:|
+| dvs.es | 0.259 | 0.321 | **0.184** | 0.345 | 0.069 | **0.049** |
+| synthetic-1k | 1.056 | 1.257 | **0.166** | 0.350 | **0.058** | 0.085 |
+| synthetic-10k | 1.074 | 1.285 | **0.186** | 0.350 | **0.073** | 0.113 |
+| synthetic-100k | 1.283 | 1.541 | **0.371** | 0.694 | **0.230** | 0.366 |
+| synthetic-1M | 3.634 | 4.111 | **2.789** | 5.745 | **1.899** | 2.880 |
+
+- In JAX, indices + bucketed scatter wins everywhere: 1.4x faster than a
+  dense frame on dvs.es, 1.3-6.4x at 1280x720.
+- JAX is 1.5-2.8x slower than PyTorch's best: about 0.1 ms more fixed cost
+  per packet (device_put from pageable numpy + dispatch + host-side padding),
+  and a slower scatter at 1M events.
+- jax.dlpack.from_dlpack + device_put is 13-24% slower than device_put of
+  the numpy frame directly. from_dlpack yields a CPU array, and jit runs
+  where its inputs are: the tutorial's JAX loop ran the convolution on the
+  CPU. Fixed (device_put).
+- jax_sparse_bucketed[synthetic-1M] is noisy (IQR 56 ms on a 172 ms round).

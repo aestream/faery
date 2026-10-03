@@ -35,6 +35,7 @@ docs = [
 ]
 bench = [
   "torch",
+  "jax[cuda13]",
   "pytest-benchmark",
 ]
 
