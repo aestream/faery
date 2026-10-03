@@ -9,6 +9,11 @@ Groups:
   Runs without a GPU and isolates changes to src/dlpack.rs.
 - gpu: preparation + host-to-device transfer + GPU work, until the frame is
   ready on the device.
+- gpu-consumer: the gpu pipeline followed by a simulated model: a fixed GPU
+  workload (CONSUMER_MS per packet) whose result is read back every packet,
+  so the Python thread blocks on the GPU. This is where `prefetch` (preparing
+  the next packet in a background thread) can hide the faery-side work;
+  `consumer_only` is the floor.
 
 Run through benchmarks/run.sh, which saves results for later comparison.
 """
@@ -210,6 +215,124 @@ def test_gpu_indices_index_add(benchmark, workload):
     _round(benchmark, workload, run)
 
 
+# --- gpu-consumer -----------------------------------------------------------
+
+CONSUMER_MS = 1.0
+_consumer_cycles = None
+
+
+def _consume(frame):
+    """A stand-in model: CONSUMER_MS of GPU work, then a blocking readback."""
+    global _consumer_cycles
+    if _consumer_cycles is None:
+        # Calibrate torch.cuda._sleep (a GPU spin loop) to CONSUMER_MS.
+        torch.cuda._sleep(1_000_000)  # warm up
+        torch.cuda.synchronize()
+        start, end = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
+        start.record()
+        torch.cuda._sleep(1_000_000)
+        end.record()
+        end.synchronize()
+        _consumer_cycles = int(1_000_000 * CONSUMER_MS / start.elapsed_time(end))
+    torch.cuda._sleep(_consumer_cycles)
+    return frame[0, 0, 0].item()
+
+
+@requires_cuda
+@pytest.mark.benchmark(group="gpu-consumer")
+def test_consumer_only(benchmark, workload):
+    """The simulated model alone, on a resident frame: the floor."""
+    width, height = workload.dimensions
+    frame = torch.zeros((2, height, width), device=DEVICE)
+
+    def run():
+        for _ in workload.packets:
+            _consume(frame)
+
+    _round(benchmark, workload, run)
+
+
+@requires_cuda
+@pytest.mark.benchmark(group="gpu-consumer")
+@pytest.mark.parametrize("prefetch", [0, 2])
+def test_consumer_indices_index_add(benchmark, workload, prefetch):
+    """gpu_indices_index_add, then the simulated model."""
+    stream = workload.stream()
+    width, height = workload.dimensions
+    ones = torch.ones(max(map(len, workload.packets), default=0), device=DEVICE)
+
+    def run():
+        for indices in stream.to_dlpack_indices(prefetch=prefetch):
+            gpu = torch.from_dlpack(indices).to(DEVICE, non_blocking=True)
+            frame = torch.zeros(2 * height * width, device=DEVICE)
+            frame.index_add_(0, gpu, ones[: len(gpu)])
+            _consume(frame.view(2, height, width))
+        torch.cuda.synchronize()
+
+    _round(benchmark, workload, run)
+
+
+@requires_cuda
+@pytest.mark.benchmark(group="gpu-consumer")
+@pytest.mark.parametrize("prefetch", [0, 2])
+def test_consumer_indices_pinned(benchmark, workload, prefetch):
+    """Indices written into pinned buffers (out=), async upload, the model.
+
+    As for frames, the readback frees a buffer once its packet is consumed.
+    """
+    stream = workload.stream()
+    width, height = workload.dimensions
+    capacity = max(map(len, workload.packets), default=0)
+    ones = torch.ones(capacity, device=DEVICE)
+    pinned = [
+        torch.empty(capacity, dtype=torch.int32, pin_memory=True)
+        for _ in range(prefetch + 2)
+    ]
+    out = [buffer.numpy() for buffer in pinned]
+
+    def run():
+        for index, indices in enumerate(
+            stream.to_dlpack_indices(out=out, prefetch=prefetch)
+        ):
+            count = len(indices)
+            gpu = pinned[index % len(pinned)][:count].to(DEVICE, non_blocking=True)
+            frame = torch.zeros(2 * height * width, device=DEVICE)
+            frame.index_add_(0, gpu, ones[:count])
+            _consume(frame.view(2, height, width))
+        torch.cuda.synchronize()
+
+    _round(benchmark, workload, run)
+
+
+@requires_cuda
+@pytest.mark.benchmark(group="gpu-consumer")
+@pytest.mark.parametrize("prefetch", [0, 2])
+def test_consumer_frame_pinned(benchmark, workload, prefetch):
+    """u16 into pinned buffers, async upload, then the simulated model.
+
+    The readback in _consume waits for the upload too, so a buffer is free
+    once its packet is consumed: prefetch + 2 buffers suffice.
+    """
+    stream = workload.stream()
+    width, height = workload.dimensions
+    shape = (2, height, width)
+    pinned = [
+        torch.empty(shape, dtype=torch.int16, pin_memory=True)
+        for _ in range(prefetch + 2)
+    ]
+    staged = torch.empty(shape, dtype=torch.int16, device=DEVICE)
+    out = [buffer.numpy().view(numpy.uint16) for buffer in pinned]
+
+    def run():
+        for index, _ in enumerate(stream.to_dlpack_frame(out=out, prefetch=prefetch)):
+            staged.copy_(pinned[index % len(pinned)], non_blocking=True)
+            _consume(staged.float())
+        torch.cuda.synchronize()
+
+    _round(benchmark, workload, run)
+
+
+
 @requires_cuda
 def test_gpu_variants_agree(workload):
     """Guard: every gpu variant must produce the same frame as numpy."""
@@ -248,4 +371,24 @@ def test_gpu_variants_agree(workload):
     )
     flat = torch.zeros(2 * height * width, device=DEVICE)
     flat.index_add_(0, indices, torch.ones(len(indices), device=DEVICE))
+    numpy.testing.assert_array_equal(flat.view(2, height, width).cpu().numpy(), expected)
+
+    prefetched = numpy.concatenate(list(stream.to_dlpack_indices(prefetch=2)))
+    numpy.testing.assert_array_equal(prefetched, indices.cpu().numpy())
+
+    pinned = [
+        torch.empty((2, height, width), dtype=torch.int16, pin_memory=True)
+        for _ in range(4)
+    ]
+    out = [buffer.numpy().view(numpy.uint16) for buffer in pinned]
+    for index, _ in enumerate(stream.to_dlpack_frame(out=out, prefetch=2)):
+        staged.copy_(pinned[index % len(pinned)], non_blocking=True)
+    numpy.testing.assert_array_equal(staged.float().cpu().numpy(), expected)
+
+    pinned = [torch.empty(len(packet), dtype=torch.int32, pin_memory=True) for _ in range(4)]
+    out = [buffer.numpy() for buffer in pinned]
+    flat = torch.zeros(2 * height * width, device=DEVICE)
+    for index, indices in enumerate(stream.to_dlpack_indices(out=out, prefetch=2)):
+        gpu = pinned[index % len(pinned)][: len(indices)].to(DEVICE, non_blocking=True)
+        flat.index_add_(0, gpu, torch.ones(len(indices), device=DEVICE))
     numpy.testing.assert_array_equal(flat.view(2, height, width).cpu().numpy(), expected)

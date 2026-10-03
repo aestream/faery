@@ -228,3 +228,45 @@ ms/packet, best JAX variant vs best PyTorch variant:
   where its inputs are: the tutorial's JAX loop ran the convolution on the
   CPU. Fixed (device_put).
 - jax_sparse_bucketed[synthetic-1M] is noisy (IQR 56 ms on a 172 ms round).
+
+## 0010_gil-prefetch, 0012_prefetch-pinned-indices — GIL release, prefetch thread
+
+The event walks in src/dlpack.rs run inside `Python::detach`, and
+`to_dlpack_frame`/`to_dlpack_indices` take `prefetch=N`: a background thread
+prepares up to N arrays ahead. `to_dlpack_indices` also takes `out=` buffers
+(0012). New group gpu-consumer: each packet is followed by 0.86 ms of GPU work
+(`torch.cuda._sleep`) and a blocking `.item()`, a stand-in for a model whose
+result is read back per packet. Without a blocking consumer there's nothing to
+overlap: GPU work is already asynchronous.
+
+ms/packet from 0012 (consumer_only, the floor, is 0.862 everywhere):
+
+| workload | indices pageable 0 → 2 | indices pinned 0 → 2 | frame pinned 0 → 2 |
+|---|---:|---:|---:|
+| dvs.es | 0.941 → 0.954 | 0.938 → 0.936 | 0.910 → 0.915 |
+| synthetic-1k | 0.931 → 0.951 | 0.928 → 0.938 | 1.099 → 1.099 |
+| synthetic-10k | 0.946 → 0.950 | 0.941 → 0.947 | 1.121 → 1.120 |
+| synthetic-100k | 1.104 → 1.005 | 1.087 → **0.958** | 1.365 → **1.101** |
+| synthetic-1M | 2.886 → *6.897* | 2.732 → **1.581** | 3.855 → **2.834** |
+
+- Pinned indices + prefetch at 1M: -42%, within 0.08 ms of the CPU-side
+  floor (cpu_indices: 1.52 ms). Frames: -26%. Below 100k events per packet
+  there's nothing to hide; the thread costs about 0.01 ms per packet.
+- Pageable indices + prefetch is 2.4x *slower* at 1M (0010 too). The
+  producer's `linear_indices` took 6-7 ms CPU time (not GIL waiting: thread
+  CPU time = wall time; setswitchinterval had no effect) instead of 1.5 ms.
+  Cause: the 3960X has 8 L3s (3-core CCXs) and `--cpuset-cpus=2-5` spans
+  two. The upload memcpy reads each index array on the consumer's core,
+  malloc recycles that memory for the producer, and every write must
+  invalidate the line in the other CCX's L3. Same script, 1M, no consumer:
+  cpus 3-5 (one CCX) 1.95 → 1.64 ms with prefetch; cpus 2-5 1.93 → 6.82;
+  unpinned 1.90 → 7.61. With pinned buffers the GPU reads by DMA, no remote
+  CPU cache holds the lines, and the penalty disappears (1.91 ms on both
+  core sets, pinned staging via a copy). Hence `out=` for indices, and the
+  docstrings say to combine prefetch with pinned buffers.
+- GIL release on the non-prefetch paths: +1-3% on most rows vs 0009 (one
+  detach/reacquire per packet, ~0.5 µs; +17% = +0.4 µs on cpu_indices[1k]).
+  0012's +12-22% on a few 1M dense-frame rows was load from another job
+  (load average 2.9 at the start): two re-runs gave gpu_frame_out 2.82/2.88
+  (0009: 2.77), gpu_frame_pinned 2.91/2.87 (2.78), cpu_frame_out f32
+  2.31/2.29 (2.42).

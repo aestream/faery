@@ -88,6 +88,82 @@ EVENTS_DTYPE: numpy.dtype = numpy.dtype(
 OutputState = typing.TypeVar("OutputState")
 
 
+_PREFETCH_DONE = object()
+
+
+def _check_prefetch_buffers(
+    out: typing.Union[numpy.ndarray, collections.abc.Sequence[numpy.ndarray], None],
+    prefetch: int,
+) -> None:
+    if out is None:
+        return
+    buffers = 1 if isinstance(out, numpy.ndarray) else len(out)
+    if buffers < prefetch + 2:
+        raise ValueError(
+            f"prefetch={prefetch} needs at least {prefetch + 2} out buffers "
+            f"(got {buffers}): the background thread writes up to "
+            f"prefetch + 1 arrays ahead of the current one"
+        )
+
+
+def _prefetched(
+    source: collections.abc.Iterator[typing.Any], prefetch: int
+) -> collections.abc.Iterator[typing.Any]:
+    """Runs `source` in a background thread, up to `prefetch` items ahead.
+
+    The faery DLPack exporters release the GIL while they walk a packet, so
+    the next packet is prepared while the caller works on the current one
+    (e.g. queues GPU work). Exceptions raised by `source` are re-raised here.
+    Closing this generator (break, garbage collection) stops the thread and
+    closes `source`.
+    """
+    import queue
+    import threading
+
+    items: queue.Queue = queue.Queue(maxsize=prefetch)
+    stop = threading.Event()
+
+    def produce():
+        try:
+            for item in source:
+                while not stop.is_set():
+                    try:
+                        items.put((item, None), timeout=0.05)
+                        break
+                    except queue.Full:
+                        pass
+                if stop.is_set():
+                    return
+            item, error = _PREFETCH_DONE, None
+        except BaseException as exception:
+            # BaseException too: the consumer would otherwise wait forever.
+            item, error = _PREFETCH_DONE, exception
+        finally:
+            close = getattr(source, "close", None)
+            if close is not None:
+                close()
+        while not stop.is_set():
+            try:
+                items.put((item, error), timeout=0.05)
+                return
+            except queue.Full:
+                pass
+
+    thread = threading.Thread(target=produce, name="faery-prefetch", daemon=True)
+    thread.start()
+    try:
+        while True:
+            item, error = items.get()
+            if error is not None:
+                raise error
+            if item is _PREFETCH_DONE:
+                return
+            yield item
+    finally:
+        stop.set()
+        thread.join()
+
+
 class Output(typing.Generic[OutputState]):
     def __iter__(self) -> collections.abc.Iterator[numpy.ndarray]:
         raise NotImplementedError()
@@ -313,7 +389,12 @@ class Output(typing.Generic[OutputState]):
                 }
 
     def to_dlpack_indices(
-        self, batch_events: typing.Optional[int] = None
+        self,
+        batch_events: typing.Optional[int] = None,
+        out: typing.Union[
+            numpy.ndarray, collections.abc.Sequence[numpy.ndarray], None
+        ] = None,
+        prefetch: int = 0,
     ) -> collections.abc.Iterator[numpy.ndarray]:
         """
         Yields per-packet flat frame indices as 1-D int32 numpy arrays.
@@ -337,20 +418,74 @@ class Output(typing.Generic[OutputState]):
         array holds at least that many events, as for `to_dlpack_sparse`: fewer,
         larger uploads. Only non-regular streams can be batched.
 
+        By default every array is newly allocated. Pass `out` to write into
+        buffers instead: one array, or a sequence of arrays used in turn. Each
+        must be a writeable, C-contiguous 1-D int32 array with room for the
+        largest packet (or batch), and the yielded array is a view of its
+        start, overwritten when the buffer's turn comes again. Pinned buffers
+        make the upload a DMA transfer:
+
+            buffers = [torch.empty(capacity, dtype=torch.int32, pin_memory=True)
+                       for _ in range(2)]
+            out = [buffer.numpy() for buffer in buffers]
+            for index, indices in enumerate(stream.to_dlpack_indices(out=out)):
+                gpu = buffers[index % 2][: len(indices)].to("cuda", non_blocking=True)
+                ...  # wait for that copy before the buffer's next turn
+
+        `prefetch` prepares up to that many arrays ahead in a background
+        thread, overlapping the Rust work (which releases the GIL) with
+        whatever the caller does with the current array, such as queueing GPU
+        work. 0 (default) prepares each array on demand, in the caller's
+        thread. Combine it with pinned `out` buffers: without them, the
+        background thread writes into memory that the upload has just read
+        on another core, and on CPUs with several L3 caches (AMD Ryzen and
+        Threadripper, multi-socket systems) moving those cache lines made
+        prefetching 3.5x slower than not prefetching. As for
+        `to_dlpack_frame`, `out` needs at least `prefetch + 2` buffers.
+
         Args:
             batch_events: Minimum events per yielded array, or None (default)
                 for one array per packet.
+            out: Optional buffer, or sequence of buffers, to write into.
+            prefetch: Arrays to prepare ahead in a background thread
+                (0 disables the thread).
         """
+        if prefetch < 0:
+            raise ValueError(f"prefetch must be at least 0 (got {prefetch})")
+        if prefetch > 0:
+            _check_prefetch_buffers(out, prefetch)
+            yield from _prefetched(self.to_dlpack_indices(batch_events, out), prefetch)
+            return
         from .extension import dlpack
 
         width, height = self.dimensions()
-        for batch in self._dlpack_batches(batch_events):
-            if len(batch) == 1:
-                yield dlpack.linear_indices(batch[0], width, height)
-            else:
-                yield numpy.concatenate(
-                    [dlpack.linear_indices(events, width, height) for events in batch]
+        if out is None:
+            for batch in self._dlpack_batches(batch_events):
+                if len(batch) == 1:
+                    yield dlpack.linear_indices(batch[0], width, height)
+                else:
+                    yield numpy.concatenate(
+                        [dlpack.linear_indices(events, width, height) for events in batch]
+                    )
+            return
+        buffers = [out] if isinstance(out, numpy.ndarray) else list(out)
+        if len(buffers) == 0:
+            raise ValueError("out must contain at least one buffer")
+        for index, batch in enumerate(self._dlpack_batches(batch_events)):
+            buffer = buffers[index % len(buffers)]
+            total = sum(len(events) for events in batch)
+            if not isinstance(buffer, numpy.ndarray) or buffer.ndim != 1 or len(buffer) < total:
+                raise ValueError(
+                    f"out must be a writeable, C-contiguous 1-D numpy array with "
+                    f"dtype int32 and at least {total} elements"
                 )
+            offset = 0
+            for events in batch:
+                dlpack.linear_indices(
+                    events, width, height, buffer[offset : offset + len(events)]
+                )
+                offset += len(events)
+            yield buffer[:total]
 
     def to_dlpack_frame(
         self,
@@ -358,6 +493,7 @@ class Output(typing.Generic[OutputState]):
         out: typing.Union[
             numpy.ndarray, collections.abc.Sequence[numpy.ndarray], None
         ] = None,
+        prefetch: int = 0,
     ) -> collections.abc.Iterator[numpy.ndarray]:
         """
         Yields per-packet `(2, height, width)` frames as numpy arrays.
@@ -387,10 +523,27 @@ class Output(typing.Generic[OutputState]):
                 ...  # wait for the copy from buffer (index + 1) % 2 before
                      # the next iteration overwrites it (e.g. a CUDA event)
 
+        `prefetch` rasterizes up to that many frames ahead in a background
+        thread, overlapping the Rust work (which releases the GIL) with
+        whatever the caller does with the current frame. 0 (default)
+        rasterizes each frame on demand, in the caller's thread. With `out`,
+        the thread writes up to `prefetch + 1` frames ahead of the one the
+        caller holds, so `out` needs at least `prefetch + 2` buffers, and one
+        more if the previous frame is still being read asynchronously (a
+        non-blocking upload) when the next one is requested.
+
         Args:
             dtype: Output dtype, one of "u16" (default), "u32", or "f32".
             out: Optional buffer, or sequence of buffers, to rasterize into.
+            prefetch: Frames to rasterize ahead in a background thread
+                (0 disables the thread).
         """
+        if prefetch < 0:
+            raise ValueError(f"prefetch must be at least 0 (got {prefetch})")
+        if prefetch > 0:
+            _check_prefetch_buffers(out, prefetch)
+            yield from _prefetched(self.to_dlpack_frame(dtype, out), prefetch)
+            return
         from .extension import dlpack
 
         width, height = self.dimensions()

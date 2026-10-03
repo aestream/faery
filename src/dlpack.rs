@@ -2,7 +2,7 @@ use pyo3::prelude::*;
 
 use crate::types;
 
-trait Rasterize: numpy::Element + Copy + Default {
+trait Rasterize: numpy::Element + Copy + Default + Send {
     fn inc(value: &mut Self);
 }
 
@@ -57,27 +57,70 @@ pub fn rasterize_to_frame(
     }
 }
 
+/// A structured DVS event array, reduced to what the walk needs.
+///
+/// The fields are plain values (no Python references), so the walk can run
+/// with the GIL released. The caller keeps the numpy array alive meanwhile.
+#[derive(Clone, Copy)]
+struct Events {
+    base: *const u8,
+    stride: isize,
+    length: isize,
+}
+
+// Safety: the pointer is only read during a walk, while the caller holds a
+// reference to the array.
+unsafe impl Send for Events {}
+
+impl Events {
+    /// # Safety
+    /// `array` and `length` must come from `types::check_array` with `ArrayType::Dvs`.
+    unsafe fn new(array: *mut numpy::npyffi::PyArrayObject, length: numpy::npyffi::npy_intp) -> Self {
+        Events {
+            base: (*array).data as *const u8,
+            // Signed: views such as events[::-1] have negative strides.
+            stride: *((*array).strides) as isize,
+            length: length as isize,
+        }
+    }
+}
+
+/// A raw output pointer that can cross into `Python::detach`.
+#[derive(Clone, Copy)]
+struct SendPtr<T>(*mut T);
+
+// Safety: each array behind a SendPtr is written by one walk at a time.
+unsafe impl<T> Send for SendPtr<T> {}
+
+impl<T> SendPtr<T> {
+    // A method rather than `.0`: closures capture disjoint fields, and
+    // capturing `.0` would capture the bare (non-Send) pointer.
+    #[inline(always)]
+    fn get(self) -> *mut T {
+        self.0
+    }
+}
+
 /// Calls `f(index, linear)` for every event, where `linear` is
 /// `p * height * width + y * width + x` (p = 0 for OFF, 1 for ON).
 ///
+/// Touches no Python objects, so callers run it inside `Python::detach`:
+/// another thread (e.g. a consumer feeding a GPU) runs meanwhile.
+///
 /// # Safety
-/// `array` and `length` must come from `types::check_array` with `ArrayType::Dvs`.
+/// `events` must describe a live DVS array (see `Events::new`).
 unsafe fn for_each_event(
-    array: *mut numpy::npyffi::PyArrayObject,
-    length: numpy::npyffi::npy_intp,
+    events: Events,
     width: u16,
     height: u16,
     mut f: impl FnMut(usize, usize),
 ) -> PyResult<()> {
     let plane_stride = width as usize * height as usize;
     // Walk the structured array by pointer arithmetic instead of calling
-    // PyArray_GetPtr per event. The stride is signed: views such as
-    // events[::-1] have negative strides.
-    let base = (*array).data as *const u8;
-    let stride = *((*array).strides) as isize;
-    for index in 0..length as isize {
-        let event =
-            base.offset(index * stride) as *const neuromorphic_types::PolarityEvent<u64, u16, u16>;
+    // PyArray_GetPtr per event.
+    for index in 0..events.length {
+        let event = events.base.offset(index * events.stride)
+            as *const neuromorphic_types::PolarityEvent<u64, u16, u16>;
         let x = std::ptr::read_unaligned(std::ptr::addr_of!((*event).x));
         let y = std::ptr::read_unaligned(std::ptr::addr_of!((*event).y));
         // Read the raw byte rather than the Polarity enum: numpy bools can
@@ -141,8 +184,9 @@ unsafe fn new_array<'py, T: numpy::Element>(
         // that fault in one by one during the random scatter (2x slower per
         // packet in benchmarks/test_handoff.py). memset on malloc'd memory
         // reuses pages that are already mapped.
-        let elements: numpy::npyffi::npy_intp = dimensions.iter().product();
-        std::ptr::write_bytes(data, 0, elements as usize);
+        let elements = dimensions.iter().product::<numpy::npyffi::npy_intp>() as usize;
+        let target = SendPtr(data);
+        python.detach(move || std::ptr::write_bytes(target.get(), 0, elements));
     }
     Ok((array, data))
 }
@@ -166,8 +210,12 @@ fn rasterize_typed<T: Rasterize>(
     ];
     unsafe {
         let (frame, data) = new_array::<T>(python, &mut dimensions, true)?;
-        for_each_event(array, length, width, height, |_, linear| {
-            T::inc(&mut *data.add(linear));
+        let events = Events::new(array, length);
+        let data = SendPtr(data);
+        python.detach(move || {
+            for_each_event(events, width, height, |_, linear| {
+                T::inc(&mut *data.get().add(linear));
+            })
         })?;
         Ok(frame.unbind())
     }
@@ -201,13 +249,18 @@ fn rasterize_into<T: Rasterize>(
     }
     let mut frame_readwrite = frame.try_readwrite().map_err(|_| invalid())?;
     let data = frame_readwrite.as_slice_mut().map_err(|_| invalid())?;
-    data.fill(T::default());
-    let data = data.as_mut_ptr();
-    unsafe {
-        for_each_event(array, length, width, height, |_, linear| {
-            T::inc(&mut *data.add(linear));
-        })?;
-    }
+    let events = unsafe { Events::new(array, length) };
+    // frame_readwrite stays borrowed across the detach, so no other
+    // rust-numpy borrow of `out` can start while the walk writes it.
+    out.py().detach(move || {
+        data.fill(T::default());
+        let data = SendPtr(data.as_mut_ptr());
+        unsafe {
+            for_each_event(events, width, height, |_, linear| {
+                T::inc(&mut *data.get().add(linear));
+            })
+        }
+    })?;
     drop(frame_readwrite);
     Ok(out.clone().unbind())
 }
@@ -217,11 +270,17 @@ fn rasterize_into<T: Rasterize>(
 ///
 /// A consumer rebuilds the frame with a single scatter, e.g.
 /// `torch.zeros(2 * height * width).index_add_(0, indices, ones).view(2, height, width)`.
+///
+/// With `out` (a writeable, C-contiguous 1-D int32 array with room for every
+/// event), the indices are written to its start and `out[:len(events)]` is
+/// returned instead of a new array.
 #[pyfunction]
+#[pyo3(signature = (events, width, height, out=None))]
 pub fn linear_indices(
     events: &pyo3::Bound<'_, pyo3::types::PyAny>,
     width: u16,
     height: u16,
+    out: Option<&pyo3::Bound<'_, pyo3::types::PyAny>>,
 ) -> PyResult<Py<PyAny>> {
     check_dimensions(width, height)?;
     if 2 * width as u64 * height as u64 > i32::MAX as u64 {
@@ -232,12 +291,56 @@ pub fn linear_indices(
     }
     let python = events.py();
     let (array, length) = types::check_array(python, types::ArrayType::Dvs, events)?;
+    if let Some(out) = out {
+        return linear_indices_into(array, length, width, height, out);
+    }
     let mut dimensions = [length];
     unsafe {
         let (indices, data) = new_array::<i32>(python, &mut dimensions, false)?;
-        for_each_event(array, length, width, height, |index, linear| {
-            *data.add(index) = linear as i32;
+        let events = Events::new(array, length);
+        let data = SendPtr(data);
+        python.detach(move || {
+            for_each_event(events, width, height, |index, linear| {
+                *data.get().add(index) = linear as i32;
+            })
         })?;
         Ok(indices.unbind())
     }
+}
+
+fn linear_indices_into(
+    array: *mut numpy::npyffi::PyArrayObject,
+    length: numpy::npyffi::npy_intp,
+    width: u16,
+    height: u16,
+    out: &pyo3::Bound<'_, pyo3::types::PyAny>,
+) -> PyResult<Py<PyAny>> {
+    use numpy::{PyArrayMethods, PyUntypedArrayMethods};
+    let invalid = || {
+        PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+            "out must be a writeable, C-contiguous 1-D numpy array with dtype int32 and at least {} elements",
+            length
+        ))
+    };
+    let indices = out
+        .cast::<numpy::PyArray1<i32>>()
+        .map_err(|_| invalid())?;
+    if indices.len() < length as usize || !indices.is_c_contiguous() {
+        return Err(invalid());
+    }
+    let mut indices_readwrite = indices.try_readwrite().map_err(|_| invalid())?;
+    let data = indices_readwrite.as_slice_mut().map_err(|_| invalid())?;
+    let events = unsafe { Events::new(array, length) };
+    out.py().detach(move || {
+        let data = SendPtr(data.as_mut_ptr());
+        unsafe {
+            for_each_event(events, width, height, |index, linear| {
+                *data.get().add(index) = linear as i32;
+            })
+        }
+    })?;
+    drop(indices_readwrite);
+    Ok(out
+        .get_item(pyo3::types::PySlice::new(out.py(), 0, length as isize, 1))?
+        .unbind())
 }

@@ -270,3 +270,136 @@ def test_dlpack_batching_rejects_non_positive():
     stream = _FixedStream(_batch_packets(), dimensions=(10, 8))
     with pytest.raises(ValueError):
         next(stream.to_dlpack_indices(batch_events=0))
+
+
+def _prefetch_threads():
+    import threading
+
+    return [t for t in threading.enumerate() if t.name == "faery-prefetch"]
+
+
+def _many_packets(count=50):
+    rng = numpy.random.default_rng(0)
+    packets = []
+    for _ in range(count):
+        packet = numpy.zeros(int(rng.integers(0, 200)), dtype=EVENTS_DTYPE)
+        packet["x"] = rng.integers(0, 10, len(packet))
+        packet["y"] = rng.integers(0, 8, len(packet))
+        packet["on"] = rng.integers(0, 2, len(packet)).astype(bool)
+        packets.append(packet)
+    return packets
+
+
+@pytest.mark.parametrize("prefetch", [1, 3])
+def test_prefetch_matches_on_demand(prefetch):
+    stream = _FixedStream(_many_packets(), dimensions=(10, 8))
+    frames = list(stream.to_dlpack_frame(dtype="u32"))
+    prefetched = list(stream.to_dlpack_frame(dtype="u32", prefetch=prefetch))
+    assert len(prefetched) == len(frames)
+    for a, b in zip(prefetched, frames):
+        numpy.testing.assert_array_equal(a, b)
+    indices = list(stream.to_dlpack_indices())
+    prefetched = list(stream.to_dlpack_indices(prefetch=prefetch))
+    assert len(prefetched) == len(indices)
+    for a, b in zip(prefetched, indices):
+        numpy.testing.assert_array_equal(a, b)
+    assert _prefetch_threads() == []
+
+
+@pytest.mark.parametrize("prefetch", [1, 2])
+def test_prefetch_out_buffers_not_overwritten_while_held(prefetch):
+    import time
+
+    stream = _FixedStream(_many_packets(20), dimensions=(10, 8))
+    expected = [frame.copy() for frame in stream.to_dlpack_frame()]
+    buffers = [numpy.empty((2, 8, 10), dtype=numpy.uint16) for _ in range(prefetch + 2)]
+    for index, frame in enumerate(stream.to_dlpack_frame(out=buffers, prefetch=prefetch)):
+        assert frame is buffers[index % len(buffers)]
+        # Give the producer time to run ahead as far as it can.
+        time.sleep(0.005)
+        numpy.testing.assert_array_equal(frame, expected[index])
+
+
+def test_prefetch_rejects_too_few_out_buffers():
+    stream = _FixedStream([_make_packet()], dimensions=(10, 8))
+    buffers = [numpy.empty((2, 8, 10), dtype=numpy.uint16) for _ in range(3)]
+    with pytest.raises(ValueError, match="at least 4"):
+        next(stream.to_dlpack_frame(out=buffers, prefetch=2))
+    with pytest.raises(ValueError):
+        next(stream.to_dlpack_frame(prefetch=-1))
+
+
+def test_prefetch_propagates_errors():
+    bad = numpy.array([(0, 20, 0, True)], dtype=EVENTS_DTYPE)
+    stream = _FixedStream([_make_packet(), bad, _make_packet()], dimensions=(10, 8))
+    frames = stream.to_dlpack_frame(prefetch=2)
+    assert next(frames).sum() == 5
+    with pytest.raises(ValueError, match="out of bounds"):
+        next(frames)
+    with pytest.raises(ValueError, match="out of bounds"):
+        list(stream.to_dlpack_indices(prefetch=1))
+    assert _prefetch_threads() == []
+
+
+def test_prefetch_stops_thread_on_break():
+    closed = []
+
+    class _EndlessStream(_FixedStream):
+        def __iter__(self):
+            try:
+                while True:
+                    yield _make_packet()
+            finally:
+                closed.append(True)
+
+    stream = _EndlessStream([], dimensions=(10, 8))
+    for index, _ in enumerate(stream.to_dlpack_indices(prefetch=2)):
+        if index == 3:
+            break
+    assert _prefetch_threads() == []
+    assert closed == [True]
+    frames = stream.to_dlpack_frame(prefetch=2)
+    next(frames)
+    frames.close()
+    assert _prefetch_threads() == []
+    assert closed == [True, True]
+
+
+def test_to_dlpack_indices_out_reuses_buffers():
+    stream = _FixedStream(_batch_packets(), dimensions=(10, 8))
+    expected = list(stream.to_dlpack_indices())
+    buffers = [numpy.full(16, -1, dtype=numpy.int32) for _ in range(2)]
+    for index, indices in enumerate(stream.to_dlpack_indices(out=buffers)):
+        assert indices.base is buffers[index % 2]
+        numpy.testing.assert_array_equal(indices, expected[index])
+    batched = list(stream.to_dlpack_indices(batch_events=6, out=numpy.empty(16, numpy.int32)))
+    assert sum(map(len, batched)) == sum(map(len, expected))
+
+
+@pytest.mark.parametrize(
+    "buffer",
+    [
+        numpy.zeros(16, dtype=numpy.int64),  # wrong dtype
+        numpy.zeros(4, dtype=numpy.int32),  # too small for 5 events
+        numpy.zeros(32, dtype=numpy.int32)[::2],  # not contiguous
+        numpy.zeros((2, 8), dtype=numpy.int32),  # not 1-D
+    ],
+)
+def test_to_dlpack_indices_out_rejects_bad_buffers(buffer):
+    stream = _FixedStream([_make_packet()], dimensions=(10, 8))
+    with pytest.raises(ValueError):
+        list(stream.to_dlpack_indices(out=buffer))
+
+
+@pytest.mark.parametrize("prefetch", [1, 2])
+def test_prefetch_indices_out_buffers_not_overwritten_while_held(prefetch):
+    import time
+
+    stream = _FixedStream(_many_packets(20), dimensions=(10, 8))
+    expected = list(stream.to_dlpack_indices())
+    buffers = [numpy.empty(200, dtype=numpy.int32) for _ in range(prefetch + 2)]
+    for index, indices in enumerate(stream.to_dlpack_indices(out=buffers, prefetch=prefetch)):
+        time.sleep(0.005)
+        numpy.testing.assert_array_equal(indices, expected[index])
+    with pytest.raises(ValueError, match=f"at least {prefetch + 2}"):
+        next(stream.to_dlpack_indices(out=buffers[:-1], prefetch=prefetch))
