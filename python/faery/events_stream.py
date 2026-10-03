@@ -11,13 +11,28 @@ from . import color, enums, events_stream_state, frame_stream, stream, timestamp
 
 if typing.TYPE_CHECKING:
     from . import event_rate, kinectograph, spectrogram
-    from .types import aedat
+    from .types import aedat, array
 else:
-    from .extension import aedat
+    from .extension import aedat, array
 
 EVENTS_DTYPE: numpy.dtype = numpy.dtype(
     [("t", "=u8"), ("x", "=u2"), ("y", "=u2"), (("p", "on"), "?")]
 )
+
+
+def concatenate_events(events_buffers: list[numpy.ndarray]) -> numpy.ndarray:
+    """Joins event packets into one new contiguous array of EVENTS_DTYPE.
+
+    numpy before 2.5 copies structured records field by field, which made
+    joining packets (in regularize, chunks, or to_array) most of the cost of
+    windowing a recording. The extension copies each packet with one memcpy,
+    and falls back to numpy.concatenate for packets of another dtype.
+    """
+    result = array.concatenate(events_buffers, EVENTS_DTYPE)
+    if result is None:
+        return numpy.concatenate(events_buffers, dtype=EVENTS_DTYPE)
+    return result
+
 
 # A type puzzle
 # =============
@@ -384,7 +399,9 @@ class Output(typing.Generic[OutputState]):
                 # Concatenating the field views copies each event once, into a
                 # new contiguous array.
                 yield {
-                    field: numpy.concatenate([events[key_map[field]] for events in batch])
+                    field: numpy.concatenate(
+                        [events[key_map[field]] for events in batch]
+                    )
                     for field in fields
                 }
 
@@ -465,7 +482,10 @@ class Output(typing.Generic[OutputState]):
                     yield dlpack.linear_indices(batch[0], width, height)
                 else:
                     yield numpy.concatenate(
-                        [dlpack.linear_indices(events, width, height) for events in batch]
+                        [
+                            dlpack.linear_indices(events, width, height)
+                            for events in batch
+                        ]
                     )
             return
         buffers = [out] if isinstance(out, numpy.ndarray) else list(out)
@@ -474,7 +494,11 @@ class Output(typing.Generic[OutputState]):
         for index, batch in enumerate(self._dlpack_batches(batch_events)):
             buffer = buffers[index % len(buffers)]
             total = sum(len(events) for events in batch)
-            if not isinstance(buffer, numpy.ndarray) or buffer.ndim != 1 or len(buffer) < total:
+            if (
+                not isinstance(buffer, numpy.ndarray)
+                or buffer.ndim != 1
+                or len(buffer) < total
+            ):
                 raise ValueError(
                     f"out must be a writeable, C-contiguous 1-D numpy array with "
                     f"dtype int32 and at least {total} elements"
@@ -707,10 +731,7 @@ class FiniteEventsStream(
         for events in self:
             events_buffers.append(events)
             state_manager.commit(events=events)
-        if len(events_buffers) == 0:
-            result = numpy.array([], dtype=EVENTS_DTYPE)
-        else:
-            result = numpy.concatenate(events_buffers, dtype=EVENTS_DTYPE)
+        result = concatenate_events(events_buffers)
         state_manager.end()
         return result
 
@@ -956,10 +977,7 @@ class FiniteRegularEventsStream(
         for events in self:
             events_buffers.append(events)
             state_manager.commit(events=events)
-        if len(events_buffers) == 0:
-            result = numpy.array([], dtype=EVENTS_DTYPE)
-        else:
-            result = numpy.concatenate(events_buffers, dtype=EVENTS_DTYPE)
+        result = concatenate_events(events_buffers)
         state_manager.end()
         return result
 

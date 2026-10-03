@@ -3,6 +3,7 @@ use pyo3::prelude::*;
 mod aedat;
 mod csv;
 mod dat;
+mod concatenate;
 mod dlpack;
 mod es;
 mod evt;
@@ -36,6 +37,11 @@ fn faery(python: Python<'_>, module: &pyo3::Bound<'_, pyo3::types::PyModule>) ->
         submodule.add("ZSTD_FASTEST", ("zstd", utilities::ZSTD_MINIMUM_LEVEL))?;
         submodule.add("ZSTD_DEFAULT", ("zstd", utilities::ZSTD_DEFAULT_LEVEL))?;
         submodule.add("ZSTD_HIGHEST", ("zstd", utilities::ZSTD_MAXIMUM_LEVEL))?;
+        module.add_submodule(&submodule)?;
+    }
+    {
+        let submodule = PyModule::new(python, "array")?;
+        submodule.add_function(wrap_pyfunction!(concatenate::concatenate, &submodule)?)?;
         module.add_submodule(&submodule)?;
     }
     {

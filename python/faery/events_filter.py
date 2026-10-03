@@ -125,9 +125,7 @@ class Regularize(events_stream.FiniteRegularEventsFilter):
                     if len(events_buffers) == 0:
                         yield numpy.array([], dtype=events_stream.EVENTS_DTYPE)
                     else:
-                        yield numpy.concatenate(
-                            events_buffers, dtype=events_stream.EVENTS_DTYPE
-                        )
+                        yield events_stream.concatenate_events(events_buffers)
                     events_buffers = []
                     packet_index += 1
                     continue
@@ -139,15 +137,13 @@ class Regularize(events_stream.FiniteRegularEventsFilter):
                     yield events[:pivot]
                 else:
                     events_buffers.append(events[:pivot])
-                    yield numpy.concatenate(
-                        events_buffers, dtype=events_stream.EVENTS_DTYPE
-                    )
+                    yield events_stream.concatenate_events(events_buffers)
                     events_buffers = []
                 events = events[pivot:]
                 packet_index += 1
         if len(events_buffers) > 0:
             assert first_packet_start_t_us is not None
-            yield numpy.concatenate(events_buffers, dtype=events_stream.EVENTS_DTYPE)
+            yield events_stream.concatenate_events(events_buffers)
             events_buffers = []
             packet_index += 1
         if first_packet_start_t_us is not None and end_t_us is not None:
@@ -182,15 +178,13 @@ class Chunks(events_stream.FiniteRegularEventsFilter):
                     yield events[:pivot]
                 else:
                     events_buffers.append(events[:pivot])
-                    yield numpy.concatenate(
-                        events_buffers, dtype=events_stream.EVENTS_DTYPE
-                    )
+                    yield events_stream.concatenate_events(events_buffers)
                     events_buffers = []
                 current_length = 0
                 events = events[pivot:]
                 events_length = len(events)
         if len(events_buffers) > 0:
-            yield numpy.concatenate(events_buffers, dtype=events_stream.EVENTS_DTYPE)
+            yield events_stream.concatenate_events(events_buffers)
             events_buffers = []
 
 
@@ -548,9 +542,7 @@ class FilterArbiterSaturationLines(events_stream.FiniteRegularEventsFilter):
             delta_coordinate = "x"
         buffer = numpy.array([], dtype=events_stream.EVENTS_DTYPE)
         for events in self.parent:
-            buffer = numpy.concatenate(
-                [buffer, events], dtype=events_stream.EVENTS_DTYPE
-            )
+            buffer = events_stream.concatenate_events([buffer, events])
             deltas = numpy.diff(
                 buffer[delta_coordinate].astype(numpy.int32), prepend=-1
             )
