@@ -198,6 +198,37 @@ class OffsetT(events_stream.FiniteRegularEventsFilter):
 """
 
 
+@typed_filter({"Finite"})
+class Reverse(events_stream.FiniteEventsFilter):
+    """Time reversal: the same events in reverse order, mirrored in time.
+
+    An event at t moves to start + (end - 1) - t, where [start, end) is the
+    parent's time range, so time still increases and the range is unchanged.
+    Reversing time turns a brightness increase into a decrease, so polarity
+    flips. The first output event is the last input event, so this
+    implementation buffers the whole stream (memory linear in its length).
+
+    TODO: implement a streaming version for files where the decoder can
+    simply seek to the end and read backwards, should be constant memory
+    """
+
+    def __init__(self, parent: stream.FiniteStream[numpy.ndarray]):
+        self.init(parent=parent)
+
+    def time_range(self) -> tuple[timestamp.Time, timestamp.Time]:
+        return self.parent.time_range()
+
+    def __iter__(self) -> collections.abc.Iterator[numpy.ndarray]:
+        start, end = (time.to_microseconds() for time in self.parent.time_range())
+        packets = [events for events in self.parent if len(events) > 0]
+        mirror = numpy.uint64(start + end - 1)
+        for events in reversed(packets):
+            reversed_events = events[::-1].copy()
+            reversed_events["t"] = mirror - reversed_events["t"]
+            reversed_events["on"] = numpy.logical_not(reversed_events["on"])
+            yield reversed_events
+
+
 @typed_filter({"", "Finite"})
 class TimeSlice(events_stream.EventsFilter):
     def __init__(

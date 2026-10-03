@@ -724,6 +724,19 @@ class FiniteEventsStream(
         gamma: float = 0.0,
     ) -> frame_stream.FiniteFrameStream: ...
 
+    def reverse(self) -> FiniteEventsStream:
+        """
+        Reverses time: the same events in reverse order, with polarity flipped.
+
+        Timestamps are mirrored within the time range ([start, end) becomes
+        start + (end - 1) - t), so time still increases along the stream and the
+        time range is unchanged. The first output event is the last input event,
+        so the whole stream is buffered: memory grows with its length.
+        """
+        from .events_filter import FILTERS
+
+        return FILTERS["FiniteReverse"](parent=self)  # ty: ignore[invalid-return-type]
+
     def to_kinectograph(
         self,
         threshold_quantile: float = 0.9,
