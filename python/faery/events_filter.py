@@ -186,7 +186,9 @@ class Chunks(events_stream.FiniteRegularEventsFilter):
                         events_buffers, dtype=events_stream.EVENTS_DTYPE
                     )
                     events_buffers = []
+                current_length = 0
                 events = events[pivot:]
+                events_length = len(events)
         if len(events_buffers) > 0:
             yield numpy.concatenate(events_buffers, dtype=events_stream.EVENTS_DTYPE)
             events_buffers = []
