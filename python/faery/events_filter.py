@@ -113,15 +113,16 @@ class Regularize(events_stream.FiniteRegularEventsFilter):
         events_buffers: list[numpy.ndarray] = []
         period_us = 1e6 / self._frequency_hz
         for events in self.parent:
+            t = events["t"]
             while len(events) > 0:
                 if first_packet_start_t_us is None:
-                    first_packet_start_t_us = int(events["t"][0])
-                if events["t"][-1] < first_packet_start_t_us:
+                    first_packet_start_t_us = int(t[0])
+                if t[-1] < first_packet_start_t_us:
                     break
                 next_packet_start_t = round(
                     first_packet_start_t_us + (packet_index + 1) * period_us
                 )
-                if events["t"][0] >= next_packet_start_t:
+                if t[0] >= next_packet_start_t:
                     if len(events_buffers) == 0:
                         yield numpy.array([], dtype=events_stream.EVENTS_DTYPE)
                     else:
@@ -129,10 +130,18 @@ class Regularize(events_stream.FiniteRegularEventsFilter):
                     events_buffers = []
                     packet_index += 1
                     continue
-                if events["t"][-1] < next_packet_start_t:
+                if t[-1] < next_packet_start_t:
                     events_buffers.append(events)
                     break
-                pivot = numpy.searchsorted(events["t"], next_packet_start_t)
+                # events["t"] is a strided view into the records, and
+                # searchsorted copies a strided array whole on every call: on
+                # one 20M-event packet at 60 Hz, that took 19 s instead of
+                # 0.3 s. Copy once, on the first search in this packet (most
+                # packets need none), and slice the copy along with the events.
+                if not t.flags.c_contiguous:
+                    t = numpy.ascontiguousarray(t)
+                # A uint64 key, so numpy does not convert the column to compare.
+                pivot = numpy.searchsorted(t, numpy.uint64(next_packet_start_t))
                 if len(events_buffers) == 0:
                     yield events[:pivot]
                 else:
@@ -140,6 +149,7 @@ class Regularize(events_stream.FiniteRegularEventsFilter):
                     yield events_stream.concatenate_events(events_buffers)
                     events_buffers = []
                 events = events[pivot:]
+                t = t[pivot:]
                 packet_index += 1
         if len(events_buffers) > 0:
             assert first_packet_start_t_us is not None
