@@ -13,6 +13,9 @@ pub struct Decoder {
     t: u64,
     offset: u64,
     t0: u64,
+    /// Write the payload as 0/1 so the packed record matches faery's event
+    /// layout (t u64, x u16, y u16, on bool) byte for byte.
+    boolean_payload: bool,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -41,6 +44,7 @@ impl Decoder {
         path: P,
         dimensions_fallback: Option<(u16, u16)>,
         version_fallback: Option<common::Version>,
+        boolean_payload: bool,
     ) -> Result<Self, Error> {
         let header = utilities::read_prophesee_header(
             &mut std::io::BufReader::new(std::fs::File::open(&path)?),
@@ -99,7 +103,61 @@ impl Decoder {
             t: 0,
             offset: 0,
             t0: header.t0,
+            boolean_payload,
         })
+    }
+
+    /// Advances the running timestamp with one event word. The low 32 bits are
+    /// the timestamp; a backwards jump of more than 2^31 us is an overflow, and
+    /// any smaller backwards jump is clamped (t stays at its running maximum).
+    #[inline(always)]
+    fn update_t(&mut self, word: u64) {
+        let mut candidate_t = (word & 0xFFFFFFFF_u64) + self.offset;
+        if candidate_t < self.t {
+            if self.t - candidate_t > (1_u64 << 31) {
+                candidate_t += 1_u64 << 32;
+                self.offset += 1_u64 << 32;
+                self.t = candidate_t;
+            }
+        } else {
+            self.t = candidate_t;
+        }
+    }
+
+    /// First and last event timestamps (t0 included), from a pass that reads
+    /// only the timestamp words: the same values a full decode would yield,
+    /// without building events. Consumes the decoder. None for an empty file.
+    pub fn time_range(mut self) -> Result<Option<(u64, u64)>, utilities::ReadError> {
+        let mut buffer = vec![0u8; 1 << 20];
+        let mut pending = 0usize;
+        let mut first: Option<u64> = None;
+        loop {
+            let read = self.file.read(&mut buffer[pending..])?;
+            if read == 0 {
+                break;
+            }
+            let available = pending + read;
+            let complete = available - available % 8;
+            for chunk in buffer[..complete].chunks_exact(8) {
+                self.update_t(u64::from_le_bytes(chunk.try_into().expect("8 bytes")));
+                if first.is_none() {
+                    first = Some(self.t + self.t0);
+                }
+            }
+            // Keep a partial word (short read) for the next iteration.
+            buffer.copy_within(complete..available, 0);
+            pending = available - complete;
+        }
+        Ok(first.map(|first| (first, self.t + self.t0)))
+    }
+
+    #[inline(always)]
+    fn payload(&self, raw: u8) -> u8 {
+        if self.boolean_payload {
+            (raw != 0) as u8
+        } else {
+            raw
+        }
     }
 
     pub fn version(&self) -> common::Version {
@@ -129,16 +187,7 @@ impl Decoder {
                             .try_into()
                             .expect("8 bytes"),
                     );
-                    let mut candidate_t = (word & 0xFFFFFFFF_u64) + self.offset;
-                    if candidate_t < self.t {
-                        if self.t - candidate_t > (1_u64 << 31) {
-                            candidate_t += 1_u64 << 32;
-                            self.offset += 1_u64 << 32;
-                            self.t = candidate_t;
-                        }
-                    } else {
-                        self.t = candidate_t;
-                    }
+                    self.update_t(word);
                     let x = ((word >> 32) & 0b111111111_u64) as u16;
                     let y = ((word >> 41) & 0b11111111_u64) as u16;
                     match self.event_type {
@@ -157,7 +206,7 @@ impl Decoder {
                         t: self.t + self.t0,
                         x,
                         y,
-                        payload: ((word >> 49) & 0b1111) as u8,
+                        payload: self.payload(((word >> 49) & 0b1111) as u8),
                     });
                 }
             }
@@ -168,16 +217,7 @@ impl Decoder {
                             .try_into()
                             .expect("8 bytes"),
                     );
-                    let mut candidate_t = (word & 0xFFFFFFFF_u64) + self.offset;
-                    if candidate_t < self.t {
-                        if self.t - candidate_t > (1_u64 << 31) {
-                            candidate_t += 1_u64 << 32;
-                            self.offset += 1_u64 << 32;
-                            self.t = candidate_t;
-                        }
-                    } else {
-                        self.t = candidate_t;
-                    }
+                    self.update_t(word);
                     let x = ((word >> 32) & 0b11111111111111_u64) as u16;
                     let y = ((word >> 46) & 0b11111111111111_u64) as u16;
                     match self.event_type {
@@ -196,7 +236,7 @@ impl Decoder {
                         t: self.t + self.t0,
                         x,
                         y,
-                        payload: (word >> 60) as u8,
+                        payload: self.payload((word >> 60) as u8),
                     });
                 }
             }

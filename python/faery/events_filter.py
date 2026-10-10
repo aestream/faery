@@ -113,41 +113,47 @@ class Regularize(events_stream.FiniteRegularEventsFilter):
         events_buffers: list[numpy.ndarray] = []
         period_us = 1e6 / self._frequency_hz
         for events in self.parent:
+            t = events["t"]
             while len(events) > 0:
                 if first_packet_start_t_us is None:
-                    first_packet_start_t_us = int(events["t"][0])
-                if events["t"][-1] < first_packet_start_t_us:
+                    first_packet_start_t_us = int(t[0])
+                if t[-1] < first_packet_start_t_us:
                     break
                 next_packet_start_t = round(
                     first_packet_start_t_us + (packet_index + 1) * period_us
                 )
-                if events["t"][0] >= next_packet_start_t:
+                if t[0] >= next_packet_start_t:
                     if len(events_buffers) == 0:
                         yield numpy.array([], dtype=events_stream.EVENTS_DTYPE)
                     else:
-                        yield numpy.concatenate(
-                            events_buffers, dtype=events_stream.EVENTS_DTYPE
-                        )
+                        yield events_stream.concatenate_events(events_buffers)
                     events_buffers = []
                     packet_index += 1
                     continue
-                if events["t"][-1] < next_packet_start_t:
+                if t[-1] < next_packet_start_t:
                     events_buffers.append(events)
                     break
-                pivot = numpy.searchsorted(events["t"], next_packet_start_t)
+                # events["t"] is a strided view into the records, and
+                # searchsorted copies a strided array whole on every call: on
+                # one 20M-event packet at 60 Hz, that took 19 s instead of
+                # 0.3 s. Copy once, on the first search in this packet (most
+                # packets need none), and slice the copy along with the events.
+                if not t.flags.c_contiguous:
+                    t = numpy.ascontiguousarray(t)
+                # A uint64 key, so numpy does not convert the column to compare.
+                pivot = numpy.searchsorted(t, numpy.uint64(next_packet_start_t))
                 if len(events_buffers) == 0:
                     yield events[:pivot]
                 else:
                     events_buffers.append(events[:pivot])
-                    yield numpy.concatenate(
-                        events_buffers, dtype=events_stream.EVENTS_DTYPE
-                    )
+                    yield events_stream.concatenate_events(events_buffers)
                     events_buffers = []
                 events = events[pivot:]
+                t = t[pivot:]
                 packet_index += 1
         if len(events_buffers) > 0:
             assert first_packet_start_t_us is not None
-            yield numpy.concatenate(events_buffers, dtype=events_stream.EVENTS_DTYPE)
+            yield events_stream.concatenate_events(events_buffers)
             events_buffers = []
             packet_index += 1
         if first_packet_start_t_us is not None and end_t_us is not None:
@@ -182,13 +188,13 @@ class Chunks(events_stream.FiniteRegularEventsFilter):
                     yield events[:pivot]
                 else:
                     events_buffers.append(events[:pivot])
-                    yield numpy.concatenate(
-                        events_buffers, dtype=events_stream.EVENTS_DTYPE
-                    )
+                    yield events_stream.concatenate_events(events_buffers)
                     events_buffers = []
+                current_length = 0
                 events = events[pivot:]
+                events_length = len(events)
         if len(events_buffers) > 0:
-            yield numpy.concatenate(events_buffers, dtype=events_stream.EVENTS_DTYPE)
+            yield events_stream.concatenate_events(events_buffers)
             events_buffers = []
 
 
@@ -196,6 +202,37 @@ class Chunks(events_stream.FiniteRegularEventsFilter):
 class OffsetT(events_stream.FiniteRegularEventsFilter):
     pass  # @TODO
 """
+
+
+@typed_filter({"Finite"})
+class Reverse(events_stream.FiniteEventsFilter):
+    """Time reversal: the same events in reverse order, mirrored in time.
+
+    An event at t moves to start + (end - 1) - t, where [start, end) is the
+    parent's time range, so time still increases and the range is unchanged.
+    Reversing time turns a brightness increase into a decrease, so polarity
+    flips. The first output event is the last input event, so this
+    implementation buffers the whole stream (memory linear in its length).
+
+    TODO: implement a streaming version for files where the decoder can
+    simply seek to the end and read backwards, should be constant memory
+    """
+
+    def __init__(self, parent: stream.FiniteStream[numpy.ndarray]):
+        self.init(parent=parent)
+
+    def time_range(self) -> tuple[timestamp.Time, timestamp.Time]:
+        return self.parent.time_range()
+
+    def __iter__(self) -> collections.abc.Iterator[numpy.ndarray]:
+        start, end = (time.to_microseconds() for time in self.parent.time_range())
+        packets = [events for events in self.parent if len(events) > 0]
+        mirror = numpy.uint64(start + end - 1)
+        for events in reversed(packets):
+            reversed_events = events[::-1].copy()
+            reversed_events["t"] = mirror - reversed_events["t"]
+            reversed_events["on"] = numpy.logical_not(reversed_events["on"])
+            yield reversed_events
 
 
 @typed_filter({"", "Finite"})
@@ -515,9 +552,7 @@ class FilterArbiterSaturationLines(events_stream.FiniteRegularEventsFilter):
             delta_coordinate = "x"
         buffer = numpy.array([], dtype=events_stream.EVENTS_DTYPE)
         for events in self.parent:
-            buffer = numpy.concatenate(
-                [buffer, events], dtype=events_stream.EVENTS_DTYPE
-            )
+            buffer = events_stream.concatenate_events([buffer, events])
             deltas = numpy.diff(
                 buffer[delta_coordinate].astype(numpy.int32), prepend=-1
             )

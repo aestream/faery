@@ -11,13 +11,28 @@ from . import color, enums, events_stream_state, frame_stream, stream, timestamp
 
 if typing.TYPE_CHECKING:
     from . import event_rate, kinectograph, spectrogram
-    from .types import aedat
+    from .types import aedat, array
 else:
-    from .extension import aedat
+    from .extension import aedat, array
 
 EVENTS_DTYPE: numpy.dtype = numpy.dtype(
     [("t", "=u8"), ("x", "=u2"), ("y", "=u2"), (("p", "on"), "?")]
 )
+
+
+def concatenate_events(events_buffers: list[numpy.ndarray]) -> numpy.ndarray:
+    """Joins event packets into one new contiguous array of EVENTS_DTYPE.
+
+    numpy before 2.5 copies structured records field by field, which made
+    joining packets (in regularize, chunks, or to_array) most of the cost of
+    windowing a recording. The extension copies each packet with one memcpy,
+    and falls back to numpy.concatenate for packets of another dtype.
+    """
+    result = array.concatenate(events_buffers, EVENTS_DTYPE)
+    if result is None:
+        return numpy.concatenate(events_buffers, dtype=EVENTS_DTYPE)
+    return result
+
 
 # A type puzzle
 # =============
@@ -86,6 +101,82 @@ EVENTS_DTYPE: numpy.dtype = numpy.dtype(
 # the code before testing it.
 
 OutputState = typing.TypeVar("OutputState")
+
+
+_PREFETCH_DONE = object()
+
+
+def _check_prefetch_buffers(
+    out: typing.Union[numpy.ndarray, collections.abc.Sequence[numpy.ndarray], None],
+    prefetch: int,
+) -> None:
+    if out is None:
+        return
+    buffers = 1 if isinstance(out, numpy.ndarray) else len(out)
+    if buffers < prefetch + 2:
+        raise ValueError(
+            f"prefetch={prefetch} needs at least {prefetch + 2} out buffers "
+            f"(got {buffers}): the background thread writes up to "
+            f"prefetch + 1 arrays ahead of the current one"
+        )
+
+
+def _prefetched(
+    source: collections.abc.Iterator[typing.Any], prefetch: int
+) -> collections.abc.Iterator[typing.Any]:
+    """Runs `source` in a background thread, up to `prefetch` items ahead.
+
+    The faery DLPack exporters release the GIL while they walk a packet, so
+    the next packet is prepared while the caller works on the current one
+    (e.g. queues GPU work). Exceptions raised by `source` are re-raised here.
+    Closing this generator (break, garbage collection) stops the thread and
+    closes `source`.
+    """
+    import queue
+    import threading
+
+    items: queue.Queue = queue.Queue(maxsize=prefetch)
+    stop = threading.Event()
+
+    def produce():
+        try:
+            for item in source:
+                while not stop.is_set():
+                    try:
+                        items.put((item, None), timeout=0.05)
+                        break
+                    except queue.Full:
+                        pass
+                if stop.is_set():
+                    return
+            item, error = _PREFETCH_DONE, None
+        except BaseException as exception:
+            # BaseException too: the consumer would otherwise wait forever.
+            item, error = _PREFETCH_DONE, exception
+        finally:
+            close = getattr(source, "close", None)
+            if close is not None:
+                close()
+        while not stop.is_set():
+            try:
+                items.put((item, error), timeout=0.05)
+                return
+            except queue.Full:
+                pass
+
+    thread = threading.Thread(target=produce, name="faery-prefetch", daemon=True)
+    thread.start()
+    try:
+        while True:
+            item, error = items.get()
+            if error is not None:
+                raise error
+            if item is _PREFETCH_DONE:
+                return
+            yield item
+    finally:
+        stop.set()
+        thread.join()
 
 
 class Output(typing.Generic[OutputState]):
@@ -215,6 +306,350 @@ class Output(typing.Generic[OutputState]):
             format=format,
             on_progress=on_progress,  # type: ignore
         )
+
+    def _dlpack_batches(
+        self, batch_events: typing.Optional[int]
+    ) -> collections.abc.Iterator[list[numpy.ndarray]]:
+        """Consecutive packets grouped until each group holds >= batch_events.
+
+        Without batch_events, every packet is its own group. Batching only
+        re-partitions the stream, which changes nothing about a non-regular
+        stream (its packet boundaries carry no meaning). A regular stream's
+        packets are time bins, and merging them would change the result, so
+        batching a regular stream is refused.
+        """
+        if batch_events is None:
+            for events in self:
+                yield [events]
+            return
+        if batch_events < 1:
+            raise ValueError(f"batch_events must be at least 1 (got {batch_events})")
+        if isinstance(self, (RegularEventsStream, FiniteRegularEventsStream)):
+            raise ValueError(
+                "batch_events would merge the packets (time bins) of a regular stream; "
+                "batch a non-regular stream, e.g. before regularize()"
+            )
+        pending: list[numpy.ndarray] = []
+        pending_events = 0
+        for events in self:
+            if len(events) == 0:
+                continue
+            pending.append(events)
+            pending_events += len(events)
+            if pending_events >= batch_events:
+                yield pending
+                pending = []
+                pending_events = 0
+        if len(pending) > 0:
+            yield pending
+
+    def _dlpack_window_batches(
+        self, windows_per_batch: int
+    ) -> collections.abc.Iterator[list[numpy.ndarray]]:
+        """Consecutive packets (time windows) of a regular stream, K at a time.
+
+        Unlike _dlpack_batches, empty packets are kept: each is a frame.
+        """
+        pending: list[numpy.ndarray] = []
+        for events in self:
+            pending.append(events)
+            if len(pending) == windows_per_batch:
+                yield pending
+                pending = []
+        if len(pending) > 0:
+            yield pending
+
+    def to_dlpack_sparse(
+        self,
+        fields: collections.abc.Sequence[typing.Literal["t", "x", "y", "p"]] = (
+            "t",
+            "x",
+            "y",
+            "p",
+        ),
+        batch_events: typing.Optional[int] = None,
+    ) -> collections.abc.Iterator[dict[str, numpy.ndarray]]:
+        """
+        Yields events per packet as a dict of contiguous arrays (by default {"t", "x", "y", "p"}).
+
+        Each value is a numpy array that exposes `__dlpack__`, so it can be passed
+        to any ML framework that supports the DLPack protocol
+        (e.g. `torch.from_dlpack`, `jax.dlpack.from_dlpack`).
+
+        Fields are copied out of the structured event packet into contiguous arrays
+        so that DLPack export does not require strided support on the consumer side.
+        Dtypes match the event packet:
+            t: uint64, x: uint16, y: uint16, p: bool
+
+        Each yielded array is one GPU upload. Packets decoded from a file are
+        small (8192 events from DAT), and a transfer from pageable memory
+        blocks, so per-packet uploads are dominated by their fixed cost:
+        `batch_events` concatenates consecutive packets until each yielded
+        array holds at least that many events. About 262144 (2^18) was fastest
+        on a 1280x720 recording; one upload per packet was 1.8x slower. Only
+        non-regular streams can be batched (see `_dlpack_batches`).
+
+        Args:
+            fields: Fields to extract, any subset of ("t", "x", "y", "p").
+                Fields not listed are not copied. A continuously streaming GPU
+                consumer typically only needs ("x", "y", "p") — timestamps are
+                implicit in the packet cadence.
+            batch_events: Minimum events per yielded array, or None (default)
+                for one array per packet.
+        """
+        key_map = {"t": "t", "x": "x", "y": "y", "p": "on"}
+        for field in fields:
+            if field not in key_map:
+                raise ValueError(
+                    f'unknown field "{field}" (expected "t", "x", "y", or "p")'
+                )
+        for batch in self._dlpack_batches(batch_events):
+            if len(batch) == 1:
+                # .copy(), not ascontiguousarray: numpy flags any array with at
+                # most one element as contiguous regardless of its stride, so for
+                # 0- or 1-event packets ascontiguousarray returns the strided
+                # field view itself (stride = record size), which
+                # torch.from_numpy rejects.
+                yield {field: batch[0][key_map[field]].copy() for field in fields}
+            else:
+                # Concatenating the field views copies each event once, into a
+                # new contiguous array.
+                yield {
+                    field: numpy.concatenate(
+                        [events[key_map[field]] for events in batch]
+                    )
+                    for field in fields
+                }
+
+    def to_dlpack_indices(
+        self,
+        batch_events: typing.Optional[int] = None,
+        out: typing.Union[
+            numpy.ndarray, collections.abc.Sequence[numpy.ndarray], None
+        ] = None,
+        prefetch: int = 0,
+        windows_per_batch: typing.Optional[int] = None,
+    ) -> collections.abc.Iterator[
+        typing.Union[numpy.ndarray, tuple[numpy.ndarray, int]]
+    ]:
+        """
+        Yields per-packet flat frame indices as 1-D int32 numpy arrays.
+
+        Each event becomes `p * height * width + y * width + x` (p = 0 for OFF,
+        1 for ON), an index into a flattened `(2, height, width)` frame. This
+        is the most compact way to ship a packet to a GPU (4 bytes per event, a
+        single transfer), and one scatter rebuilds the frame there:
+
+            indices = torch.from_dlpack(indices_np).to("cuda")
+            frame = torch.zeros(2 * height * width, device="cuda")
+            frame.index_add_(0, indices, torch.ones(len(indices), device="cuda"))
+            frame = frame.view(2, height, width)
+
+        index_add_ benchmarks faster than torch.bincount, which returns int64
+        counts that still need converting.
+
+        Arrays expose `__dlpack__`. Events outside the sensor raise a ValueError.
+
+        `batch_events` concatenates consecutive packets until each yielded
+        array holds at least that many events, as for `to_dlpack_sparse`: fewer,
+        larger uploads. Only non-regular streams can be batched.
+
+        By default every array is newly allocated. Pass `out` to write into
+        buffers instead: one array, or a sequence of arrays used in turn. Each
+        must be a writeable, C-contiguous 1-D int32 array with room for the
+        largest packet (or batch), and the yielded array is a view of its
+        start, overwritten when the buffer's turn comes again. Pinned buffers
+        make the upload a DMA transfer:
+
+            buffers = [torch.empty(capacity, dtype=torch.int32, pin_memory=True)
+                       for _ in range(2)]
+            out = [buffer.numpy() for buffer in buffers]
+            for index, indices in enumerate(stream.to_dlpack_indices(out=out)):
+                gpu = buffers[index % 2][: len(indices)].to("cuda", non_blocking=True)
+                ...  # wait for that copy before the buffer's next turn
+
+        `prefetch` prepares up to that many arrays ahead in a background
+        thread, overlapping the Rust work (which releases the GIL) with
+        whatever the caller does with the current array, such as queueing GPU
+        work. 0 (default) prepares each array on demand, in the caller's
+        thread. Combine it with pinned `out` buffers: without them, the
+        background thread writes into memory that the upload has just read
+        on another core, and on CPUs with several L3 caches (AMD Ryzen and
+        Threadripper, multi-socket systems) moving those cache lines made
+        prefetching 3.5x slower than not prefetching. As for
+        `to_dlpack_frame`, `out` needs at least `prefetch + 2` buffers.
+
+        `windows_per_batch` groups the packets of a regular stream (its time
+        windows) instead, K at a time, and yields `(indices, windows)`
+        tuples: window j of the group has its indices offset by
+        `j * 2 * height * width`, so one scatter builds every frame of the
+        group:
+
+            for indices, windows in stream.to_dlpack_indices(windows_per_batch=16):
+                gpu = torch.from_dlpack(indices).to("cuda")
+                frames = torch.zeros(windows * 2 * height * width, device="cuda")
+                frames.index_add_(0, gpu, torch.ones(len(gpu), device="cuda"))
+                for frame in frames.view(windows, 2, height, width):
+                    ...
+
+        Every upload and scatter has a fixed cost (about 0.1 ms with PyTorch
+        on an RTX 3090), which dominates at high frame rates: grouping 16
+        windows of 1 ms halved the time from file to frames. Frames arrive in
+        groups, so a window waits for up to K - 1 later windows: at video
+        rates, where per-window costs are small, the added latency
+        outweighs the gain. `windows` is K except for the last group, and
+        empty windows still count. Only regular streams can be grouped this
+        way, and it excludes `batch_events`.
+
+        Args:
+            batch_events: Minimum events per yielded array, or None (default)
+                for one array per packet.
+            out: Optional buffer, or sequence of buffers, to write into.
+            prefetch: Arrays to prepare ahead in a background thread
+                (0 disables the thread).
+            windows_per_batch: Windows of a regular stream per yielded
+                array, or None (default) for one array per packet.
+        """
+        if prefetch < 0:
+            raise ValueError(f"prefetch must be at least 0 (got {prefetch})")
+        if windows_per_batch is not None:
+            if batch_events is not None:
+                raise ValueError("batch_events and windows_per_batch are exclusive")
+            if windows_per_batch < 1:
+                raise ValueError(
+                    f"windows_per_batch must be at least 1 (got {windows_per_batch})"
+                )
+            if not isinstance(self, (RegularEventsStream, FiniteRegularEventsStream)):
+                raise ValueError(
+                    "windows_per_batch groups the time windows of a regular stream; "
+                    "call regularize() first"
+                )
+        if prefetch > 0:
+            _check_prefetch_buffers(out, prefetch)
+            yield from _prefetched(
+                self.to_dlpack_indices(
+                    batch_events, out, windows_per_batch=windows_per_batch
+                ),
+                prefetch,
+            )
+            return
+        from .extension import dlpack
+
+        width, height = self.dimensions()
+        if windows_per_batch is None:
+            batches = self._dlpack_batches(batch_events)
+        else:
+            batches = self._dlpack_window_batches(windows_per_batch)
+        buffers = None
+        if out is not None:
+            buffers = [out] if isinstance(out, numpy.ndarray) else list(out)
+            if len(buffers) == 0:
+                raise ValueError("out must contain at least one buffer")
+        for index, batch in enumerate(batches):
+            if windows_per_batch is None and buffers is None and len(batch) == 1:
+                yield dlpack.linear_indices(batch[0], width, height)
+                continue
+            total = sum(len(events) for events in batch)
+            if buffers is None:
+                buffer = numpy.empty(total, dtype=numpy.int32)
+            else:
+                buffer = buffers[index % len(buffers)]
+                if (
+                    not isinstance(buffer, numpy.ndarray)
+                    or buffer.ndim != 1
+                    or len(buffer) < total
+                ):
+                    raise ValueError(
+                        f"out must be a writeable, C-contiguous 1-D numpy array with "
+                        f"dtype int32 and at least {total} elements"
+                    )
+            offset = 0
+            for frame, events in enumerate(batch):
+                dlpack.linear_indices(
+                    events,
+                    width,
+                    height,
+                    buffer[offset : offset + len(events)],
+                    frame if windows_per_batch is not None else 0,
+                )
+                offset += len(events)
+            if windows_per_batch is None:
+                yield buffer[:total]
+            else:
+                yield buffer[:total], len(batch)
+
+    def to_dlpack_frame(
+        self,
+        dtype: typing.Literal["u8", "u16", "u32", "f32"] = "u16",
+        out: typing.Union[
+            numpy.ndarray, collections.abc.Sequence[numpy.ndarray], None
+        ] = None,
+        prefetch: int = 0,
+    ) -> collections.abc.Iterator[numpy.ndarray]:
+        """
+        Yields per-packet `(2, height, width)` frames as numpy arrays.
+
+        Each frame is a polarity-split event count histogram where
+        `frame[p, y, x]` is the number of events at pixel `(x, y)` with polarity `p`
+        (0 = OFF, 1 = ON) inside the packet. Output is a numpy array that exposes
+        `__dlpack__`, so it can be passed to any ML framework that supports DLPack.
+
+        u8 saturates at 255 and u16 at 65535 (hot pixels in long packets may
+        saturate); u32 and f32 are safe from saturation. u8 quarters the
+        memory and upload of a frame against u32, for short packets.
+
+        By default every packet allocates a new frame. Pass `out` to reuse
+        buffers instead: one array, or a sequence of arrays used in turn.
+        Each must be a writeable, C-contiguous `(2, height, width)` array of
+        the requested dtype. A yielded frame *is* one of these buffers, and is
+        overwritten when its turn comes again, so finish with it (or copy it)
+        by then. Two pinned host buffers allow asynchronous GPU uploads:
+
+            # torch has limited uint16 support, so stage u16 frames as int16
+            # (exact for counts below 32768).
+            buffers = [torch.empty((2, h, w), dtype=torch.int16, pin_memory=True)
+                       for _ in range(2)]
+            out = [buffer.numpy().view(numpy.uint16) for buffer in buffers]
+            for index, frame in enumerate(stream.to_dlpack_frame(out=out)):
+                device_frame.copy_(buffers[index % 2], non_blocking=True)
+                ...  # wait for the copy from buffer (index + 1) % 2 before
+                     # the next iteration overwrites it (e.g. a CUDA event)
+
+        `prefetch` rasterizes up to that many frames ahead in a background
+        thread, overlapping the Rust work (which releases the GIL) with
+        whatever the caller does with the current frame. 0 (default)
+        rasterizes each frame on demand, in the caller's thread. With `out`,
+        the thread writes up to `prefetch + 1` frames ahead of the one the
+        caller holds, so `out` needs at least `prefetch + 2` buffers, and one
+        more if the previous frame is still being read asynchronously (a
+        non-blocking upload) when the next one is requested.
+
+        Args:
+            dtype: Output dtype, one of "u8", "u16" (default), "u32", or "f32".
+            out: Optional buffer, or sequence of buffers, to rasterize into.
+            prefetch: Frames to rasterize ahead in a background thread
+                (0 disables the thread).
+        """
+        if prefetch < 0:
+            raise ValueError(f"prefetch must be at least 0 (got {prefetch})")
+        if prefetch > 0:
+            _check_prefetch_buffers(out, prefetch)
+            yield from _prefetched(self.to_dlpack_frame(dtype, out), prefetch)
+            return
+        from .extension import dlpack
+
+        width, height = self.dimensions()
+        if out is None:
+            for events in self:
+                yield dlpack.rasterize_to_frame(events, width, height, dtype)
+            return
+        buffers = [out] if isinstance(out, numpy.ndarray) else list(out)
+        if len(buffers) == 0:
+            raise ValueError("out must contain at least one buffer")
+        for index, events in enumerate(self):
+            yield dlpack.rasterize_to_frame(
+                events, width, height, dtype, buffers[index % len(buffers)]
+            )
 
 
 class EventsStream(
@@ -364,10 +799,7 @@ class FiniteEventsStream(
         for events in self:
             events_buffers.append(events)
             state_manager.commit(events=events)
-        if len(events_buffers) == 0:
-            result = numpy.array([], dtype=EVENTS_DTYPE)
-        else:
-            result = numpy.concatenate(events_buffers, dtype=EVENTS_DTYPE)
+        result = concatenate_events(events_buffers)
         state_manager.end()
         return result
 
@@ -380,6 +812,19 @@ class FiniteEventsStream(
         maximum_clip: float = 0.99,
         gamma: float = 0.0,
     ) -> frame_stream.FiniteFrameStream: ...
+
+    def reverse(self) -> FiniteEventsStream:
+        """
+        Reverses time: the same events in reverse order, with polarity flipped.
+
+        Timestamps are mirrored within the time range ([start, end) becomes
+        start + (end - 1) - t), so time still increases along the stream and the
+        time range is unchanged. The first output event is the last input event,
+        so the whole stream is buffered: memory grows with its length.
+        """
+        from .events_filter import FILTERS
+
+        return FILTERS["FiniteReverse"](parent=self)  # ty: ignore[invalid-return-type]
 
     def to_kinectograph(
         self,
@@ -600,10 +1045,7 @@ class FiniteRegularEventsStream(
         for events in self:
             events_buffers.append(events)
             state_manager.commit(events=events)
-        if len(events_buffers) == 0:
-            result = numpy.array([], dtype=EVENTS_DTYPE)
-        else:
-            result = numpy.concatenate(events_buffers, dtype=EVENTS_DTYPE)
+        result = concatenate_events(events_buffers)
         state_manager.end()
         return result
 

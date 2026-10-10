@@ -3,6 +3,8 @@ use pyo3::prelude::*;
 mod aedat;
 mod csv;
 mod dat;
+mod concatenate;
+mod dlpack;
 mod es;
 mod evt;
 mod font;
@@ -35,6 +37,11 @@ fn faery(python: Python<'_>, module: &pyo3::Bound<'_, pyo3::types::PyModule>) ->
         submodule.add("ZSTD_FASTEST", ("zstd", utilities::ZSTD_MINIMUM_LEVEL))?;
         submodule.add("ZSTD_DEFAULT", ("zstd", utilities::ZSTD_DEFAULT_LEVEL))?;
         submodule.add("ZSTD_HIGHEST", ("zstd", utilities::ZSTD_MAXIMUM_LEVEL))?;
+        module.add_submodule(&submodule)?;
+    }
+    {
+        let submodule = PyModule::new(python, "array")?;
+        submodule.add_function(wrap_pyfunction!(concatenate::concatenate, &submodule)?)?;
         module.add_submodule(&submodule)?;
     }
     {
@@ -104,6 +111,12 @@ fn faery(python: Python<'_>, module: &pyo3::Bound<'_, pyo3::types::PyModule>) ->
         let submodule = PyModule::new(python, "mustache")?;
         submodule.add_class::<mustache::Job>()?;
         submodule.add_function(wrap_pyfunction!(mustache::render, &submodule)?)?;
+        module.add_submodule(&submodule)?;
+    }
+    {
+        let submodule = PyModule::new(python, "dlpack")?;
+        submodule.add_function(wrap_pyfunction!(dlpack::rasterize_to_frame, &submodule)?)?;
+        submodule.add_function(wrap_pyfunction!(dlpack::linear_indices, &submodule)?)?;
         module.add_submodule(&submodule)?;
     }
     {

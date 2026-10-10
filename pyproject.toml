@@ -25,6 +25,34 @@ camera = [
   "neuromorphic-drivers==0.18.1",
   "event-camera-drivers"
 ]
+docs = [
+  "jupyter-book>=2.0.0b3",
+  "jupyter-server",
+  "ipykernel",
+  "jupytext",
+  "torch",
+  "jax",
+]
+bench = [
+  "torch",
+  "jax[cuda13]",
+  "pytest-benchmark",
+]
+
+[tool.uv]
+# docs and bench resolve torch from different indexes (CPU vs CUDA).
+conflicts = [[{ group = "docs" }, { group = "bench" }]]
+
+[tool.uv.sources]
+# CPU wheels for the docs build; the bench group uses the default (CUDA) wheels.
+torch = [
+  { index = "pytorch-cpu", group = "docs", marker = "sys_platform == 'linux'" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
 
 [project.scripts]
 faery = "faery:__main__.main"
@@ -35,7 +63,7 @@ repository = "https://github.com/aestream/faery/"
 documentation = "https://github.com/aestream/faery/"
 
 [build-system]
-requires = ["maturin==1.15.0"]
+requires = ["maturin>=1.15,<2"]
 build-backend = "maturin"
 
 [tool.maturin]
