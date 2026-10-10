@@ -6,6 +6,16 @@ trait Rasterize: numpy::Element + Copy + Default + Send {
     fn inc(value: &mut Self);
 }
 
+impl Rasterize for u8 {
+    #[inline(always)]
+    fn inc(value: &mut Self) {
+        // See u16.
+        if *value != u8::MAX {
+            *value += 1;
+        }
+    }
+}
+
 impl Rasterize for u16 {
     #[inline(always)]
     fn inc(value: &mut Self) {
@@ -47,11 +57,12 @@ pub fn rasterize_to_frame(
     let python = events.py();
     let (array, length) = types::check_array(python, types::ArrayType::Dvs, events)?;
     match dtype {
+        "u8" => rasterize_typed::<u8>(python, array, length, width, height, out),
         "u16" => rasterize_typed::<u16>(python, array, length, width, height, out),
         "u32" => rasterize_typed::<u32>(python, array, length, width, height, out),
         "f32" => rasterize_typed::<f32>(python, array, length, width, height, out),
         other => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
-            "unsupported dtype \"{}\" (expected \"u16\", \"u32\", or \"f32\")",
+            "unsupported dtype \"{}\" (expected \"u8\", \"u16\", \"u32\", or \"f32\")",
             other
         ))),
     }

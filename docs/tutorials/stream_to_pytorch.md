@@ -82,8 +82,8 @@ tensor = torch.from_dlpack(frame)
 tensor.shape, tensor.dtype, int(tensor.sum())
 ```
 
-The `dtype` argument selects the frame's element type: `"u16"` (default,
-saturates at 65535), `"u32"`, or `"f32"`. A network wants float32, but it is
+The `dtype` argument selects the frame's element type: `"u8"` (saturates
+at 255), `"u16"` (default, saturates at 65535), `"u32"`, or `"f32"`. A network wants float32, but it is
 cheaper to upload the u16 frame and call `.float()` on the device than to ask
 faery for `"f32"`: half the bytes cross the PCIe bus, which made it about 2.6x
 faster in our benchmarks at low event counts. The cost is saturation at 65535
@@ -305,6 +305,22 @@ packet = next(iter(stream.to_dlpack_sparse(fields=("t", "x", "y", "p"))))
 ```
 
 Only the listed fields are copied, so pass the subset you need.
+
+## Choosing a method
+
+Seconds to put every frame of a 12.5 s, 1280x720 recording (111 M events)
+on an RTX 3090, and the time until the first frame arrives:
+
+| method | 60 Hz | 1 kHz | first frame (60 Hz / 1 kHz) |
+|---|---:|---:|---:|
+| `to_dlpack_frame(dtype="u16")` | 1.10 | 3.35 | 7 / 2 ms |
+| `to_dlpack_frame(dtype="u8")` | 0.97 | 1.88 | 6 / 2 ms |
+| `to_dlpack_indices()` + `index_add_` | 0.92 | 2.17 | 7 / 2 ms |
+| `to_dlpack_indices(windows_per_batch=16)` | 0.87 | 1.14 | 66 / 6 ms |
+
+Scatter indices at video rates, and group windows at high rates if your model
+can wait for a group. If you need frames from the CPU, `"u8"` is the fastest
+`dtype` when no pixel sees more than 255 events per packet.
 
 ## Going live
 

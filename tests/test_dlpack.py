@@ -92,7 +92,12 @@ def test_to_dlpack_frame_counts_polarities():
 
 @pytest.mark.parametrize(
     "dtype, np_dtype",
-    [("u16", numpy.uint16), ("u32", numpy.uint32), ("f32", numpy.float32)],
+    [
+        ("u8", numpy.uint8),
+        ("u16", numpy.uint16),
+        ("u32", numpy.uint32),
+        ("f32", numpy.float32),
+    ],
 )
 def test_to_dlpack_frame_dtype_selection(dtype, np_dtype):
     packet = _make_packet()
@@ -183,6 +188,15 @@ def test_to_dlpack_frame_u16_saturates():
     frame = next(iter(_FixedStream([hot], dimensions=(10, 8)).to_dlpack_frame()))
     assert frame[1, 4, 3] == 65535
     assert frame.sum() == 65535
+
+
+def test_to_dlpack_frame_u8_saturates():
+    hot = numpy.zeros(300, dtype=EVENTS_DTYPE)
+    hot["x"], hot["y"], hot["on"] = 3, 4, True
+    stream = _FixedStream([hot], dimensions=(10, 8))
+    frame = next(iter(stream.to_dlpack_frame(dtype="u8")))
+    assert frame[1, 4, 3] == 255
+    assert frame.sum() == 255
 
 
 def test_to_dlpack_frame_out_reuses_buffers():

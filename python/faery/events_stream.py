@@ -580,7 +580,7 @@ class Output(typing.Generic[OutputState]):
 
     def to_dlpack_frame(
         self,
-        dtype: typing.Literal["u16", "u32", "f32"] = "u16",
+        dtype: typing.Literal["u8", "u16", "u32", "f32"] = "u16",
         out: typing.Union[
             numpy.ndarray, collections.abc.Sequence[numpy.ndarray], None
         ] = None,
@@ -594,8 +594,9 @@ class Output(typing.Generic[OutputState]):
         (0 = OFF, 1 = ON) inside the packet. Output is a numpy array that exposes
         `__dlpack__`, so it can be passed to any ML framework that supports DLPack.
 
-        u16 saturates at 65535 (hot pixels in long packets may saturate);
-        u32 and f32 are safe from saturation.
+        u8 saturates at 255 and u16 at 65535 (hot pixels in long packets may
+        saturate); u32 and f32 are safe from saturation. u8 quarters the
+        memory and upload of a frame against u32, for short packets.
 
         By default every packet allocates a new frame. Pass `out` to reuse
         buffers instead: one array, or a sequence of arrays used in turn.
@@ -624,7 +625,7 @@ class Output(typing.Generic[OutputState]):
         non-blocking upload) when the next one is requested.
 
         Args:
-            dtype: Output dtype, one of "u16" (default), "u32", or "f32".
+            dtype: Output dtype, one of "u8", "u16" (default), "u32", or "f32".
             out: Optional buffer, or sequence of buffers, to rasterize into.
             prefetch: Frames to rasterize ahead in a background thread
                 (0 disables the thread).
